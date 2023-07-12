@@ -1,6 +1,9 @@
 import type { AbiEvent } from "https://esm.sh/abitype@0.9.0";
 import { useCallback, useRef } from "preact/hooks";
-import { CollapsibleTable, CollapsibleTableRow } from "~/components/CollapsibleTable.tsx";
+import {
+  CollapsibleTable,
+  CollapsibleTableRow,
+} from "~/components/CollapsibleTable.tsx";
 
 export interface AbiEntry {
   id: string;
@@ -36,9 +39,13 @@ const AbiTable = ({ abi }: AbiTableProps) => {
 };
 
 const getSignatureFromAbiEvent = (event: AbiEvent) => {
-  return `${event.name}(${event.inputs
-    .map((input) => `${input.type}${input.indexed ? " indexed" : ""} ${input.name}`)
-    .join(", ")})`;
+  return `${event.name}(${
+    event.inputs
+      .map((input) =>
+        `${input.type}${input.indexed ? " indexed" : ""} ${input.name}`
+      )
+      .join(", ")
+  })`;
 };
 
 interface ListAbiProps {
@@ -66,7 +73,7 @@ export default function ListAbi({ entries }: ListAbiProps) {
         method: "DELETE",
       });
     },
-    []
+    [],
   );
 
   const modalRef = useRef<HTMLDialogElement>(null);
@@ -79,7 +86,9 @@ export default function ListAbi({ entries }: ListAbiProps) {
         </button>
         <dialog ref={modalRef} class="modal">
           <form method="dialog" class="modal-box">
-            <button class="btn btn-sm btn-circle btn-ghost float-right">✕</button>
+            <button class="btn btn-sm btn-circle btn-ghost float-right">
+              ✕
+            </button>
             <h3 class="font-bold text-lg">Register Event Source</h3>
             <form onSubmit={handleSubmit} class="form-control w-full">
               <label class="label">
@@ -104,7 +113,10 @@ export default function ListAbi({ entries }: ListAbiProps) {
           <CollapsibleTableRow
             collapsible={
               <>
-                <button onClick={handleDelete(entry.id)} class="btn btn-warning float-right">
+                <button
+                  onClick={handleDelete(entry.id)}
+                  class="btn btn-warning float-right"
+                >
                   X
                 </button>
                 <div class="float-left">

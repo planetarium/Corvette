@@ -1,12 +1,12 @@
 import { Status } from "https://deno.land/std@0.188.0/http/http_status.ts";
 import {
   Application as OakApplication,
-  Router,
   isHttpError,
+  Router,
 } from "https://deno.land/x/oak@v12.5.0/mod.ts";
 import { oakCors } from "https://deno.land/x/cors@v1.2.2/mod.ts";
 import type { DB } from "https://deno.land/x/sqlite@v3.7.2/mod.ts";
-import { getAddress, toHex, fromHex, keccak256, Hex } from "npm:viem";
+import { fromHex, getAddress, Hex, keccak256, toHex } from "npm:viem";
 import { AbiEvent, narrow } from "npm:abitype";
 
 import { formatAbiItemPrototype } from "./abitype.ts";
@@ -68,8 +68,8 @@ export function api(db: DB) {
   });
   router.put("/sources", async (ctx) => {
     const { address, abiId } = await ctx.request.body({ type: "json" }).value;
-    const addressBlob = fromHex(address, 'bytes');
-    const abiIdBlob = fromHex(abiId, 'bytes');
+    const addressBlob = fromHex(address, "bytes");
+    const abiIdBlob = fromHex(abiId, "bytes");
     ctx.response.body = db.query(
       `INSERT INTO EventSource (address, abiId) VALUES (?, ?)`,
       [addressBlob, abiIdBlob],
@@ -77,8 +77,8 @@ export function api(db: DB) {
   });
   router.delete("/sources", async (ctx) => {
     const { address, abiId } = await ctx.request.body({ type: "json" }).value;
-    const addressBlob = fromHex(address, 'bytes');
-    const abiIdBlob = fromHex(abiId, 'bytes');
+    const addressBlob = fromHex(address, "bytes");
+    const abiIdBlob = fromHex(abiId, "bytes");
     ctx.response.body = db.query(
       `DELETE FROM EventSource WHERE address = ? AND abiId = ?`,
       [addressBlob, abiIdBlob],
@@ -114,15 +114,15 @@ export function api(db: DB) {
     );
   });
   router.put("/abi", async (ctx) => {
-  const abiJson = await ctx.request.body({ type: "json" }).value;
-  const testAbi = narrow(abiJson) as AbiEvent[];
-  const testAbiEvent = testAbi.find((abi) => abi.name === "TestEvent");
-  if (!testAbiEvent) throw new Error();
+    const abiJson = await ctx.request.body({ type: "json" }).value;
+    const testAbi = narrow(abiJson) as AbiEvent[];
+    const testAbiEvent = testAbi.find((abi) => abi.name === "TestEvent");
+    if (!testAbiEvent) throw new Error();
 
-  const id = keccak256(
-    new TextEncoder().encode(formatAbiItemPrototype(testAbiEvent)),
-    "bytes",
-  );
+    const id = keccak256(
+      new TextEncoder().encode(formatAbiItemPrototype(testAbiEvent)),
+      "bytes",
+    );
 
     db.query(
       `INSERT INTO ABI (id, abiJson) VALUES (?, ?)`,
@@ -132,13 +132,14 @@ export function api(db: DB) {
       db.query(
         `SELECT EventSource.address, Abi.abiJson, Abi.id FROM EventSource
         INNER JOIN ABI ON EventSource.AbiId = ABI.id
-        WHERE ABI.id = ?`, [id]
+        WHERE ABI.id = ?`,
+        [id],
       ).map((x) => ({
         address: getAddress(toHex(x[0] as Uint8Array)),
         abi: formatAbiItemPrototype(JSON.parse(x[1] as string)),
         abiId: toHex(x[2] as Uint8Array),
       })),
-    )
+    );
   });
   router.delete("/abi/:id", (ctx) => {
     const id = fromHex(ctx.params.id as Hex, "bytes");

@@ -1,5 +1,8 @@
 import { useCallback, useRef } from "preact/hooks";
-import { CollapsibleTable, CollapsibleTableRow } from "~/components/CollapsibleTable.tsx";
+import {
+  CollapsibleTable,
+  CollapsibleTableRow,
+} from "~/components/CollapsibleTable.tsx";
 
 export interface SourceEntry {
   address: string;
@@ -32,7 +35,7 @@ export default ({ entries }: ListSourcesProps) => {
         body: JSON.stringify({ address, abiId }),
       });
     },
-    []
+    [],
   );
 
   const modalRef = useRef<HTMLDialogElement>(null);
@@ -45,7 +48,9 @@ export default ({ entries }: ListSourcesProps) => {
         </button>
         <dialog ref={modalRef} class="modal">
           <form method="dialog" class="modal-box">
-            <button class="btn btn-sm btn-circle btn-ghost float-right">✕</button>
+            <button class="btn btn-sm btn-circle btn-ghost float-right">
+              ✕
+            </button>
             <h3 class="font-bold text-lg">Register Event Source</h3>
             <form onSubmit={handleSubmit} class="form-control w-full">
               <label class="label">

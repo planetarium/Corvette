@@ -1,15 +1,17 @@
 import { DB } from "https://deno.land/x/sqlite@v3.7.2/mod.ts";
-import { keccak256, toBytes } from "npm:viem";
 import { AbiEvent, narrow } from "npm:abitype";
+import { keccak256, toBytes } from "npm:viem";
 
 import { formatAbiItemPrototype } from "./abitype.ts";
-import { monitor } from "./monitor.ts";
 import { api } from "./api.ts";
-
-import testAbiJson from "./testAbi.json" assert { type: "json" };
+import { dataproxy } from "./dataproxy.ts";
 import { emitter } from "./emitter.ts";
+import { monitor } from "./monitor.ts";
 import { testWebhookReceiver } from "./testWebhookReceiver.ts";
 
+import testAbiJson from "./testAbi.json" assert { type: "json" };
+
+const { abort: abortDataproxy } = await dataproxy();
 const db = new DB("./dev.db");
 
 const seed: boolean = db.query(
@@ -73,12 +75,13 @@ async function main() {
     url: "http://localhost:8001",
   }]);
   await Promise.all([api(db), testWebhookReceiver()]);
-  console.log("asdf");
 }
 
 main().then(() => {
   db.close();
+  abortDataproxy();
 }).catch((e) => {
   db.close();
+  abortDataproxy();
   throw e;
 });

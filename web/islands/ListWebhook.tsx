@@ -4,23 +4,23 @@ import {
   CollapsibleTableRow,
 } from "~/components/CollapsibleTable.tsx";
 
-export interface SourceEntry {
+export interface WebhookEntry {
   address: string;
-  abi: string;
   abiId: string;
+  callbackUrl: string;
 }
 
-interface ListSourcesProps {
-  entries: SourceEntry[];
+interface ListWebhookProps {
+  entries: WebhookEntry[];
 }
 
-export default ({ entries }: ListSourcesProps) => {
+export default ({ entries }: ListWebhookProps) => {
   const handleSubmit = useCallback(async (e: Event) => {
     e.preventDefault();
 
     const formData = new FormData(e.target as HTMLFormElement);
 
-    await fetch("http://localhost:8000/sources", {
+    await fetch("http://localhost:8000/callback", {
       method: "PUT",
       body: JSON.stringify(Object.fromEntries(formData.entries())),
     });
@@ -29,27 +29,18 @@ export default ({ entries }: ListSourcesProps) => {
   }, []);
 
   const handleDelete = useCallback(
-    (address: string, abiId: string) => async (e: Event) => {
+    (address: string, abiId: string, callbackUrl: string) =>
+    async (
+      e: Event,
+    ) => {
       e.preventDefault();
 
-      await fetch(`http://localhost:8000/sources`, {
+      await fetch(`http://localhost:8000/callback`, {
         method: "DELETE",
-        body: JSON.stringify({ address, abiId }),
+        body: JSON.stringify({ address, abiId, callbackUrl }),
       });
 
       location.reload();
-    },
-    [],
-  );
-
-  const handleWebhookTest = useCallback(
-    (address: string, abiId: string) => (e: Event) => {
-      e.preventDefault();
-
-      fetch(`http://localhost:8000/callback/test`, {
-        method: "POST",
-        body: JSON.stringify({ address, abiId }),
-      });
     },
     [],
   );
@@ -67,7 +58,7 @@ export default ({ entries }: ListSourcesProps) => {
             <button class="btn btn-sm btn-circle btn-ghost float-right">
               ✕
             </button>
-            <h3 class="font-bold text-lg">Register Event Source</h3>
+            <h3 class="font-bold text-lg">Register Webhook</h3>
             <form onSubmit={handleSubmit} class="form-control w-full">
               <label class="label">
                 <span class="label-text">Contract Address</span>
@@ -87,6 +78,15 @@ export default ({ entries }: ListSourcesProps) => {
                 required
                 class="input input-bordered w-full max-w-xs"
               />
+              <label class="label">
+                <span class="label-text">Callback URL</span>
+              </label>
+              <input
+                type="text"
+                name="callbackUrl"
+                required
+                class="input input-bordered w-full max-w-xs"
+              />
               <input type="submit" class="btn" />
             </form>
           </form>
@@ -96,21 +96,21 @@ export default ({ entries }: ListSourcesProps) => {
         </dialog>
       </div>
 
-      <CollapsibleTable headers={["Contract Address", "ABI ID"]}>
+      <CollapsibleTable
+        headers={["Contract Address", "ABI ID", "Callback Url"]}
+      >
         {entries.map((entry) => (
           <CollapsibleTableRow
             collapsible={
               <>
-                <div class="float-right join join-horizontal">
+                <div class="float-right">
                   <button
-                    class="btn join-item"
-                    onClick={handleWebhookTest(entry.address, entry.abiId)}
-                  >
-                    Webhook Test
-                  </button>
-                  <button
-                    class="btn btn-warning join-item"
-                    onClick={handleDelete(entry.address, entry.abiId)}
+                    class="btn btn-warning"
+                    onClick={handleDelete(
+                      entry.address,
+                      entry.abiId,
+                      entry.callbackUrl,
+                    )}
                   >
                     X
                   </button>
@@ -118,13 +118,14 @@ export default ({ entries }: ListSourcesProps) => {
                 <div class="float-left">
                   <div>Contract Address: {entry.address}</div>
                   <div>ABI ID: {entry.abiId}</div>
-                  <div>ABI Signature: {entry.abi}</div>
+                  <div>Callback URL: {entry.callbackUrl}</div>
                 </div>
               </>
             }
           >
             {entry.address}
             {entry.abiId}
+            {entry.callbackUrl}
           </CollapsibleTableRow>
         ))}
       </CollapsibleTable>

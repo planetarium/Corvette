@@ -5,18 +5,22 @@
 import * as $0 from "./routes/abi.tsx";
 import * as $1 from "./routes/index.ts";
 import * as $2 from "./routes/sources.tsx";
+import * as $3 from "./routes/webhook.tsx";
 import * as $$0 from "./islands/ListAbi.tsx";
 import * as $$1 from "./islands/ListSources.tsx";
+import * as $$2 from "./islands/ListWebhook.tsx";
 
 const manifest = {
   routes: {
     "./routes/abi.tsx": $0,
     "./routes/index.ts": $1,
     "./routes/sources.tsx": $2,
+    "./routes/webhook.tsx": $3,
   },
   islands: {
     "./islands/ListAbi.tsx": $$0,
     "./islands/ListSources.tsx": $$1,
+    "./islands/ListWebhook.tsx": $$2,
   },
   baseUrl: import.meta.url,
 };

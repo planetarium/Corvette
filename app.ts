@@ -27,6 +27,13 @@ db.execute(`
     PRIMARY KEY (address, abiId),
     FOREIGN KEY (abiId) REFERENCES ABI(id)
   );
+  CREATE TABLE IF NOT EXISTS EventCallback (
+    address BLOB NOT NULL,
+    abiId BLOB NOT NULL,
+    callbackUrl TEXT NOT NULL,
+    PRIMARY KEY (address, abiId, callbackUrl),
+    FOREIGN KEY (address, abiId) REFERENCES EventSource(address, abiId)
+  );
   CREATE TABLE IF NOT EXISTS Event (
     blockTimestamp INTEGER NOT NULL,
     txIndex INTEGER NOT NULL,
@@ -72,7 +79,7 @@ async function main() {
     abi: "TestEvent(uint256,int8,bytes32,address,bool,address)",
     url: "http://localhost:8001",
   }]);
-  await Promise.all([api(db), testWebhookReceiver()]);
+  await Promise.all([api(db, evt), testWebhookReceiver()]);
   console.log("asdf");
 }
 

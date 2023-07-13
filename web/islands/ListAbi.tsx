@@ -53,25 +53,29 @@ interface ListAbiProps {
 }
 
 export default function ListAbi({ entries }: ListAbiProps) {
-  const handleSubmit = useCallback((e: Event) => {
+  const handleSubmit = useCallback(async (e: Event) => {
     e.preventDefault();
 
     const formData = new FormData(e.target as HTMLFormElement);
     const abiJson = formData.get("abiJson");
 
-    fetch(`http://localhost:8000/abi`, {
+    await fetch(`http://localhost:8000/abi`, {
       method: "PUT",
       body: abiJson,
     });
+
+    location.reload();
   }, []);
 
   const handleDelete = useCallback(
-    (id: string) => (e: Event) => {
+    (id: string) => async (e: Event) => {
       e.preventDefault();
 
-      fetch(`http://localhost:8000/abi/${id}`, {
+      await fetch(`http://localhost:8000/abi/${id}`, {
         method: "DELETE",
       });
+
+      location.reload();
     },
     [],
   );
@@ -89,7 +93,7 @@ export default function ListAbi({ entries }: ListAbiProps) {
             <button class="btn btn-sm btn-circle btn-ghost float-right">
               ✕
             </button>
-            <h3 class="font-bold text-lg">Register Event Source</h3>
+            <h3 class="font-bold text-lg">Register ABI</h3>
             <form onSubmit={handleSubmit} class="form-control w-full">
               <label class="label">
                 <span class="label-text">ABI JSON</span>
@@ -113,12 +117,14 @@ export default function ListAbi({ entries }: ListAbiProps) {
           <CollapsibleTableRow
             collapsible={
               <>
-                <button
-                  onClick={handleDelete(entry.id)}
-                  class="btn btn-warning float-right"
-                >
-                  X
-                </button>
+                <div class="float-right">
+                  <button
+                    class="btn btn-warning"
+                    onClick={handleDelete(entry.id)}
+                  >
+                    X
+                  </button>
+                </div>
                 <div class="float-left">
                   <div>ID: {entry.id}</div>
                   <div>Sig: {getSignatureFromAbiEvent(entry.abi)}</div>

@@ -18,11 +18,14 @@ export default function Layout({ children, ...props }: Props) {
         />
       </Head>
       <nav class="navbar bg-base-100 mx-6">
-        <a href="/abi" class="btn btn-ghost normal-case text-xl">
+        <a href="/abi" class="btn btn-ghost text-xl">
           ABI
         </a>
-        <a href="/sources" class="btn btn-ghost normal-case text-xl">
+        <a href="/sources" class="btn btn-ghost text-xl">
           Event Sources
+        </a>
+        <a href="/webhook" class="btn btn-ghost text-xl">
+          Webhooks
         </a>
       </nav>
       <div class="h-screen p-4 container mx-auto">

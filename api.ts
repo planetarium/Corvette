@@ -6,13 +6,16 @@ import {
 } from "https://deno.land/x/oak@v12.5.0/mod.ts";
 import { oakCors } from "https://deno.land/x/cors@v1.2.2/mod.ts";
 import type { DB } from "https://deno.land/x/sqlite@v3.7.2/mod.ts";
-import { fromHex, getAddress, Hex, keccak256, toHex } from "npm:viem";
+import { getAddress, keccak256, toBytes, toHex } from "npm:viem";
 import { AbiEvent, narrow } from "npm:abitype";
-
+import type { Evt } from "https://deno.land/x/evt@v2.4.22/mod.ts";
+import type { EventMessage } from "./EventMessage.ts";
 import { formatAbiItemPrototype } from "./abitype.ts";
+import { emitter } from "./emitter.ts";
 
-export function api(db: DB) {
+export function api(db: DB, evt: Evt<EventMessage>) {
   const router = new Router();
+
   router.get("/", (ctx) => {
     // TODO: show JSON Schema
     ctx.response.body = "Not yet implemented";
@@ -48,6 +51,7 @@ export function api(db: DB) {
     }
     // TODO
   });
+
   router.get("/sources", (ctx) => {
     // TODO: show JSON Schema
     ctx.response.body = "Not yet implemented";
@@ -68,27 +72,23 @@ export function api(db: DB) {
   });
   router.put("/sources", async (ctx) => {
     const { address, abiId } = await ctx.request.body({ type: "json" }).value;
-    const addressBlob = fromHex(address, "bytes");
-    const abiIdBlob = fromHex(abiId, "bytes");
     ctx.response.body = db.query(
-      `INSERT INTO EventSource (address, abiId) VALUES (?, ?)`,
-      [addressBlob, abiIdBlob],
-    );
+      `INSERT INTO EventSource (address, abiId) VALUES (?, ?)
+      RETURNING address, abiId`,
+      [toBytes(address), toBytes(abiId)],
+    ).map((x) => ({
+      address: getAddress(toHex(x[0] as Uint8Array)),
+      abi: formatAbiItemPrototype(JSON.parse(x[1] as string)),
+      abiId: toHex(x[2] as Uint8Array),
+    }))[0];
   });
   router.delete("/sources", async (ctx) => {
     const { address, abiId } = await ctx.request.body({ type: "json" }).value;
-    const addressBlob = fromHex(address, "bytes");
-    const abiIdBlob = fromHex(abiId, "bytes");
-    ctx.response.body = db.query(
+    db.query(
       `DELETE FROM EventSource WHERE address = ? AND abiId = ?`,
-      [addressBlob, abiIdBlob],
+      [toBytes(address), toBytes(abiId)],
     );
-    ctx.response.body = db.query(
-      `SELECT EventSource.address, Abi.abiJson, Abi.id FROM EventSource
-        INNER JOIN ABI ON EventSource.AbiId = ABI.id
-        WHERE address = ? AND AbiId = ?`,
-      [addressBlob, abiIdBlob],
-    );
+    ctx.response.status = Status.NoContent;
   });
 
   router.get("/abi", (ctx) => {
@@ -118,35 +118,106 @@ export function api(db: DB) {
     const testAbi = narrow(abiJson) as AbiEvent[];
     const testAbiEvent = testAbi.find((abi) => abi.name === "TestEvent");
     if (!testAbiEvent) throw new Error();
-
     const id = keccak256(
       new TextEncoder().encode(formatAbiItemPrototype(testAbiEvent)),
       "bytes",
     );
-
-    db.query(
-      `INSERT INTO ABI (id, abiJson) VALUES (?, ?)`,
+    ctx.response.body = db.query(
+      `INSERT INTO ABI (id, abiJson) VALUES (?, ?)
+      RETURNING id, abiJson`,
       [id, JSON.stringify(testAbiEvent)],
-    );
-    ctx.response.body = JSON.stringify(
-      db.query(
-        `SELECT EventSource.address, Abi.abiJson, Abi.id FROM EventSource
-        INNER JOIN ABI ON EventSource.AbiId = ABI.id
-        WHERE ABI.id = ?`,
-        [id],
-      ).map((x) => ({
-        address: getAddress(toHex(x[0] as Uint8Array)),
-        abi: formatAbiItemPrototype(JSON.parse(x[1] as string)),
-        abiId: toHex(x[2] as Uint8Array),
-      })),
-    );
+    ).reduce((acc, x) => {
+      const abi = JSON.parse(x[1] as string);
+      Object.assign(acc, {
+        [toHex(x[0] as Uint8Array)]: {
+          signature: formatAbiItemPrototype(abi),
+          abi: abi,
+        },
+      });
+      return acc;
+    }, {});
   });
   router.delete("/abi/:id", (ctx) => {
-    const id = fromHex(ctx.params.id as Hex, "bytes");
+    const id = toBytes(ctx.params.id);
+    db.query(`DELETE FROM ABI WHERE id = ?`, [id]);
+    ctx.response.status = Status.NoContent;
+  });
+
+  router.post("/callback", (ctx) => {
     ctx.response.body = db.query(
-      `DELETE FROM ABI WHERE id = ?`,
-      [id],
+      `SELECT address, abiId, callbackUrl FROM EventCallback`,
+    ).map((row) => ({
+      address: getAddress(toHex(row[0] as Uint8Array)),
+      abiId: toHex(row[1] as Uint8Array),
+      callbackUrl: row[2],
+    }));
+  });
+  router.put("/callback", async (ctx) => {
+    const { address, abiId, callbackUrl } = await ctx.request.body({
+      type: "json",
+    }).value;
+    ctx.response.body = db.query(
+      `INSERT INTO EventCallback
+      (address, abiId, callbackUrl) values (?, ?, ?)
+      RETURNING address, abiId, callbackUrl`,
+      [toBytes(address), toBytes(abiId), callbackUrl],
+    ).map((row) => ({
+      address: getAddress(toHex(row[0] as Uint8Array)),
+      abiId: toHex(row[1] as Uint8Array),
+      callbackUrl: row[2],
+    }))[0];
+  });
+  router.delete("/callback", async (ctx) => {
+    const { address, abiId, callbackUrl } = await ctx.request.body({
+      type: "json",
+    }).value;
+    db.query(
+      `DELETE FROM EventCallback WHERE address = ? AND abiId = ? AND callbackUrl = ?`,
+      [toBytes(address), toBytes(abiId), callbackUrl],
     );
+    ctx.response.status = Status.NoContent;
+  });
+  router.post("/callback/test", async (ctx) => {
+    const { address, abiId } = await ctx.request.body({ type: "json" }).value;
+    const addressBytes = toBytes(address);
+    const abiIdBytes = toBytes(abiId);
+
+    const res = db.query(
+      `SELECT EventCallback.callbackUrl, ABI.abiJson
+      FROM EventCallback, ABI
+      WHERE ABI.id = EventCallback.abiId
+      AND address = ? AND abiId = ?`,
+      [addressBytes, abiIdBytes],
+    );
+
+    const mappings = res.map((x) => ({
+      address,
+      abi: formatAbiItemPrototype(JSON.parse(x[1] as string)),
+      url: x[0] as string,
+    }));
+
+    const { attaches } = emitter(db, evt, mappings);
+
+    evt.post(
+      {
+        topic: {
+          address: addressBytes,
+          sigHash: abiIdBytes,
+          topics: [],
+        },
+        message: {
+          blockTimestamp: BigInt(Date.now()),
+          txIndex: -1,
+          logIndex: -1,
+          blockNumber: 0n,
+          blockHash: new Uint8Array([]),
+        },
+      },
+    );
+
+    attaches.detach();
+
+    ctx.response.body = mappings;
   });
 
   const app = new OakApplication();

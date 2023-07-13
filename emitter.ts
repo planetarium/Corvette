@@ -132,15 +132,7 @@ export function emitter(
 
         await Promise.all(
           finalized.map((x) => {
-            const [
-              txHash,
-              sourceAddress,
-              topic1,
-              topic2,
-              topic3,
-              data,
-              abiJson,
-            ] = db.query(
+            const res = db.query(
               `SELECT
               Event.txHash,
               Event.sourceAddress,
@@ -154,6 +146,28 @@ export function emitter(
             WHERE blockTimestamp = ? AND txIndex = ? AND logIndex = ?`,
               [x.message.blockTimestamp, x.message.txIndex, x.message.logIndex],
             )[0];
+            if (!res) {
+              // assume test event
+              return x.url.map((url) =>
+                fetch(url, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: losslessJsonStringify({
+                    message: x.message,
+                    topic: x.topic,
+                  }),
+                })
+              );
+            }
+            const [
+              txHash,
+              sourceAddress,
+              topic1,
+              topic2,
+              topic3,
+              data,
+              abiJson,
+            ] = res;
             const { args } = decodeEventLog({
               abi: [JSON.parse(abiJson as string)],
               data: toHex(data as Uint8Array),

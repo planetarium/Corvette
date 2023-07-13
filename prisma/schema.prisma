@@ -31,7 +31,7 @@ model Event {
   abiHash       Bytes
   sourceAddress Bytes
 
-  @@id([blockTimestamp, txIndex, logindex])
+  @@id([blockTimestamp, txIndex, logIndex])
 }
 
 model EventAbi {

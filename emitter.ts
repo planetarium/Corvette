@@ -1,6 +1,6 @@
 import type { Evt } from "https://deno.land/x/evt@v2.4.22/mod.ts";
-import type { DB } from "https://deno.land/x/sqlite@v3.7.2/mod.ts";
 import { parseAbiItem } from "npm:abitype";
+import { stringify as losslessJsonStringify } from "npm:lossless-json";
 import {
   createPublicClient,
   getAddress,
@@ -10,7 +10,7 @@ import {
   toBytes,
   toHex,
 } from "npm:viem";
-import { stringify as losslessJsonStringify } from "npm:lossless-json";
+
 import {
   isConstructorSignature,
   isErrorSignature,
@@ -20,6 +20,8 @@ import {
   isReceiveSignature,
   isStructSignature,
 } from "https://esm.sh/v128/abitype@0.9.0/es2022/dist/esm/human-readable/runtime/signatures.js";
+
+import type { PrismaClient } from "./generated/client/deno/edge.ts";
 
 import { EventMessage } from "./EventMessage.ts";
 import { formatAbiItemPrototype } from "./abitype.ts";
@@ -35,7 +37,7 @@ type ResolvedMapping = {
 };
 
 export function emitter(
-  db: DB,
+  prisma: PrismaClient,
   evt: Evt<EventMessage>,
   topicMapping: TopicMapping[],
 ) {
@@ -131,38 +133,48 @@ export function emitter(
         }, Promise.resolve([] as typeof observed));
 
         await Promise.all(
-          finalized.map((x) => {
-            const [
-              txHash,
-              sourceAddress,
-              topic1,
-              topic2,
-              topic3,
-              data,
-              abiJson,
-            ] = db.query(
-              `SELECT
-              Event.txHash,
-              Event.sourceAddress,
-              Event.topic1,
-              Event.topic2,
-              Event.topic3,
-              Event.data,
-              ABI.abiJson
-            FROM Event
-            INNER JOIN ABI ON Event.abiId = ABI.id
-            WHERE blockTimestamp = ? AND txIndex = ? AND logIndex = ?`,
-              [x.message.blockTimestamp, x.message.txIndex, x.message.logIndex],
-            )[0];
+          finalized.map(async (x) => {
+            const event = await prisma.event.findUnique({
+              where: {
+                blockTimestamp_txIndex_logIndex: {
+                  blockTimestamp: new Date(
+                    Number(x.message.blockTimestamp) * 1000,
+                  ),
+                  txIndex: x.message.txIndex,
+                  logIndex: x.message.logIndex,
+                },
+              },
+              select: {
+                txHash: true,
+                sourceAddress: true,
+                topic1: true,
+                topic2: true,
+                topic3: true,
+                data: true,
+                Abi: {
+                  select: {
+                    json: true,
+                  },
+                },
+              },
+            });
+
+            if (event == null) {
+              console.error(
+                `ERROR: event ${x.message.blockTimestamp}_${x.message.txIndex}_${x.message.logIndex} not found`,
+              );
+              return;
+            }
+
             const { args } = decodeEventLog({
-              abi: [JSON.parse(abiJson as string)],
-              data: toHex(data as Uint8Array),
+              abi: [JSON.parse(event.Abi.json)],
+              data: toHex(event.data),
               topics: [toHex(x.topic.sigHash)].concat(
-                topic1 !== null
-                  ? [toHex(topic1 as Uint8Array)].concat(
-                    topic2 !== null
-                      ? [toHex(topic2 as Uint8Array)].concat(
-                        topic3 !== null ? [toHex(topic3 as Uint8Array)] : [],
+                event.topic1 !== null
+                  ? [toHex(event.topic1)].concat(
+                    event.topic2 !== null
+                      ? [toHex(event.topic2)].concat(
+                        event.topic3 !== null ? [toHex(event.topic3)] : [],
                       )
                       : [],
                   )
@@ -179,10 +191,14 @@ export function emitter(
                   transactionIndex: x.message.txIndex,
                   logIndex: x.message.logIndex,
                   blockHash: toHex(x.message.blockHash),
-                  transactionHash: toHex(txHash as Uint8Array),
-                  sourceAddress: getAddress(toHex(sourceAddress as Uint8Array)),
-                  abiId: toHex(x.topic.sigHash),
-                  abi: formatAbiItemPrototype(JSON.parse(abiJson as string)),
+                  transactionHash: toHex(event.txHash),
+                  sourceAddress: getAddress(
+                    toHex(event.sourceAddress),
+                  ),
+                  abiHash: toHex(x.topic.sigHash),
+                  abiSignature: formatAbiItemPrototype(
+                    JSON.parse(event.Abi.json),
+                  ),
                   args: {
                     named: Object.keys(args).filter((x) =>
                       !Object.keys([...(args as unknown[])]).includes(x)
@@ -203,12 +219,18 @@ export function emitter(
 
         observed.filter((x) =>
           finalizedBlocks[toHex(x.message.blockHash)] !== x.message.blockNumber
-        ).forEach((x) =>
-          db.query(
-            `DELETE FROM Event
-            WHERE blockTimestamp = ? AND txIndex = ? AND logIndex = ?`,
-            [x.message.blockTimestamp, x.message.txIndex, x.message.logIndex],
-          )
+        ).forEach(async (x) =>
+          await prisma.event.delete({
+            where: {
+              blockTimestamp_txIndex_logIndex: {
+                blockTimestamp: new Date(
+                  Number(x.message.blockTimestamp) * 1000,
+                ),
+                txIndex: x.message.txIndex,
+                logIndex: x.message.logIndex,
+              },
+            },
+          })
         );
 
         queue = queue.filter(

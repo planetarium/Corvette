@@ -3,12 +3,13 @@ import {
   Application as OakApplication,
   Router,
 } from "https://deno.land/x/oak@v12.5.0/mod.ts";
-import type { DB } from "https://deno.land/x/sqlite@v3.7.2/mod.ts";
 import { getAddress, toHex } from "npm:viem";
+
+import type { PrismaClient } from "./generated/client/deno/edge.ts";
 
 import { formatAbiItemPrototype } from "./abitype.ts";
 
-export function api(db: DB) {
+export function api(prisma: PrismaClient) {
   const router = new Router();
   router.get("/", (ctx) => {
     // TODO: show JSON Schema
@@ -50,16 +51,23 @@ export function api(db: DB) {
     ctx.response.body = "Not yet implemented";
     ctx.response.status = Status.NotImplemented;
   });
-  router.post("/sources", (ctx) => {
+  router.post("/sources", async (ctx) => {
     // TODO: parameters
     ctx.response.body = JSON.stringify(
-      db.query(
-        `SELECT EventSource.address, Abi.abiJson, Abi.id FROM EventSource
-        INNER JOIN ABI ON EventSource.AbiId = ABI.id`,
-      ).map((x) => ({
-        address: getAddress(toHex(x[0] as Uint8Array)),
-        abi: formatAbiItemPrototype(JSON.parse(x[1] as string)),
-        abiId: toHex(x[2] as Uint8Array),
+      (await prisma.eventSource.findMany({
+        select: {
+          address: true,
+          Abi: {
+            select: {
+              hash: true,
+              json: true,
+            },
+          },
+        },
+      })).map((item) => ({
+        address: getAddress(toHex(item.address)),
+        abi: formatAbiItemPrototype(JSON.parse(item.Abi.json)),
+        abiHash: toHex(item.Abi.hash),
       })),
     );
   });
@@ -68,16 +76,13 @@ export function api(db: DB) {
     ctx.response.body = "Not yet implemented";
     ctx.response.status = Status.NotImplemented;
   });
-  router.post("/abi", (ctx) => {
+  router.post("/abi", async (ctx) => {
     // TODO: parameters
     ctx.response.body = JSON.stringify(
-      db.query(
-        `SELECT id, abiJson FROM EventSource
-        INNER JOIN ABI ON EventSource.AbiId = ABI.id`,
-      ).reduce((acc, x) => {
-        const abi = JSON.parse(x[1] as string);
+      (await prisma.eventAbi.findMany()).reduce((acc, item) => {
+        const abi = JSON.parse(item.json);
         Object.assign(acc, {
-          [toHex(x[0] as Uint8Array)]: {
+          [toHex(item.hash)]: {
             signature: formatAbiItemPrototype(abi),
             abi: abi,
           },

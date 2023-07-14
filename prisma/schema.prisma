@@ -1,0 +1,53 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["deno"]
+  output          = "../generated/client"
+}
+
+datasource db {
+  provider  = "sqlite"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Event {
+  blockTimestamp DateTime
+  observedAt     DateTime    @default(now())
+  txIndex        Int
+  logIndex       Int
+  blockNumber    Int
+  blockHash      Bytes
+  txHash         Bytes
+  Source         EventSource @relation(fields: [sourceAddress, abiHash], references: [address, abiHash])
+  Abi            EventAbi    @relation(fields: [abiHash], references: [hash])
+  topic1         Bytes?
+  topic2         Bytes?
+  topic3         Bytes?
+  data           Bytes?
+
+  abiHash       Bytes
+  sourceAddress Bytes
+
+  @@id([blockTimestamp, txIndex, logIndex])
+}
+
+model EventAbi {
+  hash Bytes  @id
+  json String
+
+  Event       Event[]
+  EventSource EventSource[]
+}
+
+model EventSource {
+  address Bytes
+  abiHash Bytes
+
+  Abi   EventAbi @relation(fields: [abiHash], references: [hash])
+  Event Event[]
+
+  @@id([address, abiHash])
+}

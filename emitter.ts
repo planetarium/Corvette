@@ -1,25 +1,11 @@
 import type { Evt } from "https://deno.land/x/evt@v2.4.22/mod.ts";
-import { parseAbiItem } from "npm:abitype";
 import { stringify as losslessJsonStringify } from "npm:lossless-json";
 import {
   createPublicClient,
   getAddress,
   http as httpViemTransport,
-  isAddress,
-  keccak256,
-  toBytes,
   toHex,
 } from "npm:viem";
-
-import {
-  isConstructorSignature,
-  isErrorSignature,
-  isEventSignature,
-  isFallbackSignature,
-  isFunctionSignature,
-  isReceiveSignature,
-  isStructSignature,
-} from "https://esm.sh/v128/abitype@0.9.0/es2022/dist/esm/human-readable/runtime/signatures.js";
 
 import type { PrismaClient } from "./generated/client/deno/edge.ts";
 
@@ -29,86 +15,38 @@ import { mothershipDevnet } from "./chains.ts";
 import { decodeEventLog } from "./decodeEventLog.ts";
 import { uint8ArrayEqual } from "./utils.ts";
 
-type TopicMapping = { address: string; abi: string; url: string | string[] };
-type ResolvedMapping = {
-  address: Uint8Array;
-  sigHash: Uint8Array;
-  url: string[];
-};
-
-export function emitter(
+export async function emitter(
   prisma: PrismaClient,
   evt: Evt<EventMessage>,
-  topicMapping: TopicMapping[],
 ) {
-  const encoder = new TextEncoder();
   const client = createPublicClient({
     chain: mothershipDevnet,
     transport: httpViemTransport(),
   });
-  let queue: (EventMessage & { url: string[] })[] = [];
-  let invalidAddresses: string[];
-  if (
-    (invalidAddresses = topicMapping.filter((x) => !isAddress(x.address)).map((
-      x,
-    ) => x.address)).length > 0
+  // TODO: rework hierarchical mapping
+  const emitDestinations = await prisma.emitDestination.findMany();
+  let queue: (EventMessage & { url: string })[] = [];
+  function filterMessage(
+    x: typeof emitDestinations[number],
+    message: EventMessage,
   ) {
-    throw new Error(
-      `Invalid address${
-        invalidAddresses.length > 1 ? "es" : ""
-      }: ${invalidAddresses.toString()}`,
+    return (
+      uint8ArrayEqual(x.sourceAddress, message.topic.address) &&
+      uint8ArrayEqual(x.abiHash, message.topic.sigHash) &&
+      (x.topic1 == null ||
+        uint8ArrayEqual(x.topic1, message.topic.topics[1])) &&
+      (x.topic2 == null ||
+        uint8ArrayEqual(x.topic2, message.topic.topics[2])) &&
+      (x.topic3 == null ||
+        uint8ArrayEqual(x.topic3, message.topic.topics[3]))
     );
   }
-  const mapping = topicMapping.reduce((acc, x) => {
-    const address = toBytes(x.address);
-    const abi = isEventSignature(x.abi)
-      ? x.abi
-      : isErrorSignature(x.abi) || isFunctionSignature(x.abi) ||
-          isStructSignature(x.abi) || isConstructorSignature(x.abi) ||
-          isFallbackSignature(x.abi) || isReceiveSignature(x.abi)
-      ? undefined
-      : "event " + x.abi;
-    if (!abi) throw new Error("Only event ABIs can be used.");
-    const sigHash = keccak256(
-      encoder.encode(formatAbiItemPrototype(parseAbiItem(abi))),
-      "bytes",
-    );
-    let entry: ResolvedMapping;
-    return (entry = acc.filter((x) =>
-        uint8ArrayEqual(x.address, address) &&
-        uint8ArrayEqual(x.sigHash, sigHash)
-      )[0]) !=
-        null
-      ? [
-        ...acc.filter((x) =>
-          !uint8ArrayEqual(x.address, address) ||
-          !uint8ArrayEqual(x.sigHash, sigHash)
-        ),
-        {
-          ...entry,
-          url: entry.url.concat(x.url),
-        },
-      ]
-      : acc.concat({
-        address,
-        sigHash,
-        url: x.url instanceof Array ? x.url : [x.url],
-      });
-  }, [] as ResolvedMapping[]);
   const attaches = evt.attach(
-    (message) => {
-      return mapping.some(
-        (x) =>
-          uint8ArrayEqual(x.address, message.topic.address) &&
-          uint8ArrayEqual(x.sigHash, message.topic.sigHash),
-      );
-    },
-    (message) => {
-      mapping.filter((x) =>
-        uint8ArrayEqual(x.address, message.topic.address) &&
-        uint8ArrayEqual(x.sigHash, message.topic.sigHash)
-      ).forEach((x) => queue.push({ ...message, url: x.url }));
-    },
+    (message) => emitDestinations.some((x) => filterMessage(x, message)),
+    (message) =>
+      emitDestinations.filter((x) => filterMessage(x, message)).forEach((x) =>
+        queue.push({ ...message, url: x.webhookUrl })
+      ),
   );
 
   const watch = client.watchBlockNumber(
@@ -181,39 +119,37 @@ export function emitter(
                   : [],
               ) as [signature: `0x${string}`, ...args: `0x${string}`[]],
             });
-            return x.url.map((url) =>
-              fetch(url, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: losslessJsonStringify({
-                  timestamp: x.message.blockTimestamp,
-                  blockIndex: x.message.blockNumber,
-                  transactionIndex: x.message.txIndex,
-                  logIndex: x.message.logIndex,
-                  blockHash: toHex(x.message.blockHash),
-                  transactionHash: toHex(event.txHash),
-                  sourceAddress: getAddress(
-                    toHex(event.sourceAddress),
+            return fetch(x.url, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: losslessJsonStringify({
+                timestamp: x.message.blockTimestamp,
+                blockIndex: x.message.blockNumber,
+                transactionIndex: x.message.txIndex,
+                logIndex: x.message.logIndex,
+                blockHash: toHex(x.message.blockHash),
+                transactionHash: toHex(event.txHash),
+                sourceAddress: getAddress(
+                  toHex(event.sourceAddress),
+                ),
+                abiHash: toHex(x.topic.sigHash),
+                abiSignature: formatAbiItemPrototype(
+                  JSON.parse(event.Abi.json),
+                ),
+                args: {
+                  named: Object.keys(args).filter((x) =>
+                    !Object.keys([...(args as unknown[])]).includes(x)
+                  ).reduce(
+                    (acc, x) => ({
+                      ...acc,
+                      [x]: (args as Record<string, unknown>)[x],
+                    }),
+                    {},
                   ),
-                  abiHash: toHex(x.topic.sigHash),
-                  abiSignature: formatAbiItemPrototype(
-                    JSON.parse(event.Abi.json),
-                  ),
-                  args: {
-                    named: Object.keys(args).filter((x) =>
-                      !Object.keys([...(args as unknown[])]).includes(x)
-                    ).reduce(
-                      (acc, x) => ({
-                        ...acc,
-                        [x]: (args as Record<string, unknown>)[x],
-                      }),
-                      {},
-                    ),
-                    ordered: [...(args as unknown[])],
-                  },
-                }),
-              })
-            );
+                  ordered: [...(args as unknown[])],
+                },
+              }),
+            });
           }),
         );
 

@@ -21,11 +21,7 @@ const prisma = new PrismaClient({
 
 async function main() {
   const { evt } = await observer(prisma);
-  emitter(prisma, evt, [{
-    address: "0x63ACcd2dfcfaEdaD403b46066a9F6CA459cABDdE",
-    abi: "TestEvent(uint256,int8,bytes32,address,bool,address)",
-    url: "http://localhost:8001",
-  }]);
+  await emitter(prisma, evt);
   await Promise.all([api(prisma), testWebhookReceiver()]);
 }
 

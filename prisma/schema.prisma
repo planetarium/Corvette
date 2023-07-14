@@ -46,8 +46,23 @@ model EventSource {
   address Bytes
   abiHash Bytes
 
-  Abi   EventAbi @relation(fields: [abiHash], references: [hash])
-  Event Event[]
+  Abi             EventAbi          @relation(fields: [abiHash], references: [hash])
+  Event           Event[]
+  EmitDestination EmitDestination[]
 
   @@id([address, abiHash])
+}
+
+model EmitDestination {
+  id            Int    @id @default(autoincrement())
+  sourceAddress Bytes
+  abiHash       Bytes
+  webhookUrl    String
+  topic1        Bytes?
+  topic2        Bytes?
+  topic3        Bytes?
+
+  Source EventSource @relation(fields: [sourceAddress, abiHash], references: [address, abiHash])
+
+  @@unique([sourceAddress, abiHash, webhookUrl, topic1, topic2, topic3])
 }

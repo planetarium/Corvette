@@ -120,15 +120,15 @@ export function emitter(
           x.message.blockNumber <= finalizedBlockNumber
         );
         const finalizedBlocks: Record<string, bigint> = {};
-        const finalized = observed.filter(async (x) => {
+        const finalized = await observed.reduce(async (acc, x) => {
           const hash =
             (await client.getBlock({ blockNumber: x.message.blockNumber }))
               .hash;
 
           const isFinal = toHex(x.message.blockHash) === hash;
           if (isFinal) finalizedBlocks[hash] = x.message.blockNumber;
-          return isFinal;
-        });
+          return isFinal ? [...(await acc), x] : acc;
+        }, Promise.resolve([] as typeof observed));
 
         await Promise.all(
           finalized.map((x) => {

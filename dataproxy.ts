@@ -62,7 +62,7 @@ export async function dataproxy() {
             .pathname
         : env.DIRECT_URL,
       "DATA_PROXY_API_KEY": apiKey,
-      "PORT": "8003",
+      "PORT": "8003", // TODO: configuration
     },
     stdout: "inherit",
     stderr: "inherit",
@@ -71,6 +71,7 @@ export async function dataproxy() {
 
   while (true) {
     try {
+      // TODO: configuration
       await fetch("http://localhost:8003", { method: "OPTION" });
       break;
     } catch (e) {
@@ -80,6 +81,8 @@ export async function dataproxy() {
   }
 
   const app = new OakApplication();
+
+  // TODO: configuration
   app.use(oakHttpProxy("http://localhost:8003"));
   app.listen({
     port: 8002,
@@ -90,6 +93,7 @@ export async function dataproxy() {
 
   while (true) {
     try {
+      // TODO: configuration
       await fetch("https://localhost:8002", { method: "OPTION" });
       break;
     } catch (e) {

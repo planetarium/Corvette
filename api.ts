@@ -95,5 +95,6 @@ export function api(prisma: PrismaClient) {
   const app = new OakApplication();
   app.use(router.routes());
   app.use(router.allowedMethods());
+  // TODO: configuration
   return app.listen({ port: 8000 });
 }

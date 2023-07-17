@@ -3,7 +3,7 @@ import Layout from "~/components/Layout.tsx";
 import ListAbi, { type AbiEntry } from "~/islands/ListAbi.tsx";
 
 interface AbiResponse {
-  [id: string]: Omit<AbiEntry, "id">;
+  [hash: string]: Omit<AbiEntry, "hash">;
 }
 
 const fetchAbis = (): Promise<AbiResponse> => {
@@ -13,8 +13,8 @@ const fetchAbis = (): Promise<AbiResponse> => {
 };
 
 const toAbiEntries = (resp: AbiResponse): AbiEntry[] => {
-  return Object.entries(resp).map(([id, values]) => ({
-    id,
+  return Object.entries(resp).map(([hash, values]) => ({
+    hash,
     ...values,
   }));
 };

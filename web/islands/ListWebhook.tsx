@@ -5,9 +5,13 @@ import {
 } from "~/components/CollapsibleTable.tsx";
 
 export interface WebhookEntry {
-  address: string;
-  abiId: string;
-  callbackUrl: string;
+  id: number;
+  sourceAddress: string;
+  abiHash: string;
+  webhookUrl: string;
+  topic1: string | null;
+  topic2: string | null;
+  topic3: string | null;
 }
 
 interface ListWebhookProps {
@@ -20,7 +24,7 @@ export default ({ entries }: ListWebhookProps) => {
 
     const formData = new FormData(e.target as HTMLFormElement);
 
-    await fetch("http://localhost:8000/callback", {
+    await fetch("http://localhost:8000/webhook", {
       method: "PUT",
       body: JSON.stringify(Object.fromEntries(formData.entries())),
     });
@@ -29,15 +33,11 @@ export default ({ entries }: ListWebhookProps) => {
   }, []);
 
   const handleDelete = useCallback(
-    (address: string, abiId: string, callbackUrl: string) =>
-    async (
-      e: Event,
-    ) => {
+    (id: number) => async (e: Event) => {
       e.preventDefault();
 
-      await fetch(`http://localhost:8000/callback`, {
+      await fetch(`http://localhost:8000/webhook/${id}`, {
         method: "DELETE",
-        body: JSON.stringify({ address, abiId, callbackUrl }),
       });
 
       location.reload();
@@ -65,25 +65,25 @@ export default ({ entries }: ListWebhookProps) => {
               </label>
               <input
                 type="text"
-                name="address"
+                name="sourceAddress"
                 required
                 class="input input-bordered w-full max-w-xs"
               />
               <label class="label">
-                <span class="label-text">ABI ID</span>
+                <span class="label-text">ABI Hash</span>
               </label>
               <input
                 type="text"
-                name="abiId"
+                name="abiHash"
                 required
                 class="input input-bordered w-full max-w-xs"
               />
               <label class="label">
-                <span class="label-text">Callback URL</span>
+                <span class="label-text">Webhook URL</span>
               </label>
               <input
                 type="text"
-                name="callbackUrl"
+                name="webhookUrl"
                 required
                 class="input input-bordered w-full max-w-xs"
               />
@@ -97,7 +97,7 @@ export default ({ entries }: ListWebhookProps) => {
       </div>
 
       <CollapsibleTable
-        headers={["Contract Address", "ABI ID", "Callback Url"]}
+        headers={["Contract Address", "ABI Hash", "Webhook URL"]}
       >
         {entries.map((entry) => (
           <CollapsibleTableRow
@@ -106,26 +106,22 @@ export default ({ entries }: ListWebhookProps) => {
                 <div class="float-right">
                   <button
                     class="btn btn-warning"
-                    onClick={handleDelete(
-                      entry.address,
-                      entry.abiId,
-                      entry.callbackUrl,
-                    )}
+                    onClick={handleDelete(entry.id)}
                   >
                     X
                   </button>
                 </div>
                 <div class="float-left">
-                  <div>Contract Address: {entry.address}</div>
-                  <div>ABI ID: {entry.abiId}</div>
-                  <div>Callback URL: {entry.callbackUrl}</div>
+                  <div>Contract Address: {entry.sourceAddress}</div>
+                  <div>ABI Hash: {entry.abiHash}</div>
+                  <div>Webhook URL: {entry.webhookUrl}</div>
                 </div>
               </>
             }
           >
-            {entry.address}
-            {entry.abiId}
-            {entry.callbackUrl}
+            {entry.sourceAddress}
+            {entry.abiHash}
+            {entry.webhookUrl}
           </CollapsibleTableRow>
         ))}
       </CollapsibleTable>

@@ -7,7 +7,7 @@ import {
 export interface SourceEntry {
   address: string;
   abi: string;
-  abiId: string;
+  abiHash: string;
 }
 
 interface ListSourcesProps {
@@ -29,12 +29,12 @@ export default ({ entries }: ListSourcesProps) => {
   }, []);
 
   const handleDelete = useCallback(
-    (address: string, abiId: string) => async (e: Event) => {
+    (address: string, abiHash: string) => async (e: Event) => {
       e.preventDefault();
 
       await fetch(`http://localhost:8000/sources`, {
         method: "DELETE",
-        body: JSON.stringify({ address, abiId }),
+        body: JSON.stringify({ address, abiHash }),
       });
 
       location.reload();
@@ -43,12 +43,12 @@ export default ({ entries }: ListSourcesProps) => {
   );
 
   const handleWebhookTest = useCallback(
-    (address: string, abiId: string) => (e: Event) => {
+    (address: string, abiHash: string) => (e: Event) => {
       e.preventDefault();
 
-      fetch(`http://localhost:8000/callback/test`, {
+      fetch(`http://localhost:8000/sources/testWebhook`, {
         method: "POST",
-        body: JSON.stringify({ address, abiId }),
+        body: JSON.stringify({ address, abiHash }),
       });
     },
     [],
@@ -79,11 +79,11 @@ export default ({ entries }: ListSourcesProps) => {
                 class="input input-bordered w-full max-w-xs"
               />
               <label class="label">
-                <span class="label-text">ABI ID</span>
+                <span class="label-text">ABI Hash</span>
               </label>
               <input
                 type="text"
-                name="abiId"
+                name="abiHash"
                 required
                 class="input input-bordered w-full max-w-xs"
               />
@@ -96,7 +96,7 @@ export default ({ entries }: ListSourcesProps) => {
         </dialog>
       </div>
 
-      <CollapsibleTable headers={["Contract Address", "ABI ID"]}>
+      <CollapsibleTable headers={["Contract Address", "ABI Hash"]}>
         {entries.map((entry) => (
           <CollapsibleTableRow
             collapsible={
@@ -104,27 +104,27 @@ export default ({ entries }: ListSourcesProps) => {
                 <div class="float-right join join-horizontal">
                   <button
                     class="btn join-item"
-                    onClick={handleWebhookTest(entry.address, entry.abiId)}
+                    onClick={handleWebhookTest(entry.address, entry.abiHash)}
                   >
                     Webhook Test
                   </button>
                   <button
                     class="btn btn-warning join-item"
-                    onClick={handleDelete(entry.address, entry.abiId)}
+                    onClick={handleDelete(entry.address, entry.abiHash)}
                   >
                     X
                   </button>
                 </div>
                 <div class="float-left">
                   <div>Contract Address: {entry.address}</div>
-                  <div>ABI ID: {entry.abiId}</div>
+                  <div>ABI Hash: {entry.abiHash}</div>
                   <div>ABI Signature: {entry.abi}</div>
                 </div>
               </>
             }
           >
             {entry.address}
-            {entry.abiId}
+            {entry.abiHash}
           </CollapsibleTableRow>
         ))}
       </CollapsibleTable>

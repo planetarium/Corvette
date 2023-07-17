@@ -2,15 +2,15 @@ import { Handlers, PageProps } from "fresh/server.ts";
 import Layout from "~/components/Layout.tsx";
 import ListWebhook, { type WebhookEntry } from "~/islands/ListWebhook.tsx";
 
-const fetchSources = (): Promise<WebhookEntry[]> => {
-  return fetch("http://localhost:8000/callback", {
+const fetchWebhook = (): Promise<WebhookEntry[]> => {
+  return fetch("http://localhost:8000/webhook", {
     method: "POST",
   }).then((res) => res.json());
 };
 
 export const handler: Handlers<WebhookEntry[]> = {
   async GET(_req, ctx) {
-    return ctx.render(await fetchSources());
+    return ctx.render(await fetchWebhook());
   },
 };
 

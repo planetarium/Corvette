@@ -1,0 +1,61 @@
+diff --git a/dist/helpers/makeResolver.js b/dist/helpers/makeResolver.js
+index ea5e68d4382bbcf8776addb64e51dce3b775fc9c..9fc2ae3911bd989bb6bd0f524c726b7f11c664ee 100644
+--- a/dist/helpers/makeResolver.js
++++ b/dist/helpers/makeResolver.js
+@@ -81,6 +81,44 @@ const rootOperationProxy = (db, dmmf) => {
+                     return convertResultToPrismaFormat(result);
+                 }
+                 const { operation, model } = mapping[method.toString()];
++                const models = dmmf.datamodel.models;
++                function transformBytesInArgs(model, subObject, prevField)
++                {
++                    function processIntermediate(value, field)
++                    {
++                        return Array.isArray(value)
++                            ? value.map(v => processIntermediate(v, field))
++                            : field != null && field.type === "Bytes"
++                                ? typeof value === "object"
++                                    ? transformBytesInArgs(model, value, field)
++                                    : Buffer.from(value, "base64")
++                                : typeof value === "object"
++                                    ? transformBytesInArgs(model, value, undefined)
++                                    : value;
++                    }
++                    return Array.isArray(subObject)
++                        ? subObject.map(v => processIntermediate(v, prevField))
++                        : Object.keys(subObject).reduce((acc, k) => {
++                            const field = model.fields.filter(v => v.name === k)[0];
++                            acc[k] = field != null
++                                ? !field.isList
++                                    ? field.type === "Bytes" && typeof subObject[k] === "string"
++                                        ? Buffer.from(subObject[k], "base64")
++                                        : typeof subObject[k] === "object"
++                                            ? transformBytesInArgs(models.filter(v => v.name === field.type)[0] || model, subObject[k], field)
++                                            : subObject[k]
++                                    : processIntermediate(subObject[k], field)
++                                : prevField != null
++                                    ? prevField.isList
++                                        ? processIntermediate(subObject[k], prevField)
++                                        : prevField.type === "Bytes" && typeof subObject[k] === "string"
++                                            ? Buffer.from(subObject[k], "base64")
++                                            : processIntermediate(subObject[k], undefined)
++                                    : processIntermediate(subObject[k], undefined);
++                            return acc;
++                        }, {})
++                }
++                args = transformBytesInArgs(models.filter(v => v.name === model)[0], args, undefined);
+                 const newArgs = operation === "aggregate" || operation === "groupBy"
+                     ? {
+                         ...digAggregateField(info.fieldNodes[0].selectionSet?.selections ?? []),
+diff --git a/dist/helpers/makeTypeDefs.js b/dist/helpers/makeTypeDefs.js
+index 4908f71c31bd320de80c0e62faab797e5ddfb877..6d6e6f1bc348632a3dc9ff848a47232497e250af 100644
+--- a/dist/helpers/makeTypeDefs.js
++++ b/dist/helpers/makeTypeDefs.js
+@@ -37,6 +37,7 @@ const makeTypeDefs = (dmmf) => {
+     scalar Json
+     scalar BigInt
+     scalar Decimal
++    scalar Bytes
+     ${enums}
+     ${types}
+   `;

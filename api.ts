@@ -5,15 +5,18 @@ import {
   Router,
 } from "https://deno.land/x/oak@v12.5.0/mod.ts";
 import { oakCors } from "https://deno.land/x/cors@v1.2.2/mod.ts";
-import type { DB } from "https://deno.land/x/sqlite@v3.7.2/mod.ts";
 import { getAddress, keccak256, toBytes, toHex } from "npm:viem";
 import { AbiEvent, narrow } from "npm:abitype";
+import { Buffer } from "node:buffer";
+
 import type { Evt } from "https://deno.land/x/evt@v2.4.22/mod.ts";
 import type { EventMessage } from "./EventMessage.ts";
-import { formatAbiItemPrototype } from "./abitype.ts";
-import { emitter } from "./emitter.ts";
 
-export function api(db: DB, evt: Evt<EventMessage>) {
+import type { PrismaClient } from "./generated/client/deno/edge.ts";
+
+import { formatAbiItemPrototype } from "./abitype.ts";
+
+export function api(prisma: PrismaClient, evt: Evt<EventMessage>) {
   const router = new Router();
 
   router.get("/", (ctx) => {
@@ -57,37 +60,75 @@ export function api(db: DB, evt: Evt<EventMessage>) {
     ctx.response.body = "Not yet implemented";
     ctx.response.status = Status.NotImplemented;
   });
-  router.post("/sources", (ctx) => {
+  router.post("/sources", async (ctx) => {
     // TODO: parameters
     ctx.response.body = JSON.stringify(
-      db.query(
-        `SELECT EventSource.address, Abi.abiJson, Abi.id FROM EventSource
-        INNER JOIN ABI ON EventSource.AbiId = ABI.id`,
-      ).map((x) => ({
-        address: getAddress(toHex(x[0] as Uint8Array)),
-        abi: formatAbiItemPrototype(JSON.parse(x[1] as string)),
-        abiId: toHex(x[2] as Uint8Array),
+      (await prisma.eventSource.findMany({
+        select: {
+          address: true,
+          Abi: {
+            select: {
+              hash: true,
+              json: true,
+            },
+          },
+        },
+      })).map((item) => ({
+        address: getAddress(toHex(item.address)),
+        abi: formatAbiItemPrototype(JSON.parse(item.Abi.json)),
+        abiHash: toHex(item.Abi.hash),
       })),
     );
   });
   router.put("/sources", async (ctx) => {
-    const { address, abiId } = await ctx.request.body({ type: "json" }).value;
-    ctx.response.body = db.query(
-      `INSERT INTO EventSource (address, abiId) VALUES (?, ?)
-      RETURNING address, abiId`,
-      [toBytes(address), toBytes(abiId)],
-    ).map((x) => ({
-      address: getAddress(toHex(x[0] as Uint8Array)),
-      abi: formatAbiItemPrototype(JSON.parse(x[1] as string)),
-      abiId: toHex(x[2] as Uint8Array),
-    }))[0];
+    const { address, abiHash } = await ctx.request.body({ type: "json" }).value;
+
+    ctx.response.body = await prisma.eventSource.create({
+      data: {
+        address: Buffer.from(toBytes(address)),
+        abiHash: Buffer.from(toBytes(abiHash)),
+      },
+      include: { Abi: { select: { json: true } } },
+    }).then((item) => ({
+      address: getAddress(toHex(item.address)),
+      abi: formatAbiItemPrototype(JSON.parse(item.Abi.json)),
+      abiHash: toHex(item.abiHash),
+    }));
   });
   router.delete("/sources", async (ctx) => {
-    const { address, abiId } = await ctx.request.body({ type: "json" }).value;
-    db.query(
-      `DELETE FROM EventSource WHERE address = ? AND abiId = ?`,
-      [toBytes(address), toBytes(abiId)],
+    const { address, abiHash } = await ctx.request.body({ type: "json" }).value;
+
+    await prisma.eventSource.delete({
+      where: {
+        address_abiHash: {
+          address: Buffer.from(toBytes(address)),
+          abiHash: Buffer.from(toBytes(abiHash)),
+        },
+      },
+    });
+
+    ctx.response.status = Status.NoContent;
+  });
+  router.post("/sources/testWebhook", async (ctx) => {
+    const { address, abiHash } = await ctx.request.body({ type: "json" }).value;
+
+    evt.post(
+      {
+        topic: {
+          address: Buffer.from(toBytes(address)),
+          sigHash: Buffer.from(toBytes(abiHash)),
+          topics: [],
+        },
+        message: {
+          blockTimestamp: BigInt(Math.floor(Date.now() / 1000)),
+          txIndex: -1,
+          logIndex: -1,
+          blockNumber: -1n,
+          blockHash: new Uint8Array([]),
+        },
+      },
     );
+
     ctx.response.status = Status.NoContent;
   });
 
@@ -96,15 +137,13 @@ export function api(db: DB, evt: Evt<EventMessage>) {
     ctx.response.body = "Not yet implemented";
     ctx.response.status = Status.NotImplemented;
   });
-  router.post("/abi", (ctx) => {
+  router.post("/abi", async (ctx) => {
     // TODO: parameters
     ctx.response.body = JSON.stringify(
-      db.query(
-        `SELECT id, abiJson FROM ABI`,
-      ).reduce((acc, x) => {
-        const abi = JSON.parse(x[1] as string);
+      (await prisma.eventAbi.findMany()).reduce((acc, item) => {
+        const abi = JSON.parse(item.json);
         Object.assign(acc, {
-          [toHex(x[0] as Uint8Array)]: {
+          [toHex(item.hash)]: {
             signature: formatAbiItemPrototype(abi),
             abi: abi,
           },
@@ -115,109 +154,86 @@ export function api(db: DB, evt: Evt<EventMessage>) {
   });
   router.put("/abi", async (ctx) => {
     const abiJson = await ctx.request.body({ type: "json" }).value;
+
     const testAbi = narrow(abiJson) as AbiEvent[];
     const testAbiEvent = testAbi.find((abi) => abi.name === "TestEvent");
-    if (!testAbiEvent) throw new Error();
-    const id = keccak256(
+    if (!testAbiEvent) {
+      throw new Error("TestEvent not found in given ABI JSON.");
+    }
+    const hash = keccak256(
       new TextEncoder().encode(formatAbiItemPrototype(testAbiEvent)),
       "bytes",
     );
-    ctx.response.body = db.query(
-      `INSERT INTO ABI (id, abiJson) VALUES (?, ?)
-      RETURNING id, abiJson`,
-      [id, JSON.stringify(testAbiEvent)],
-    ).reduce((acc, x) => {
-      const abi = JSON.parse(x[1] as string);
-      Object.assign(acc, {
-        [toHex(x[0] as Uint8Array)]: {
+
+    ctx.response.body = await prisma.eventAbi.create({
+      data: {
+        hash: Buffer.from(hash),
+        json: JSON.stringify(testAbiEvent)
+      },
+    }).then((item) => {
+      const abi = JSON.parse(item.json);
+      return {
+        [toHex(item.hash)]: {
           signature: formatAbiItemPrototype(abi),
           abi: abi,
         },
-      });
-      return acc;
-    }, {});
+      };
+    });
   });
-  router.delete("/abi/:id", (ctx) => {
-    const id = toBytes(ctx.params.id);
-    db.query(`DELETE FROM ABI WHERE id = ?`, [id]);
+  router.delete("/abi/:hash", async (ctx) => {
+    const hash = Buffer.from(toBytes(ctx.params.hash));
+
+    await prisma.eventAbi.delete({ where: { hash } });
+
     ctx.response.status = Status.NoContent;
   });
 
-  router.post("/callback", (ctx) => {
-    ctx.response.body = db.query(
-      `SELECT address, abiId, callbackUrl FROM EventCallback`,
-    ).map((row) => ({
-      address: getAddress(toHex(row[0] as Uint8Array)),
-      abiId: toHex(row[1] as Uint8Array),
-      callbackUrl: row[2],
-    }));
+  router.post("/webhook", async (ctx) => {
+    // TODO: parameters
+    ctx.response.body = (await prisma.emitDestination.findMany())
+      .map((item) => ({
+        id: item.id,
+        sourceAddress: getAddress(toHex(item.sourceAddress)),
+        abiHash: toHex(item.abiHash),
+        webhookUrl: item.webhookUrl,
+        topic1: item.topic1 ? toHex(item.topic1) : undefined,
+        topic2: item.topic2 ? toHex(item.topic2) : undefined,
+        topic3: item.topic3 ? toHex(item.topic3) : undefined,
+      }));
   });
-  router.put("/callback", async (ctx) => {
-    const { address, abiId, callbackUrl } = await ctx.request.body({
-      type: "json",
-    }).value;
-    ctx.response.body = db.query(
-      `INSERT INTO EventCallback
-      (address, abiId, callbackUrl) values (?, ?, ?)
-      RETURNING address, abiId, callbackUrl`,
-      [toBytes(address), toBytes(abiId), callbackUrl],
-    ).map((row) => ({
-      address: getAddress(toHex(row[0] as Uint8Array)),
-      abiId: toHex(row[1] as Uint8Array),
-      callbackUrl: row[2],
-    }))[0];
-  });
-  router.delete("/callback", async (ctx) => {
-    const { address, abiId, callbackUrl } = await ctx.request.body({
-      type: "json",
-    }).value;
-    db.query(
-      `DELETE FROM EventCallback WHERE address = ? AND abiId = ? AND callbackUrl = ?`,
-      [toBytes(address), toBytes(abiId), callbackUrl],
-    );
-    ctx.response.status = Status.NoContent;
-  });
-  router.post("/callback/test", async (ctx) => {
-    const { address, abiId } = await ctx.request.body({ type: "json" }).value;
-    const addressBytes = toBytes(address);
-    const abiIdBytes = toBytes(abiId);
+  router.put("/webhook", async (ctx) => {
+    const { sourceAddress, abiHash, webhookUrl, topic1, topic2, topic3 } =
+      await ctx.request.body({ type: "json" }).value;
 
-    const res = db.query(
-      `SELECT EventCallback.callbackUrl, ABI.abiJson
-      FROM EventCallback, ABI
-      WHERE ABI.id = EventCallback.abiId
-      AND address = ? AND abiId = ?`,
-      [addressBytes, abiIdBytes],
+    const topics = Object.fromEntries(
+      [topic1, topic2, topic3].flatMap((val, idx) =>
+        val ? [[`topic${idx + 1}`, Buffer.from(toBytes(val))]] : []
+      ),
     );
 
-    const mappings = res.map((x) => ({
-      address,
-      abi: formatAbiItemPrototype(JSON.parse(x[1] as string)),
-      url: x[0] as string,
-    }));
-
-    const { attaches } = emitter(db, evt, mappings);
-
-    evt.post(
-      {
-        topic: {
-          address: addressBytes,
-          sigHash: abiIdBytes,
-          topics: [],
-        },
-        message: {
-          blockTimestamp: BigInt(Date.now()),
-          txIndex: -1,
-          logIndex: -1,
-          blockNumber: 0n,
-          blockHash: new Uint8Array([]),
-        },
+    ctx.response.body = await prisma.emitDestination.create({
+      data: {
+        sourceAddress: Buffer.from(toBytes(sourceAddress)),
+        abiHash: Buffer.from(toBytes(abiHash)),
+        webhookUrl,
+        ...topics,
       },
-    );
+    }).then((item) => ({
+      id: item.id,
+      sourceAddress: getAddress(toHex(item.sourceAddress)),
+      abiHash: toHex(item.abiHash),
+      webhookUrl: item.webhookUrl,
+      topic1: item.topic1 ? toHex(item.topic1) : undefined,
+      topic2: item.topic2 ? toHex(item.topic2) : undefined,
+      topic3: item.topic3 ? toHex(item.topic3) : undefined,
+    }));
+  });
+  router.delete("/webhook/:id", async (ctx) => {
+    const id = Number(ctx.params.id);
 
-    attaches.detach();
+    await prisma.emitDestination.delete({ where: { id } });
 
-    ctx.response.body = mappings;
+    ctx.response.status = Status.NoContent;
   });
 
   const app = new OakApplication();
@@ -238,5 +254,6 @@ export function api(db: DB, evt: Evt<EventMessage>) {
   app.use(oakCors());
   app.use(router.routes());
   app.use(router.allowedMethods());
+  // TODO: configuration
   return app.listen({ port: 8000 });
 }

@@ -1,5 +1,5 @@
 import { Evt } from "https://deno.land/x/evt@v2.4.22/mod.ts";
-import type { DB } from "https://deno.land/x/sqlite@v3.7.2/mod.ts";
+import { Buffer } from "node:buffer";
 import { AbiEvent } from "npm:abitype";
 import {
   createPublicClient,
@@ -8,22 +8,24 @@ import {
   toHex,
 } from "npm:viem";
 
+import type { PrismaClient } from "./generated/client/deno/edge.ts";
+
 import { EventMessage } from "./EventMessage.ts";
 import { mothershipDevnet } from "./chains.ts";
 
-export function monitor(db: DB) {
+export async function observer(prisma: PrismaClient) {
   const client = createPublicClient({
     chain: mothershipDevnet,
     transport: httpViemTransport(),
   });
 
   const evt = Evt.create<EventMessage>();
-  const watchEvents = db.query(
-    "SELECT EventSource.address, ABI.id, ABI.abiJson FROM EventSource INNER JOIN ABI ON EventSource.abiId = ABI.id",
-  ).map((row) => {
-    const event = JSON.parse(row[2] as string) as AbiEvent;
+  const watchEvents = (await prisma.eventSource.findMany({
+    select: { abiHash: true, address: true, Abi: { select: { json: true } } },
+  })).map((item) => {
+    const event = JSON.parse(item.Abi.json) as AbiEvent;
     return client.watchEvent({
-      address: toHex(row[0] as Uint8Array),
+      address: toHex(item.address),
       event,
       onLogs: async (logs) => {
         for (const log of logs) {
@@ -39,42 +41,34 @@ export function monitor(db: DB) {
           const addressBytes = toBytes(log.address);
           const topicsBytes = log.topics.map(toBytes);
 
-          db.query(
-            `INSERT INTO Event (
-              blockTimestamp,
-              txIndex,
-              logIndex,
-              blockNumber,
-              blockHash,
-              txHash,
-              sourceAddress,
-              abiId,
-              topic1,
-              topic2,
-              topic3,
-              data
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              timestamp,
-              log.transactionIndex,
-              log.logIndex,
-              log.blockNumber,
-              blockHashBytes,
-              toBytes(log.transactionHash),
-              addressBytes,
-              row[1] as Uint8Array,
-              topicsBytes[0] ?? null,
-              topicsBytes[1] ?? null,
-              topicsBytes[2] ?? null,
-              toBytes(log.data),
-            ],
-          );
+          await prisma.event.create({
+            data: {
+              blockTimestamp: new Date(Number(timestamp) * 1000),
+              txIndex: log.transactionIndex,
+              logIndex: log.logIndex,
+              blockNumber: Number(log.blockNumber),
+              blockHash: Buffer.from(blockHashBytes),
+              txHash: Buffer.from(toBytes(log.transactionHash)),
+              sourceAddress: Buffer.from(addressBytes),
+              abiHash: item.abiHash,
+              topic1: topicsBytes[1] != null
+                ? Buffer.from(topicsBytes[1])
+                : undefined,
+              topic2: topicsBytes[2] != null
+                ? Buffer.from(topicsBytes[2])
+                : undefined,
+              topic3: topicsBytes[3] != null
+                ? Buffer.from(topicsBytes[3])
+                : undefined,
+              data: Buffer.from(toBytes(log.data)),
+            },
+          });
 
           evt.post(
             {
               topic: {
                 address: addressBytes,
-                sigHash: row[1] as Uint8Array,
+                sigHash: item.abiHash,
                 topics: topicsBytes,
               },
               message: {

@@ -1,0 +1,7 @@
+{
+  "tasks": {
+    "prisma": "deno run --allow-read --allow-env --allow-write --allow-run --allow-ffi --allow-sys npm:prisma@4.15",
+    "prisma-studio": "deno run --allow-read --allow-env --allow-run scripts/prisma-studio.ts",
+    "serve": "deno run --allow-read --allow-write generate-cert.ts && deno run --unsafely-ignore-certificate-errors=localhost --allow-read --allow-write --allow-env --allow-run --allow-net app.ts"
+  }
+}

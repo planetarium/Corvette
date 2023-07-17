@@ -6,7 +6,7 @@ import {
 } from "~/components/CollapsibleTable.tsx";
 
 export interface AbiEntry {
-  id: string;
+  hash: string;
   signature: string;
   abi: AbiEvent;
 }
@@ -68,10 +68,10 @@ export default function ListAbi({ entries }: ListAbiProps) {
   }, []);
 
   const handleDelete = useCallback(
-    (id: string) => async (e: Event) => {
+    (hash: string) => async (e: Event) => {
       e.preventDefault();
 
-      await fetch(`http://localhost:8000/abi/${id}`, {
+      await fetch(`http://localhost:8000/abi/${hash}`, {
         method: "DELETE",
       });
 
@@ -112,7 +112,7 @@ export default function ListAbi({ entries }: ListAbiProps) {
           </form>
         </dialog>
       </div>
-      <CollapsibleTable headers={["ID", "Signature"]}>
+      <CollapsibleTable headers={["Hash", "Signature"]}>
         {entries.map((entry) => (
           <CollapsibleTableRow
             collapsible={
@@ -120,20 +120,20 @@ export default function ListAbi({ entries }: ListAbiProps) {
                 <div class="float-right">
                   <button
                     class="btn btn-warning"
-                    onClick={handleDelete(entry.id)}
+                    onClick={handleDelete(entry.hash)}
                   >
                     X
                   </button>
                 </div>
                 <div class="float-left">
-                  <div>ID: {entry.id}</div>
+                  <div>Hash: {entry.hash}</div>
                   <div>Sig: {getSignatureFromAbiEvent(entry.abi)}</div>
                 </div>
                 <AbiTable abi={entry.abi} />
               </>
             }
           >
-            {entry.id}
+            {entry.hash}
             {entry.signature}
           </CollapsibleTableRow>
         ))}

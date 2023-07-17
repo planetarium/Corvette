@@ -38,6 +38,16 @@ async function main() {
   await prisma.eventSource.create({
     data: { address: sampleContractAddress, abiHash: hash },
   });
+
+  await prisma.emitDestination.create(
+    {
+      data: {
+        sourceAddress: sampleContractAddress,
+        abiHash: hash,
+        webhookUrl: "http://localhost:8001",
+      },
+    },
+  );
 }
 
 main().catch((e) => {

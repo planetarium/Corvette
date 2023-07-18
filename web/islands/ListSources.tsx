@@ -22,6 +22,7 @@ export const ListSources = ({ entries }: ListSourcesProps) => {
 
     const formData = new FormData(e.target as HTMLFormElement);
 
+    // TODO: configuration
     await fetch("http://localhost:8000/sources", {
       method: "PUT",
       body: JSON.stringify(Object.fromEntries(formData.entries())),
@@ -34,6 +35,7 @@ export const ListSources = ({ entries }: ListSourcesProps) => {
     (address: string, abiHash: string) => async (e: Event) => {
       e.preventDefault();
 
+      // TODO: configuration
       await fetch(`http://localhost:8000/sources`, {
         method: "DELETE",
         body: JSON.stringify({ address, abiHash }),
@@ -41,13 +43,14 @@ export const ListSources = ({ entries }: ListSourcesProps) => {
 
       location.reload();
     },
-    [],
+    []
   );
 
   const handleWebhookTest = useCallback(
     (address: string, abiHash: string) => (e: Event) => {
       e.preventDefault();
 
+      // TODO: configuration
       fetch(`http://localhost:8000/sources/testWebhook`, {
         method: "POST",
         body: JSON.stringify({ address, abiHash }),

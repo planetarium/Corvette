@@ -25,6 +25,7 @@ export const ListWebhook = ({ entries }: ListWebhookProps) => {
 
     const formData = new FormData(e.target as HTMLFormElement);
 
+    // TODO: configuration
     await fetch("http://localhost:8000/webhook", {
       method: "PUT",
       body: JSON.stringify(Object.fromEntries(formData.entries())),
@@ -37,13 +38,14 @@ export const ListWebhook = ({ entries }: ListWebhookProps) => {
     (id: number) => async (e: Event) => {
       e.preventDefault();
 
+      // TODO: configuration
       await fetch(`http://localhost:8000/webhook/${id}`, {
         method: "DELETE",
       });
 
       location.reload();
     },
-    [],
+    []
   );
 
   const modalRef = useRef<HTMLDialogElement>(null);

@@ -7,6 +7,7 @@ interface AbiResponse {
 }
 
 const fetchAbis = (): Promise<AbiResponse> => {
+  // TODO: configuration
   return fetch("http://localhost:8000/abi", {
     method: "POST",
   }).then((res) => res.json());

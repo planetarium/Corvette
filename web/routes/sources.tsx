@@ -3,6 +3,7 @@ import { Layout } from "~/components/Layout.tsx";
 import { ListSources, type SourceEntry } from "~/islands/ListSources.tsx";
 
 const fetchSources = (): Promise<SourceEntry[]> => {
+  // TODO: configuration
   return fetch("http://localhost:8000/sources", {
     method: "POST",
   }).then((res) => res.json());

@@ -36,6 +36,7 @@ export const ListAbi = ({ entries }: Props) => {
     const formData = new FormData(e.target as HTMLFormElement);
     const abiJson = formData.get("abiJson");
 
+    // TODO: configuration
     await fetch(`http://localhost:8000/abi`, {
       method: "PUT",
       body: abiJson,
@@ -48,13 +49,14 @@ export const ListAbi = ({ entries }: Props) => {
     (hash: string) => async (e: Event) => {
       e.preventDefault();
 
+      // TODO: configuration
       await fetch(`http://localhost:8000/abi/${hash}`, {
         method: "DELETE",
       });
 
       location.reload();
     },
-    [],
+    []
   );
 
   const modalRef = useRef<HTMLDialogElement>(null);

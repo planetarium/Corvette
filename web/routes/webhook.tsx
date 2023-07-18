@@ -3,6 +3,7 @@ import { Layout } from "~/components/Layout.tsx";
 import { ListWebhook, type WebhookEntry } from "~/islands/ListWebhook.tsx";
 
 const fetchWebhook = (): Promise<WebhookEntry[]> => {
+  // TODO: configuration
   return fetch("http://localhost:8000/webhook", {
     method: "POST",
   }).then((res) => res.json());

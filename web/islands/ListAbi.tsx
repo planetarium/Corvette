@@ -1,42 +1,19 @@
-import type { AbiEvent } from "https://esm.sh/abitype@0.9.0";
 import { useCallback, useRef } from "preact/hooks";
+
+import { AbiTable } from "~/components/AbiTable.tsx";
 import {
   CollapsibleTable,
   CollapsibleTableRow,
 } from "~/components/CollapsibleTable.tsx";
+import { Modal } from "~/components/Modal.tsx";
+
+import type { AbiEvent } from "https://esm.sh/abitype@0.9.0";
 
 export interface AbiEntry {
   hash: string;
   signature: string;
   abi: AbiEvent;
 }
-
-interface AbiTableProps {
-  abi: AbiEvent;
-}
-
-const AbiTable = ({ abi }: AbiTableProps) => {
-  return (
-    <table class="table">
-      <thead>
-        <tr>
-          <td>name</td>
-          <td>type</td>
-          <td>indexed</td>
-        </tr>
-      </thead>
-      {abi.inputs.map((input) => (
-        <tr>
-          <td>{input.name || "(empty)"}</td>
-          <td>
-            {input.type} ({input.internalType})
-          </td>
-          <td>{String(input.indexed)}</td>
-        </tr>
-      ))}
-    </table>
-  );
-};
 
 const getSignatureFromAbiEvent = (event: AbiEvent) => {
   return `${event.name}(${
@@ -48,11 +25,11 @@ const getSignatureFromAbiEvent = (event: AbiEvent) => {
   })`;
 };
 
-interface ListAbiProps {
+interface Props {
   entries: AbiEntry[];
 }
 
-export default function ListAbi({ entries }: ListAbiProps) {
+export const ListAbi = ({ entries }: Props) => {
   const handleSubmit = useCallback(async (e: Event) => {
     e.preventDefault();
 
@@ -88,29 +65,20 @@ export default function ListAbi({ entries }: ListAbiProps) {
         <button class="btn" onClick={() => modalRef.current?.showModal()}>
           +
         </button>
-        <dialog ref={modalRef} class="modal">
-          <form method="dialog" class="modal-box">
-            <button class="btn btn-sm btn-circle btn-ghost float-right">
-              ✕
-            </button>
-            <h3 class="font-bold text-lg">Register ABI</h3>
-            <form onSubmit={handleSubmit} class="form-control w-full">
-              <label class="label">
-                <span class="label-text">ABI JSON</span>
-              </label>
-              <textarea
-                type="text"
-                name="abiJson"
-                required
-                class="input input-bordered w-full max-w-xs"
-              />
-              <input type="submit" class="btn" />
-            </form>
+        <Modal title="Register ABI" ref={modalRef}>
+          <form onSubmit={handleSubmit} class="form-control w-full">
+            <label class="label">
+              <span class="label-text">ABI JSON</span>
+            </label>
+            <textarea
+              type="text"
+              name="abiJson"
+              required
+              class="input input-bordered w-full max-w-xs"
+            />
+            <input type="submit" class="btn" />
           </form>
-          <form method="dialog" class="modal-backdrop">
-            <button>close</button>
-          </form>
-        </dialog>
+        </Modal>
       </div>
       <CollapsibleTable headers={["Hash", "Signature"]}>
         {entries.map((entry) => (
@@ -140,4 +108,6 @@ export default function ListAbi({ entries }: ListAbiProps) {
       </CollapsibleTable>
     </>
   );
-}
+};
+
+export default ListAbi;

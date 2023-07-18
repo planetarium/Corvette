@@ -1,6 +1,6 @@
 import { Handlers, PageProps } from "fresh/server.ts";
-import Layout from "~/components/Layout.tsx";
-import ListSources, { type SourceEntry } from "~/islands/ListSources.tsx";
+import { Layout } from "~/components/Layout.tsx";
+import { ListSources, type SourceEntry } from "~/islands/ListSources.tsx";
 
 const fetchSources = (): Promise<SourceEntry[]> => {
   return fetch("http://localhost:8000/sources", {

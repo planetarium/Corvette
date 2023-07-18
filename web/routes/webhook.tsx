@@ -1,6 +1,6 @@
 import { Handlers, PageProps } from "fresh/server.ts";
-import Layout from "~/components/Layout.tsx";
-import ListWebhook, { type WebhookEntry } from "~/islands/ListWebhook.tsx";
+import { Layout } from "~/components/Layout.tsx";
+import { ListWebhook, type WebhookEntry } from "~/islands/ListWebhook.tsx";
 
 const fetchWebhook = (): Promise<WebhookEntry[]> => {
   return fetch("http://localhost:8000/webhook", {

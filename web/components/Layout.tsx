@@ -6,7 +6,7 @@ interface Props {
   title?: string;
 }
 
-export default function Layout({ children, ...props }: Props) {
+export const Layout = ({ children, ...props }: Props) => {
   return (
     <>
       <Head>
@@ -36,4 +36,4 @@ export default function Layout({ children, ...props }: Props) {
       </div>
     </>
   );
-}
+};

@@ -1,6 +1,6 @@
 import { Handlers, PageProps } from "fresh/server.ts";
-import Layout from "~/components/Layout.tsx";
-import ListAbi, { type AbiEntry } from "~/islands/ListAbi.tsx";
+import { Layout } from "~/components/Layout.tsx";
+import { type AbiEntry, ListAbi } from "~/islands/ListAbi.tsx";
 
 interface AbiResponse {
   [hash: string]: Omit<AbiEntry, "hash">;

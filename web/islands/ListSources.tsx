@@ -1,8 +1,10 @@
 import { useCallback, useRef } from "preact/hooks";
+
 import {
   CollapsibleTable,
   CollapsibleTableRow,
 } from "~/components/CollapsibleTable.tsx";
+import { Modal } from "~/components/Modal.tsx";
 
 export interface SourceEntry {
   address: string;
@@ -14,7 +16,7 @@ interface ListSourcesProps {
   entries: SourceEntry[];
 }
 
-export default ({ entries }: ListSourcesProps) => {
+export const ListSources = ({ entries }: ListSourcesProps) => {
   const handleSubmit = useCallback(async (e: Event) => {
     e.preventDefault();
 
@@ -62,38 +64,29 @@ export default ({ entries }: ListSourcesProps) => {
         <button class="btn" onClick={() => modalRef.current?.showModal()}>
           +
         </button>
-        <dialog ref={modalRef} class="modal">
-          <form method="dialog" class="modal-box">
-            <button class="btn btn-sm btn-circle btn-ghost float-right">
-              ✕
-            </button>
-            <h3 class="font-bold text-lg">Register Event Source</h3>
-            <form onSubmit={handleSubmit} class="form-control w-full">
-              <label class="label">
-                <span class="label-text">Contract Address</span>
-              </label>
-              <input
-                type="text"
-                name="address"
-                required
-                class="input input-bordered w-full max-w-xs"
-              />
-              <label class="label">
-                <span class="label-text">ABI Hash</span>
-              </label>
-              <input
-                type="text"
-                name="abiHash"
-                required
-                class="input input-bordered w-full max-w-xs"
-              />
-              <input type="submit" class="btn" />
-            </form>
+        <Modal title="Register Event Source" ref={modalRef}>
+          <form onSubmit={handleSubmit} class="form-control w-full">
+            <label class="label">
+              <span class="label-text">Contract Address</span>
+            </label>
+            <input
+              type="text"
+              name="address"
+              required
+              class="input input-bordered w-full max-w-xs"
+            />
+            <label class="label">
+              <span class="label-text">ABI Hash</span>
+            </label>
+            <input
+              type="text"
+              name="abiHash"
+              required
+              class="input input-bordered w-full max-w-xs"
+            />
+            <input type="submit" class="btn" />
           </form>
-          <form method="dialog" class="modal-backdrop">
-            <button>close</button>
-          </form>
-        </dialog>
+        </Modal>
       </div>
 
       <CollapsibleTable headers={["Contract Address", "ABI Hash"]}>
@@ -131,3 +124,5 @@ export default ({ entries }: ListSourcesProps) => {
     </>
   );
 };
+
+export default ListSources;

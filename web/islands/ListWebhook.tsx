@@ -3,6 +3,7 @@ import {
   CollapsibleTable,
   CollapsibleTableRow,
 } from "~/components/CollapsibleTable.tsx";
+import { Modal } from "~/components/Modal.tsx";
 
 export interface WebhookEntry {
   id: number;
@@ -18,7 +19,7 @@ interface ListWebhookProps {
   entries: WebhookEntry[];
 }
 
-export default ({ entries }: ListWebhookProps) => {
+export const ListWebhook = ({ entries }: ListWebhookProps) => {
   const handleSubmit = useCallback(async (e: Event) => {
     e.preventDefault();
 
@@ -53,47 +54,38 @@ export default ({ entries }: ListWebhookProps) => {
         <button class="btn" onClick={() => modalRef.current?.showModal()}>
           +
         </button>
-        <dialog ref={modalRef} class="modal">
-          <form method="dialog" class="modal-box">
-            <button class="btn btn-sm btn-circle btn-ghost float-right">
-              ✕
-            </button>
-            <h3 class="font-bold text-lg">Register Webhook</h3>
-            <form onSubmit={handleSubmit} class="form-control w-full">
-              <label class="label">
-                <span class="label-text">Contract Address</span>
-              </label>
-              <input
-                type="text"
-                name="sourceAddress"
-                required
-                class="input input-bordered w-full max-w-xs"
-              />
-              <label class="label">
-                <span class="label-text">ABI Hash</span>
-              </label>
-              <input
-                type="text"
-                name="abiHash"
-                required
-                class="input input-bordered w-full max-w-xs"
-              />
-              <label class="label">
-                <span class="label-text">Webhook URL</span>
-              </label>
-              <input
-                type="text"
-                name="webhookUrl"
-                required
-                class="input input-bordered w-full max-w-xs"
-              />
-              <input type="submit" class="btn" />
-            </form>
+        <Modal title="Register Webhook" ref={modalRef}>
+          <form onSubmit={handleSubmit} class="form-control w-full">
+            <label class="label">
+              <span class="label-text">Contract Address</span>
+            </label>
+            <input
+              type="text"
+              name="sourceAddress"
+              required
+              class="input input-bordered w-full max-w-xs"
+            />
+            <label class="label">
+              <span class="label-text">ABI Hash</span>
+            </label>
+            <input
+              type="text"
+              name="abiHash"
+              required
+              class="input input-bordered w-full max-w-xs"
+            />
+            <label class="label">
+              <span class="label-text">Webhook URL</span>
+            </label>
+            <input
+              type="text"
+              name="webhookUrl"
+              required
+              class="input input-bordered w-full max-w-xs"
+            />
+            <input type="submit" class="btn" />
           </form>
-          <form method="dialog" class="modal-backdrop">
-            <button>close</button>
-          </form>
-        </dialog>
+        </Modal>
       </div>
 
       <CollapsibleTable
@@ -115,6 +107,9 @@ export default ({ entries }: ListWebhookProps) => {
                   <div>Contract Address: {entry.sourceAddress}</div>
                   <div>ABI Hash: {entry.abiHash}</div>
                   <div>Webhook URL: {entry.webhookUrl}</div>
+                  {entry.topic1 && <div>Topic 1: {entry.topic1}</div>}
+                  {entry.topic2 && <div>Topic 2: {entry.topic2}</div>}
+                  {entry.topic3 && <div>Topic 3: {entry.topic3}</div>}
                 </div>
               </>
             }
@@ -128,3 +123,5 @@ export default ({ entries }: ListWebhookProps) => {
     </>
   );
 };
+
+export default ListWebhook;

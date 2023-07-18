@@ -48,5 +48,3 @@ export const CollapsibleTable = ({
     </div>
   );
 };
-
-export default CollapsibleTable;

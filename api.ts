@@ -5,18 +5,21 @@ import {
   Router,
 } from "https://deno.land/x/oak@v12.5.0/mod.ts";
 import { oakCors } from "https://deno.land/x/cors@v1.2.2/mod.ts";
+import { connect as connectAmqp } from "https://deno.land/x/amqp@v0.23.1/mod.ts";
+import { Buffer } from "node:buffer";
 import { getAddress, keccak256, toBytes, toHex } from "npm:viem";
 import { AbiEvent, narrow } from "npm:abitype";
-import { Buffer } from "node:buffer";
-
-import type { Evt } from "https://deno.land/x/evt@v2.4.22/mod.ts";
-import type { EventMessage } from "./EventMessage.ts";
-
-import type { PrismaClient } from "./generated/client/deno/edge.ts";
+import { stringify as losslessJsonStringify } from "npm:lossless-json";
 
 import { formatAbiItemPrototype } from "./abitype.ts";
+import { evmEventsQueueName } from "./constants.ts";
+import type { PrismaClient } from "./generated/client/deno/edge.ts";
 
-export function api(prisma: PrismaClient, evt: Evt<EventMessage>) {
+export async function api(prisma: PrismaClient) {
+  const amqpConnection = await connectAmqp();
+  const amqpChannel = await amqpConnection.openChannel();
+  await amqpChannel.declareQueue({ queue: evmEventsQueueName });
+
   const router = new Router();
 
   router.get("/", (ctx) => {
@@ -112,21 +115,19 @@ export function api(prisma: PrismaClient, evt: Evt<EventMessage>) {
   router.post("/sources/testWebhook", async (ctx) => {
     const { address, abiHash } = await ctx.request.body({ type: "json" }).value;
 
-    evt.post(
-      {
-        topic: {
-          address: Buffer.from(toBytes(address)),
-          sigHash: Buffer.from(toBytes(abiHash)),
-          topics: [],
-        },
-        message: {
-          blockTimestamp: BigInt(Math.floor(Date.now() / 1000)),
-          txIndex: -1,
-          logIndex: -1,
-          blockNumber: -1n,
-          blockHash: new Uint8Array([]),
-        },
-      },
+    amqpChannel.publish(
+      { routingKey: evmEventsQueueName },
+      { contentType: "application/json" },
+      new TextEncoder().encode(losslessJsonStringify({
+        address: address,
+        sigHash: abiHash,
+        topics: [],
+        blockTimestamp: BigInt(Math.floor(Date.now() / 1000)),
+        txIndex: -1,
+        logIndex: -1,
+        blockNumber: -1n,
+        blockHash: "0x" + "0".repeat(64),
+      })),
     );
 
     ctx.response.status = Status.NoContent;
@@ -168,7 +169,7 @@ export function api(prisma: PrismaClient, evt: Evt<EventMessage>) {
     ctx.response.body = await prisma.eventAbi.create({
       data: {
         hash: Buffer.from(hash),
-        json: JSON.stringify(testAbiEvent)
+        json: JSON.stringify(testAbiEvent),
       },
     }).then((item) => {
       const abi = JSON.parse(item.json);

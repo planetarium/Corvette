@@ -1,4 +1,5 @@
 import { load as load_env } from "https://deno.land/std@0.194.0/dotenv/mod.ts";
+import { broker } from "https://deno.land/x/lop@0.0.0-alpha.0/mod.ts";
 
 import { PrismaClient } from "./generated/client/deno/edge.ts";
 
@@ -19,15 +20,18 @@ const prisma = new PrismaClient({
   },
 });
 
+const abortBroker = broker();
+
 async function main() {
-  const { evt } = await observer(prisma);
-  await emitter(prisma, evt);
-  await Promise.all([api(prisma, evt), testWebhookReceiver()]);
+  await observer(prisma);
+  await emitter(prisma);
+  await Promise.all([api(prisma), testWebhookReceiver()]);
 }
 
 main().catch((e) => {
   throw e;
 }).finally(async () => {
+  abortBroker();
   await prisma.$disconnect();
   abortDataproxy();
 });

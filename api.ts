@@ -8,11 +8,12 @@ import { oakCors } from "https://deno.land/x/cors@v1.2.2/mod.ts";
 import { connect as connectAmqp } from "https://deno.land/x/amqp@v0.23.1/mod.ts";
 import { Buffer } from "node:buffer";
 import { getAddress, keccak256, toBytes, toHex } from "npm:viem";
-import { AbiEvent, narrow } from "npm:abitype";
 import { stringify as losslessJsonStringify } from "npm:lossless-json";
 
 import { formatAbiItemPrototype } from "./abitype.ts";
 import { evmEventsQueueName } from "./constants.ts";
+
+import type { Abi } from "npm:abitype";
 import type { PrismaClient } from "./generated/client/deno/edge.ts";
 
 export async function api(prisma: PrismaClient) {
@@ -65,23 +66,13 @@ export async function api(prisma: PrismaClient) {
   });
   router.post("/sources", async (ctx) => {
     // TODO: parameters
-    ctx.response.body = JSON.stringify(
-      (await prisma.eventSource.findMany({
-        select: {
-          address: true,
-          Abi: {
-            select: {
-              hash: true,
-              json: true,
-            },
-          },
-        },
-      })).map((item) => ({
-        address: getAddress(toHex(item.address)),
-        abi: formatAbiItemPrototype(JSON.parse(item.Abi.json)),
-        abiHash: toHex(item.Abi.hash),
-      })),
-    );
+    ctx.response.body = (await prisma.eventSource.findMany({
+      include: { Abi: true },
+    })).map((item) => ({
+      address: getAddress(toHex(item.address)),
+      abi: formatAbiItemPrototype(JSON.parse(item.Abi.json)),
+      abiHash: toHex(item.abiHash),
+    }));
   });
   router.put("/sources", async (ctx) => {
     const { address, abiHash } = await ctx.request.body({ type: "json" }).value;
@@ -91,7 +82,7 @@ export async function api(prisma: PrismaClient) {
         address: Buffer.from(toBytes(address)),
         abiHash: Buffer.from(toBytes(abiHash)),
       },
-      include: { Abi: { select: { json: true } } },
+      include: { Abi: true },
     }).then((item) => ({
       address: getAddress(toHex(item.address)),
       abi: formatAbiItemPrototype(JSON.parse(item.Abi.json)),
@@ -140,8 +131,8 @@ export async function api(prisma: PrismaClient) {
   });
   router.post("/abi", async (ctx) => {
     // TODO: parameters
-    ctx.response.body = JSON.stringify(
-      (await prisma.eventAbi.findMany()).reduce((acc, item) => {
+    ctx.response.body = (await prisma.eventAbi.findMany()).reduce(
+      (acc, item) => {
         const abi = JSON.parse(item.json);
         Object.assign(acc, {
           [toHex(item.hash)]: {
@@ -150,36 +141,50 @@ export async function api(prisma: PrismaClient) {
           },
         });
         return acc;
-      }, {}),
+      },
+      {},
     );
   });
   router.put("/abi", async (ctx) => {
-    const abiJson = await ctx.request.body({ type: "json" }).value;
+    const abiJson: Abi = await ctx.request.body({ type: "json" }).value;
 
-    const testAbi = narrow(abiJson) as AbiEvent[];
-    const testAbiEvent = testAbi.find((abi) => abi.name === "TestEvent");
-    if (!testAbiEvent) {
-      throw new Error("TestEvent not found in given ABI JSON.");
-    }
-    const hash = keccak256(
-      new TextEncoder().encode(formatAbiItemPrototype(testAbiEvent)),
-      "bytes",
+    const abiHashMapping = abiJson.map((abiElement) =>
+      [
+        abiElement,
+        keccak256(
+          new TextEncoder().encode(formatAbiItemPrototype(abiElement)),
+          "bytes",
+        ),
+      ] as const
     );
 
-    ctx.response.body = await prisma.eventAbi.create({
-      data: {
-        hash: Buffer.from(hash),
-        json: JSON.stringify(testAbiEvent),
+    // Prisma with SQLite doesn't support createMany...
+    // TODO: replace Promise.allSettled with prisma.$transaction
+    const rows = await Promise.allSettled(
+      abiHashMapping.map(([abiElement, hash]) =>
+        prisma.eventAbi.create({
+          data: {
+            hash: Buffer.from(hash),
+            json: JSON.stringify(abiElement),
+          },
+        })
+      ),
+    );
+    ctx.response.body = rows.flatMap((res) =>
+      res.status === "fulfilled" ? [res.value] : []
+    ).reduce(
+      (acc, item) => {
+        const abi = JSON.parse(item.json);
+        Object.assign(acc, {
+          [toHex(item.hash)]: {
+            signature: formatAbiItemPrototype(abi),
+            abi: abi,
+          },
+        });
+        return acc;
       },
-    }).then((item) => {
-      const abi = JSON.parse(item.json);
-      return {
-        [toHex(item.hash)]: {
-          signature: formatAbiItemPrototype(abi),
-          abi: abi,
-        },
-      };
-    });
+      {},
+    );
   });
   router.delete("/abi/:hash", async (ctx) => {
     const hash = Buffer.from(toBytes(ctx.params.hash));

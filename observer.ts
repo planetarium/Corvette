@@ -3,6 +3,7 @@ import { Buffer } from "node:buffer";
 import { AbiEvent } from "npm:abitype";
 import { stringify as losslessJsonStringify } from "npm:lossless-json";
 import {
+  Chain,
   createPublicClient,
   http as httpViemTransport,
   toBytes,
@@ -11,7 +12,6 @@ import {
 
 import type { PrismaClient } from "./generated/client/deno/edge.ts";
 
-import { mothershipDevnet } from "./chains.ts";
 import {
   controlExchangeName,
   controlObserverRoutingKey,
@@ -19,11 +19,11 @@ import {
 } from "./constants.ts";
 import { ControlMessage } from "./ControlMessage.ts";
 
-export async function observer(prisma: PrismaClient) {
+export async function observer(chain: Chain, prisma: PrismaClient) {
   const textEncoder = new TextEncoder();
   const textDecoder = new TextDecoder();
   const client = createPublicClient({
-    chain: mothershipDevnet,
+    chain,
     transport: httpViemTransport(),
   });
 

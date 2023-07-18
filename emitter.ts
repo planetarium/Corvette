@@ -5,6 +5,7 @@ import {
   stringify as losslessJsonStringify,
 } from "npm:lossless-json";
 import {
+  Chain,
   createPublicClient,
   getAddress,
   http as httpViemTransport,
@@ -17,7 +18,6 @@ import type { PrismaClient } from "./generated/client/deno/edge.ts";
 import { EventMessage } from "./EventMessage.ts";
 import { MarshaledEventMessage } from "./MarshaledEventMessage.ts";
 import { formatAbiItemPrototype } from "./abitype.ts";
-import { mothershipDevnet } from "./chains.ts";
 import {
   controlEmitterRoutingKey,
   controlExchangeName,
@@ -27,10 +27,10 @@ import { decodeEventLog } from "./decodeEventLog.ts";
 import { uint8ArrayEqual } from "./utils.ts";
 import { ControlMessage } from "./ControlMessage.ts";
 
-export async function emitter(prisma: PrismaClient) {
+export async function emitter(chain: Chain, prisma: PrismaClient) {
   const textDecoder = new TextDecoder();
   const client = createPublicClient({
-    chain: mothershipDevnet,
+    chain,
     transport: httpViemTransport(),
   });
 

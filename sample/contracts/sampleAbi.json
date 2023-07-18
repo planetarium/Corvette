@@ -1,0 +1,124 @@
+[
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "hasName",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "hasNameIndexed",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "int8",
+        "name": "",
+        "type": "int8"
+      },
+      {
+        "indexed": false,
+        "internalType": "contract CorvetteTestContract",
+        "name": "",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "bool",
+        "name": "boolean",
+        "type": "bool"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "proposer",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "proposerBalance",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address payable",
+        "name": "caller",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "callerBalance",
+        "type": "uint256"
+      }
+    ],
+    "name": "EdgeCaseEvent",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "psuedoRandom",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "ordinal",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "int8",
+        "name": "constantParam",
+        "type": "int8"
+      },
+      {
+        "indexed": false,
+        "internalType": "contract CorvetteTestContract",
+        "name": "thisAddress",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "bool",
+        "name": "isPsuedoRandomEven",
+        "type": "bool"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "proposer",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "proposerBalance",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address payable",
+        "name": "caller",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "callerBalance",
+        "type": "uint256"
+      }
+    ],
+    "name": "OrdinaryEvent",
+    "type": "event"
+  }
+]

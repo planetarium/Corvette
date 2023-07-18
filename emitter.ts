@@ -18,11 +18,17 @@ import { EventMessage } from "./EventMessage.ts";
 import { MarshaledEventMessage } from "./MarshaledEventMessage.ts";
 import { formatAbiItemPrototype } from "./abitype.ts";
 import { mothershipDevnet } from "./chains.ts";
-import { evmEventsQueueName } from "./constants.ts";
+import {
+  controlEmitterRoutingKey,
+  controlExchangeName,
+  evmEventsQueueName,
+} from "./constants.ts";
 import { decodeEventLog } from "./decodeEventLog.ts";
 import { uint8ArrayEqual } from "./utils.ts";
+import { ControlMessage } from "./ControlMessage.ts";
 
 export async function emitter(prisma: PrismaClient) {
+  const textDecoder = new TextDecoder();
   const client = createPublicClient({
     chain: mothershipDevnet,
     transport: httpViemTransport(),
@@ -31,10 +37,28 @@ export async function emitter(prisma: PrismaClient) {
   // TODO: configuration
   const amqpConnection = await connectAmqp();
   const amqpChannel = await amqpConnection.openChannel();
+  await amqpChannel.declareExchange({ exchange: controlExchangeName });
+  const controlQueue = await amqpChannel.declareQueue({});
+  await amqpChannel.bindQueue({
+    queue: controlQueue.queue,
+    exchange: controlExchangeName,
+    routingKey: controlEmitterRoutingKey,
+  });
   await amqpChannel.declareQueue({ queue: evmEventsQueueName });
-  const textDecoder = new TextDecoder();
   // TODO: rework hierarchical mapping
-  const emitDestinations = await prisma.emitDestination.findMany();
+  let emitDestinations = await prisma.emitDestination.findMany();
+  await amqpChannel.consume(
+    { queue: controlQueue.queue },
+    async (_args, _props, data) => {
+      if (
+        (JSON.parse(textDecoder.decode(data)) as ControlMessage).action ===
+          "reload"
+      ) {
+        emitDestinations = await prisma.emitDestination.findMany();
+      }
+    },
+  );
+
   let finalizationQueue: (EventMessage & { url: string })[] = [];
   await amqpChannel.consume(
     { queue: evmEventsQueueName },

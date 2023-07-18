@@ -1,5 +1,5 @@
 import { load as load_env } from "https://deno.land/std@0.194.0/dotenv/mod.ts";
-import { broker } from "https://deno.land/x/lop@0.0.0-alpha.0/mod.ts";
+import { broker } from "https://deno.land/x/lop@0.0.0-alpha.2/mod.ts";
 
 import { PrismaClient } from "./generated/client/deno/edge.ts";
 

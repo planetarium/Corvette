@@ -1,52 +1,75 @@
-import type { Evt } from "https://deno.land/x/evt@v2.4.22/mod.ts";
-import { stringify as losslessJsonStringify } from "npm:lossless-json";
+import { connect as connectAmqp } from "https://deno.land/x/amqp@v0.23.1/mod.ts";
+import {
+  isInteger,
+  parse as loselessJsonParse,
+  stringify as losslessJsonStringify,
+} from "npm:lossless-json";
 import {
   createPublicClient,
   getAddress,
   http as httpViemTransport,
+  toBytes,
   toHex,
 } from "npm:viem";
 
 import type { PrismaClient } from "./generated/client/deno/edge.ts";
 
 import { EventMessage } from "./EventMessage.ts";
+import { MarshaledEventMessage } from "./MarshaledEventMessage.ts";
 import { formatAbiItemPrototype } from "./abitype.ts";
 import { mothershipDevnet } from "./chains.ts";
+import { evmEventsQueueName } from "./constants.ts";
 import { decodeEventLog } from "./decodeEventLog.ts";
 import { uint8ArrayEqual } from "./utils.ts";
 
-export async function emitter(
-  prisma: PrismaClient,
-  evt: Evt<EventMessage>,
-) {
+export async function emitter(prisma: PrismaClient) {
   const client = createPublicClient({
     chain: mothershipDevnet,
     transport: httpViemTransport(),
   });
+
+  // TODO: configuration
+  const amqpConnection = await connectAmqp();
+  const amqpChannel = await amqpConnection.openChannel();
+  await amqpChannel.declareQueue({ queue: evmEventsQueueName });
+  const textDecoder = new TextDecoder();
   // TODO: rework hierarchical mapping
   const emitDestinations = await prisma.emitDestination.findMany();
-  let queue: (EventMessage & { url: string })[] = [];
-  function filterMessage(
-    x: typeof emitDestinations[number],
-    message: EventMessage,
-  ) {
-    return (
-      uint8ArrayEqual(x.sourceAddress, message.topic.address) &&
-      uint8ArrayEqual(x.abiHash, message.topic.sigHash) &&
-      (x.topic1 == null ||
-        uint8ArrayEqual(x.topic1, message.topic.topics[1])) &&
-      (x.topic2 == null ||
-        uint8ArrayEqual(x.topic2, message.topic.topics[2])) &&
-      (x.topic3 == null ||
-        uint8ArrayEqual(x.topic3, message.topic.topics[3]))
-    );
-  }
-  const attaches = evt.attach(
-    (message) => emitDestinations.some((x) => filterMessage(x, message)),
-    (message) =>
-      emitDestinations.filter((x) => filterMessage(x, message)).forEach((x) =>
-        queue.push({ ...message, url: x.webhookUrl })
-      ),
+  let finalizationQueue: (EventMessage & { url: string })[] = [];
+  await amqpChannel.consume(
+    { queue: evmEventsQueueName },
+    async (args, _, data) => {
+      const marshal = loselessJsonParse(
+        textDecoder.decode(data),
+        undefined,
+        (value) => {
+          if (!isInteger(value)) return Number(value);
+          const b = BigInt(value);
+          const n = Number(b);
+          return Number.isSafeInteger(n) ? n : b;
+        },
+      ) as MarshaledEventMessage;
+      const message: EventMessage = {
+        ...marshal,
+        address: toBytes(marshal.address),
+        sigHash: toBytes(marshal.sigHash),
+        topics: marshal.topics.map((x) => toBytes(x)),
+        blockHash: toBytes(marshal.blockHash),
+      };
+      emitDestinations.filter((x) =>
+        uint8ArrayEqual(x.sourceAddress, message.address) &&
+        uint8ArrayEqual(x.abiHash, message.sigHash) &&
+        (x.topic1 == null ||
+          uint8ArrayEqual(x.topic1, message.topics[1])) &&
+        (x.topic2 == null ||
+          uint8ArrayEqual(x.topic2, message.topics[2])) &&
+        (x.topic3 == null ||
+          uint8ArrayEqual(x.topic3, message.topics[3]))
+      ).forEach((x) =>
+        finalizationQueue.push({ ...message, url: x.webhookUrl })
+      );
+      await amqpChannel.ack({ deliveryTag: args.deliveryTag });
+    },
   );
 
   const watch = client.watchBlockNumber(
@@ -56,17 +79,16 @@ export async function emitter(
           // polygon-edge does not support finalized tag at the moment
           //(await client.getBlock({ blockTag: "finalized" })).number!;
           (await client.getBlock({ blockTag: "latest" })).number! - 64n;
-        const observed = queue.filter((x) =>
-          x.message.blockNumber <= finalizedBlockNumber
+        const observed = finalizationQueue.filter((x) =>
+          x.blockNumber <= finalizedBlockNumber
         );
         const finalizedBlocks: Record<string, bigint> = {};
         const finalized = await observed.reduce(async (acc, x) => {
-          const hash =
-            (await client.getBlock({ blockNumber: x.message.blockNumber }))
-              .hash;
+          const hash = (await client.getBlock({ blockNumber: x.blockNumber }))
+            .hash;
 
-          const isFinal = toHex(x.message.blockHash) === hash;
-          if (isFinal) finalizedBlocks[hash] = x.message.blockNumber;
+          const isFinal = toHex(x.blockHash) === hash;
+          if (isFinal) finalizedBlocks[hash] = x.blockNumber;
           return isFinal ? [...(await acc), x] : acc;
         }, Promise.resolve([] as typeof observed));
 
@@ -76,10 +98,10 @@ export async function emitter(
               where: {
                 blockTimestamp_txIndex_logIndex: {
                   blockTimestamp: new Date(
-                    Number(x.message.blockTimestamp) * 1000,
+                    Number(x.blockTimestamp) * 1000,
                   ),
-                  txIndex: x.message.txIndex,
-                  logIndex: x.message.logIndex,
+                  txIndex: x.txIndex,
+                  logIndex: x.logIndex,
                 },
               },
               select: {
@@ -99,7 +121,7 @@ export async function emitter(
 
             if (event == null) {
               console.error(
-                `ERROR: event ${x.message.blockTimestamp}_${x.message.txIndex}_${x.message.logIndex} not found`,
+                `ERROR: event ${x.blockTimestamp}_${x.txIndex}_${x.logIndex} not found`,
               );
               return;
             }
@@ -107,7 +129,7 @@ export async function emitter(
             const { args } = decodeEventLog({
               abi: [JSON.parse(event.Abi.json)],
               data: toHex(event.data),
-              topics: [toHex(x.topic.sigHash)].concat(
+              topics: [toHex(x.sigHash)].concat(
                 event.topic1 !== null
                   ? [toHex(event.topic1)].concat(
                     event.topic2 !== null
@@ -123,16 +145,16 @@ export async function emitter(
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: losslessJsonStringify({
-                timestamp: x.message.blockTimestamp,
-                blockIndex: x.message.blockNumber,
-                transactionIndex: x.message.txIndex,
-                logIndex: x.message.logIndex,
-                blockHash: toHex(x.message.blockHash),
+                timestamp: x.blockTimestamp,
+                blockIndex: x.blockNumber,
+                transactionIndex: x.txIndex,
+                logIndex: x.logIndex,
+                blockHash: toHex(x.blockHash),
                 transactionHash: toHex(event.txHash),
                 sourceAddress: getAddress(
                   toHex(event.sourceAddress),
                 ),
-                abiHash: toHex(x.topic.sigHash),
+                abiHash: toHex(x.sigHash),
                 abiSignature: formatAbiItemPrototype(
                   JSON.parse(event.Abi.json),
                 ),
@@ -154,26 +176,26 @@ export async function emitter(
         );
 
         observed.filter((x) =>
-          finalizedBlocks[toHex(x.message.blockHash)] !== x.message.blockNumber
+          finalizedBlocks[toHex(x.blockHash)] !== x.blockNumber
         ).forEach(async (x) =>
           await prisma.event.delete({
             where: {
               blockTimestamp_txIndex_logIndex: {
                 blockTimestamp: new Date(
-                  Number(x.message.blockTimestamp) * 1000,
+                  Number(x.blockTimestamp) * 1000,
                 ),
-                txIndex: x.message.txIndex,
-                logIndex: x.message.logIndex,
+                txIndex: x.txIndex,
+                logIndex: x.logIndex,
               },
             },
           })
         );
 
-        queue = queue.filter(
-          (x) => x.message.blockNumber > finalizedBlockNumber,
+        finalizationQueue = finalizationQueue.filter(
+          (x) => x.blockNumber > finalizedBlockNumber,
         );
       },
     },
   );
-  return { attaches, watch };
+  return { watch };
 }

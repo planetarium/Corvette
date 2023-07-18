@@ -1,6 +1,7 @@
-import { Evt } from "https://deno.land/x/evt@v2.4.22/mod.ts";
+import { connect as connectAmqp } from "https://deno.land/x/amqp@v0.23.1/mod.ts";
 import { Buffer } from "node:buffer";
 import { AbiEvent } from "npm:abitype";
+import { stringify as losslessJsonStringify } from "npm:lossless-json";
 import {
   createPublicClient,
   http as httpViemTransport,
@@ -10,8 +11,8 @@ import {
 
 import type { PrismaClient } from "./generated/client/deno/edge.ts";
 
-import { EventMessage } from "./EventMessage.ts";
 import { mothershipDevnet } from "./chains.ts";
+import { evmEventsQueueName } from "./constants.ts";
 
 export async function observer(prisma: PrismaClient) {
   const client = createPublicClient({
@@ -19,7 +20,11 @@ export async function observer(prisma: PrismaClient) {
     transport: httpViemTransport(),
   });
 
-  const evt = Evt.create<EventMessage>();
+  // TODO: configuration
+  const amqpConnection = await connectAmqp();
+  const amqpChannel = await amqpConnection.openChannel();
+  await amqpChannel.declareQueue({ queue: evmEventsQueueName });
+  const textEncoder = new TextEncoder();
   const watchEvents = (await prisma.eventSource.findMany({
     select: { abiHash: true, address: true, Abi: { select: { json: true } } },
   })).map((item) => {
@@ -64,26 +69,24 @@ export async function observer(prisma: PrismaClient) {
             },
           });
 
-          evt.post(
-            {
-              topic: {
-                address: addressBytes,
-                sigHash: item.abiHash,
-                topics: topicsBytes,
-              },
-              message: {
-                blockTimestamp: timestamp,
-                txIndex: log.transactionIndex,
-                logIndex: log.logIndex,
-                blockNumber: log.blockNumber,
-                blockHash: blockHashBytes,
-              },
-            },
+          amqpChannel.publish(
+            { routingKey: evmEventsQueueName },
+            { contentType: "application/json" },
+            textEncoder.encode(losslessJsonStringify({
+              address: log.address,
+              sigHash: toHex(item.abiHash),
+              topics: log.topics,
+              blockTimestamp: timestamp,
+              txIndex: log.transactionIndex,
+              logIndex: log.logIndex,
+              blockNumber: log.blockNumber,
+              blockHash: log.blockHash,
+            })),
           );
         }
       },
     });
   });
 
-  return { watchEvents, evt };
+  return watchEvents;
 }

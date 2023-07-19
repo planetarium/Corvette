@@ -1,34 +1,31 @@
 import { connect as connectAmqp } from "https://deno.land/x/amqp@v0.23.1/mod.ts";
-import {
-  isInteger,
-  parse as loselessJsonParse,
-  stringify as losslessJsonStringify,
-} from "npm:lossless-json";
+
+import { stringify as losslessJsonStringify } from "npm:lossless-json";
 import {
   Chain,
   createPublicClient,
   getAddress,
   http as httpViemTransport,
-  toBytes,
   toHex,
 } from "npm:viem";
 
 import type { PrismaClient } from "./generated/client/deno/edge.ts";
 
-import { EventMessage } from "./EventMessage.ts";
-import { MarshaledEventMessage } from "./MarshaledEventMessage.ts";
+import {
+  deserializeControlMessage,
+  ReloadControlMessage,
+} from "./ControlMessage.ts";
+import { deserializeEventMessage, EventMessage } from "./EventMessage.ts";
 import { formatAbiItemPrototype } from "./abitype.ts";
 import {
-  controlEmitterRoutingKey,
-  controlExchangeName,
-  evmEventsQueueName,
+  ControlEmitterRoutingKey,
+  ControlExchangeName,
+  EvmEventsQueueName,
 } from "./constants.ts";
 import { decodeEventLog } from "./decodeEventLog.ts";
 import { uint8ArrayEqual } from "./utils.ts";
-import { ControlMessage } from "./ControlMessage.ts";
 
 export async function emitter(chain: Chain, prisma: PrismaClient) {
-  const textDecoder = new TextDecoder();
   const client = createPublicClient({
     chain,
     transport: httpViemTransport(),
@@ -37,22 +34,21 @@ export async function emitter(chain: Chain, prisma: PrismaClient) {
   // TODO: configuration
   const amqpConnection = await connectAmqp();
   const amqpChannel = await amqpConnection.openChannel();
-  await amqpChannel.declareExchange({ exchange: controlExchangeName });
+  await amqpChannel.declareExchange({ exchange: ControlExchangeName });
   const controlQueue = await amqpChannel.declareQueue({});
   await amqpChannel.bindQueue({
     queue: controlQueue.queue,
-    exchange: controlExchangeName,
-    routingKey: controlEmitterRoutingKey,
+    exchange: ControlExchangeName,
+    routingKey: ControlEmitterRoutingKey,
   });
-  await amqpChannel.declareQueue({ queue: evmEventsQueueName });
+  await amqpChannel.declareQueue({ queue: EvmEventsQueueName });
   // TODO: rework hierarchical mapping
   let emitDestinations = await prisma.emitDestination.findMany();
   await amqpChannel.consume(
     { queue: controlQueue.queue },
     async (_args, _props, data) => {
       if (
-        (JSON.parse(textDecoder.decode(data)) as ControlMessage).action ===
-          "reload"
+        deserializeControlMessage(data).action === ReloadControlMessage.action
       ) {
         emitDestinations = await prisma.emitDestination.findMany();
       }
@@ -61,63 +57,45 @@ export async function emitter(chain: Chain, prisma: PrismaClient) {
 
   let finalizationQueue: (EventMessage & { url: string })[] = [];
   await amqpChannel.consume(
-    { queue: evmEventsQueueName },
+    { queue: EvmEventsQueueName },
     async (args, _, data) => {
-      const marshal = loselessJsonParse(
-        textDecoder.decode(data),
-        undefined,
-        (value) => {
-          if (!isInteger(value)) return Number(value);
-          const b = BigInt(value);
-          const n = Number(b);
-          return Number.isSafeInteger(n) ? n : b;
-        },
-      ) as MarshaledEventMessage;
-      const message: EventMessage = {
-        ...marshal,
-        address: toBytes(marshal.address),
-        sigHash: toBytes(marshal.sigHash),
-        topics: marshal.topics.map((x) => toBytes(x)),
-        blockHash: toBytes(marshal.blockHash),
-      };
+      const message = deserializeEventMessage(data);
+      const {
+        address,
+        sigHash,
+        topics,
+        blockTimestamp,
+        txIndex,
+        logIndex,
+        blockNumber,
+        blockHash,
+      } = message;
       emitDestinations.filter((x) =>
-        uint8ArrayEqual(
-          x.sourceAddress as unknown as Uint8Array,
-          message.address,
-        ) &&
-        uint8ArrayEqual(
-          x.abiHash as unknown as Uint8Array,
-          message.sigHash,
-        ) &&
+        uint8ArrayEqual(x.sourceAddress as unknown as Uint8Array, address) &&
+        uint8ArrayEqual(x.abiHash as unknown as Uint8Array, sigHash) &&
         (x.topic1 == null ||
-          uint8ArrayEqual(
-            x.topic1 as unknown as Uint8Array,
-            message.topics[1],
-          )) &&
-        (x.topic2 == null ||
-          uint8ArrayEqual(
-            x.topic2 as unknown as Uint8Array,
-            message.topics[2],
-          )) &&
-        (x.topic3 == null ||
-          uint8ArrayEqual(
-            x.topic3 as unknown as Uint8Array,
-            message.topics[3],
-          ))
+          (uint8ArrayEqual(x.topic1 as unknown as Uint8Array, topics[1]) &&
+            (x.topic2 == null ||
+              (uint8ArrayEqual(x.topic2 as unknown as Uint8Array, topics[2]) &&
+                (x.topic3 == null ||
+                  uint8ArrayEqual(
+                    x.topic3 as unknown as Uint8Array,
+                    topics[3],
+                  ))))))
       ).forEach((x) => {
-        if (message.blockNumber == -1n) {
+        if (blockNumber == -1n) {
           // Webhook Test Request
           return fetch(x.webhookUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: losslessJsonStringify({
-              timestamp: message.blockTimestamp,
-              blockIndex: message.blockNumber,
-              transactionIndex: message.txIndex,
-              logIndex: message.logIndex,
-              blockHash: toHex(message.blockHash),
-              sourceAddress: getAddress(toHex(message.address)),
-              abiHash: toHex(message.sigHash),
+              timestamp: blockTimestamp,
+              blockIndex: blockNumber,
+              transactionIndex: txIndex,
+              logIndex: logIndex,
+              blockHash: toHex(blockHash),
+              sourceAddress: getAddress(toHex(address)),
+              abiHash: toHex(sigHash),
             }),
           });
         }
@@ -156,8 +134,8 @@ export async function emitter(chain: Chain, prisma: PrismaClient) {
                   blockTimestamp: new Date(
                     Number(x.blockTimestamp) * 1000,
                   ),
-                  txIndex: x.txIndex,
-                  logIndex: x.logIndex,
+                  txIndex: Number(x.txIndex),
+                  logIndex: Number(x.logIndex),
                 },
               },
               select: {
@@ -208,9 +186,9 @@ export async function emitter(chain: Chain, prisma: PrismaClient) {
                 transactionIndex: x.txIndex,
                 logIndex: x.logIndex,
                 blockHash: toHex(x.blockHash),
-                transactionHash: toHex(event.txHash),
+                transactionHash: toHex(event.txHash as unknown as Uint8Array),
                 sourceAddress: getAddress(
-                  toHex(event.sourceAddress),
+                  toHex(event.sourceAddress as unknown as Uint8Array),
                 ),
                 abiHash: toHex(x.sigHash),
                 abiSignature: formatAbiItemPrototype(
@@ -242,8 +220,8 @@ export async function emitter(chain: Chain, prisma: PrismaClient) {
                 blockTimestamp: new Date(
                   Number(x.blockTimestamp) * 1000,
                 ),
-                txIndex: x.txIndex,
-                logIndex: x.logIndex,
+                txIndex: Number(x.txIndex),
+                logIndex: Number(x.logIndex),
               },
             },
           })

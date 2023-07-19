@@ -1,32 +1,34 @@
 import { Status } from "https://deno.land/std@0.188.0/http/http_status.ts";
+
+import { connect as connectAmqp } from "https://deno.land/x/amqp@v0.23.1/mod.ts";
+import { oakCors } from "https://deno.land/x/cors@v1.2.2/mod.ts";
 import {
   Application as OakApplication,
   isHttpError,
   Router,
 } from "https://deno.land/x/oak@v12.5.0/mod.ts";
-import { oakCors } from "https://deno.land/x/cors@v1.2.2/mod.ts";
-import { connect as connectAmqp } from "https://deno.land/x/amqp@v0.23.1/mod.ts";
-import { Buffer } from "node:buffer";
-import { getAddress, keccak256, toBytes, toHex } from "npm:viem";
-import { stringify as losslessJsonStringify } from "npm:lossless-json";
 
+import { Buffer } from "node:buffer";
+import type { Abi } from "npm:abitype";
+import { getAddress, keccak256, toBytes, toHex } from "npm:viem";
+
+import type { PrismaClient } from "./generated/client/deno/edge.ts";
+
+import { serializeEventMessage } from "./EventMessage.ts";
 import { formatAbiItemPrototype } from "./abitype.ts";
 import {
-  controlEmitterRoutingKey,
-  controlExchangeName,
-  controlObserverRoutingKey,
-  evmEventsQueueName,
+  ControlEmitterRoutingKey,
+  ControlExchangeName,
+  ControlObserverRoutingKey,
+  EvmEventsQueueName,
 } from "./constants.ts";
 import { reload as reloadControl } from "./control.ts";
-
-import type { Abi } from "npm:abitype";
-import type { PrismaClient } from "./generated/client/deno/edge.ts";
 
 export async function api(prisma: PrismaClient) {
   const amqpConnection = await connectAmqp();
   const amqpChannel = await amqpConnection.openChannel();
-  await amqpChannel.declareQueue({ queue: evmEventsQueueName });
-  await amqpChannel.declareExchange({ exchange: controlExchangeName });
+  await amqpChannel.declareQueue({ queue: EvmEventsQueueName });
+  await amqpChannel.declareExchange({ exchange: ControlExchangeName });
 
   const router = new Router();
 
@@ -96,7 +98,7 @@ export async function api(prisma: PrismaClient) {
       abiHash: toHex(item.abiHash),
     }));
 
-    reloadControl(amqpChannel, controlObserverRoutingKey);
+    reloadControl(amqpChannel, ControlObserverRoutingKey);
   });
   router.delete("/sources", async (ctx) => {
     const { address, abiHash } = await ctx.request.body({ type: "json" }).value;
@@ -112,24 +114,24 @@ export async function api(prisma: PrismaClient) {
 
     ctx.response.status = Status.NoContent;
 
-    reloadControl(amqpChannel, controlObserverRoutingKey);
+    reloadControl(amqpChannel, ControlObserverRoutingKey);
   });
   router.post("/sources/testWebhook", async (ctx) => {
     const { address, abiHash } = await ctx.request.body({ type: "json" }).value;
 
     amqpChannel.publish(
-      { routingKey: evmEventsQueueName },
-      { contentType: "application/json" },
-      new TextEncoder().encode(losslessJsonStringify({
-        address: address,
+      { routingKey: EvmEventsQueueName },
+      { contentType: "application/octet-stream" },
+      serializeEventMessage({
+        address,
         sigHash: abiHash,
         topics: [],
         blockTimestamp: BigInt(Math.floor(Date.now() / 1000)),
-        txIndex: -1,
-        logIndex: -1,
+        txIndex: -1n,
+        logIndex: -1n,
         blockNumber: -1n,
-        blockHash: "0x" + "0".repeat(64),
-      })),
+        blockHash: new Uint8Array(32),
+      }),
     );
 
     ctx.response.status = Status.NoContent;
@@ -245,7 +247,7 @@ export async function api(prisma: PrismaClient) {
       topic3: item.topic3 ? toHex(item.topic3) : undefined,
     }));
 
-    reloadControl(amqpChannel, controlEmitterRoutingKey);
+    reloadControl(amqpChannel, ControlEmitterRoutingKey);
   });
   router.delete("/webhook/:id", async (ctx) => {
     const id = Number(ctx.params.id);
@@ -254,7 +256,7 @@ export async function api(prisma: PrismaClient) {
 
     ctx.response.status = Status.NoContent;
 
-    reloadControl(amqpChannel, controlEmitterRoutingKey);
+    reloadControl(amqpChannel, ControlEmitterRoutingKey);
   });
 
   const app = new OakApplication();

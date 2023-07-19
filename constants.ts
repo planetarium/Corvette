@@ -1,4 +1,4 @@
-export const evmEventsQueueName = "evmEvents";
-export const controlExchangeName = "control";
-export const controlObserverRoutingKey = "observer";
-export const controlEmitterRoutingKey = "emitter";
+export const EvmEventsQueueName = "evmEvents";
+export const ControlExchangeName = "control";
+export const ControlObserverRoutingKey = "observer";
+export const ControlEmitterRoutingKey = "emitter";

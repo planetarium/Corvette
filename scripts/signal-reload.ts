@@ -9,6 +9,9 @@ const chan = await conn.openChannel();
 // declare AMQP exchange for control
 await chan.declareExchange({ exchange: controlExchangeName });
 
-await Promise.all([reloadControl(chan, "observer"), reloadControl(chan, "emitter")]);
+await Promise.all([
+  reloadControl(chan, "observer"),
+  reloadControl(chan, "emitter"),
+]);
 
 await conn.close();

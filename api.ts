@@ -91,7 +91,7 @@ export async function api(prisma: PrismaClient) {
       abiHash: toHex(item.abiHash),
     }));
 
-    reloadControl(amqpChannel, 'observer');
+    reloadControl(amqpChannel, "observer");
   });
   router.delete("/sources", async (ctx) => {
     const { address, abiHash } = await ctx.request.body({ type: "json" }).value;
@@ -107,7 +107,7 @@ export async function api(prisma: PrismaClient) {
 
     ctx.response.status = Status.NoContent;
 
-    reloadControl(amqpChannel, 'observer');
+    reloadControl(amqpChannel, "observer");
   });
   router.post("/sources/testWebhook", async (ctx) => {
     const { address, abiHash } = await ctx.request.body({ type: "json" }).value;
@@ -240,7 +240,7 @@ export async function api(prisma: PrismaClient) {
       topic3: item.topic3 ? toHex(item.topic3) : undefined,
     }));
 
-    reloadControl(amqpChannel, 'emitter');
+    reloadControl(amqpChannel, "emitter");
   });
   router.delete("/webhook/:id", async (ctx) => {
     const id = Number(ctx.params.id);
@@ -249,7 +249,7 @@ export async function api(prisma: PrismaClient) {
 
     ctx.response.status = Status.NoContent;
 
-    reloadControl(amqpChannel, 'emitter');
+    reloadControl(amqpChannel, "emitter");
   });
 
   const app = new OakApplication();

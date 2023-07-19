@@ -89,9 +89,26 @@ export async function emitter(prisma: PrismaClient) {
           uint8ArrayEqual(x.topic2, message.topics[2])) &&
         (x.topic3 == null ||
           uint8ArrayEqual(x.topic3, message.topics[3]))
-      ).forEach((x) =>
-        finalizationQueue.push({ ...message, url: x.webhookUrl })
-      );
+      ).forEach((x) => {
+        if (message.blockNumber == -1n) {
+          // Webhook Test Request
+          return fetch(x.webhookUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: losslessJsonStringify({
+              timestamp: message.blockTimestamp,
+              blockIndex: message.blockNumber,
+              transactionIndex: message.txIndex,
+              logIndex: message.logIndex,
+              blockHash: toHex(message.blockHash),
+              sourceAddress: getAddress(toHex(message.address)),
+              abiHash: toHex(message.sigHash),
+            }),
+          });
+        }
+
+        finalizationQueue.push({ ...message, url: x.webhookUrl });
+      });
       await amqpChannel.ack({ deliveryTag: args.deliveryTag });
     },
   );

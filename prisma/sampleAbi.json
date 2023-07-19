@@ -1,44 +1,45 @@
 [
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "hasName",
-          "type": "uint256"
-        },
-        {
-          "indexed": true,
-          "internalType": "int8",
-          "name": "indexedName",
-          "type": "int8"
-        },
-        {
-          "indexed": false,
-          "internalType": "bytes32",
-          "name": "",
-          "type": "bytes32"
-        },
-        {
-          "indexed": true,
-          "internalType": "address payable",
-          "name": "",
-          "type": "address"
-        },
-        {
-          "indexed": false,
-          "internalType": "bool",
-          "name": "boolean",
-          "type": "bool"
-        },
-        {
-          "indexed": true,
-          "internalType": "contract AnonymousEventTest",
-          "name": "test",
-          "type": "address"
-        }
-      ],
-      "name": "TestEvent",
-      "type": "event"
-    }]
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "hasName",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "int8",
+        "name": "indexedName",
+        "type": "int8"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "address payable",
+        "name": "",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "bool",
+        "name": "boolean",
+        "type": "bool"
+      },
+      {
+        "indexed": true,
+        "internalType": "contract AnonymousEventTest",
+        "name": "test",
+        "type": "address"
+      }
+    ],
+    "name": "TestEvent",
+    "type": "event"
+  }
+]

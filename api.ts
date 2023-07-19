@@ -11,7 +11,12 @@ import { getAddress, keccak256, toBytes, toHex } from "npm:viem";
 import { stringify as losslessJsonStringify } from "npm:lossless-json";
 
 import { formatAbiItemPrototype } from "./abitype.ts";
-import { controlExchangeName, evmEventsQueueName } from "./constants.ts";
+import {
+  controlEmitterRoutingKey,
+  controlExchangeName,
+  controlObserverRoutingKey,
+  evmEventsQueueName,
+} from "./constants.ts";
 import { reload as reloadControl } from "./control.ts";
 
 import type { Abi } from "npm:abitype";
@@ -91,7 +96,7 @@ export async function api(prisma: PrismaClient) {
       abiHash: toHex(item.abiHash),
     }));
 
-    reloadControl(amqpChannel, "observer");
+    reloadControl(amqpChannel, controlObserverRoutingKey);
   });
   router.delete("/sources", async (ctx) => {
     const { address, abiHash } = await ctx.request.body({ type: "json" }).value;
@@ -107,7 +112,7 @@ export async function api(prisma: PrismaClient) {
 
     ctx.response.status = Status.NoContent;
 
-    reloadControl(amqpChannel, "observer");
+    reloadControl(amqpChannel, controlObserverRoutingKey);
   });
   router.post("/sources/testWebhook", async (ctx) => {
     const { address, abiHash } = await ctx.request.body({ type: "json" }).value;
@@ -240,7 +245,7 @@ export async function api(prisma: PrismaClient) {
       topic3: item.topic3 ? toHex(item.topic3) : undefined,
     }));
 
-    reloadControl(amqpChannel, "emitter");
+    reloadControl(amqpChannel, controlEmitterRoutingKey);
   });
   router.delete("/webhook/:id", async (ctx) => {
     const id = Number(ctx.params.id);
@@ -249,7 +254,7 @@ export async function api(prisma: PrismaClient) {
 
     ctx.response.status = Status.NoContent;
 
-    reloadControl(amqpChannel, "emitter");
+    reloadControl(amqpChannel, controlEmitterRoutingKey);
   });
 
   const app = new OakApplication();

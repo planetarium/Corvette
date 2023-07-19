@@ -7,19 +7,16 @@ import {
 import type { AmqpChannel } from "https://deno.land/x/amqp@v0.23.1/mod.ts";
 import type { ControlMessage } from "./ControlMessage.ts";
 
-const destRoutingKeyMapping = {
-  emitter: controlEmitterRoutingKey,
-  observer: controlObserverRoutingKey,
-};
-
 export const reload = (
   amqpChannel: AmqpChannel,
-  destination: "emitter" | "observer",
+  destination:
+    | typeof controlEmitterRoutingKey
+    | typeof controlObserverRoutingKey,
 ) =>
   amqpChannel.publish(
     {
       exchange: controlExchangeName,
-      routingKey: destRoutingKeyMapping[destination],
+      routingKey: destination,
     },
     { contentEncoding: "application/json" },
     new TextEncoder().encode(

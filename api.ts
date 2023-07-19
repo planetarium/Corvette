@@ -11,7 +11,8 @@ import { getAddress, keccak256, toBytes, toHex } from "npm:viem";
 import { stringify as losslessJsonStringify } from "npm:lossless-json";
 
 import { formatAbiItemPrototype } from "./abitype.ts";
-import { evmEventsQueueName } from "./constants.ts";
+import { controlExchangeName, evmEventsQueueName } from "./constants.ts";
+import { reload as reloadControl } from "./control.ts";
 
 import type { Abi } from "npm:abitype";
 import type { PrismaClient } from "./generated/client/deno/edge.ts";
@@ -20,6 +21,7 @@ export async function api(prisma: PrismaClient) {
   const amqpConnection = await connectAmqp();
   const amqpChannel = await amqpConnection.openChannel();
   await amqpChannel.declareQueue({ queue: evmEventsQueueName });
+  await amqpChannel.declareExchange({ exchange: controlExchangeName });
 
   const router = new Router();
 
@@ -88,6 +90,8 @@ export async function api(prisma: PrismaClient) {
       abi: formatAbiItemPrototype(JSON.parse(item.Abi.json)),
       abiHash: toHex(item.abiHash),
     }));
+
+    reloadControl(amqpChannel, 'observer');
   });
   router.delete("/sources", async (ctx) => {
     const { address, abiHash } = await ctx.request.body({ type: "json" }).value;
@@ -102,6 +106,8 @@ export async function api(prisma: PrismaClient) {
     });
 
     ctx.response.status = Status.NoContent;
+
+    reloadControl(amqpChannel, 'observer');
   });
   router.post("/sources/testWebhook", async (ctx) => {
     const { address, abiHash } = await ctx.request.body({ type: "json" }).value;
@@ -233,6 +239,8 @@ export async function api(prisma: PrismaClient) {
       topic2: item.topic2 ? toHex(item.topic2) : undefined,
       topic3: item.topic3 ? toHex(item.topic3) : undefined,
     }));
+
+    reloadControl(amqpChannel, 'emitter');
   });
   router.delete("/webhook/:id", async (ctx) => {
     const id = Number(ctx.params.id);
@@ -240,6 +248,8 @@ export async function api(prisma: PrismaClient) {
     await prisma.emitDestination.delete({ where: { id } });
 
     ctx.response.status = Status.NoContent;
+
+    reloadControl(amqpChannel, 'emitter');
   });
 
   const app = new OakApplication();

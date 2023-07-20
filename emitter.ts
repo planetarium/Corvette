@@ -83,7 +83,7 @@ export async function emitter(chain: Chain, prisma: PrismaClient) {
                     topics[3],
                   ))))))
       ).forEach((x) => {
-        if (blockNumber == -1n) {
+        if (blockNumber === -1n) {
           // Webhook Test Request
           return fetch(x.webhookUrl, {
             method: "POST",

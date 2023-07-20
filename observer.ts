@@ -1,7 +1,7 @@
 import { connect as connectAmqp } from "https://deno.land/x/amqp@v0.23.1/mod.ts";
+
 import { Buffer } from "node:buffer";
 import { AbiEvent } from "npm:abitype";
-import { stringify as losslessJsonStringify } from "npm:lossless-json";
 import {
   Chain,
   createPublicClient,
@@ -13,15 +13,17 @@ import {
 import type { PrismaClient } from "./generated/client/deno/edge.ts";
 
 import {
-  controlExchangeName,
-  controlObserverRoutingKey,
-  evmEventsQueueName,
+  ReloadControlMessage,
+  deserializeControlMessage,
+} from "./ControlMessage.ts";
+import { serializeEventMessage } from "./EventMessage.ts";
+import {
+  ControlExchangeName,
+  ControlObserverRoutingKey,
+  EvmEventsQueueName,
 } from "./constants.ts";
-import { ControlMessage } from "./ControlMessage.ts";
 
 export async function observer(chain: Chain, prisma: PrismaClient) {
-  const textEncoder = new TextEncoder();
-  const textDecoder = new TextDecoder();
   const client = createPublicClient({
     chain,
     transport: httpViemTransport(),
@@ -30,21 +32,20 @@ export async function observer(chain: Chain, prisma: PrismaClient) {
   // TODO: configuration
   const amqpConnection = await connectAmqp();
   const amqpChannel = await amqpConnection.openChannel();
-  await amqpChannel.declareExchange({ exchange: controlExchangeName });
+  await amqpChannel.declareExchange({ exchange: ControlExchangeName });
   const controlQueue = await amqpChannel.declareQueue({});
   await amqpChannel.bindQueue({
     queue: controlQueue.queue,
-    exchange: controlExchangeName,
-    routingKey: controlObserverRoutingKey,
+    exchange: ControlExchangeName,
+    routingKey: ControlObserverRoutingKey,
   });
-  await amqpChannel.declareQueue({ queue: evmEventsQueueName });
+  await amqpChannel.declareQueue({ queue: EvmEventsQueueName });
   let unwatchEvents = await CreateWatch();
   await amqpChannel.consume(
     { queue: controlQueue.queue },
     async (_args, _props, data) => {
       if (
-        (JSON.parse(textDecoder.decode(data)) as ControlMessage).action ===
-          "reload"
+        deserializeControlMessage(data).action === ReloadControlMessage.action
       ) {
         unwatchEvents.forEach((unwatch) => unwatch());
         unwatchEvents = await CreateWatch();
@@ -96,18 +97,18 @@ export async function observer(chain: Chain, prisma: PrismaClient) {
             });
 
             amqpChannel.publish(
-              { routingKey: evmEventsQueueName },
-              { contentType: "application/json" },
-              textEncoder.encode(losslessJsonStringify({
-                address: log.address,
-                sigHash: toHex(item.abiHash as unknown as Uint8Array),
-                topics: log.topics,
+              { routingKey: EvmEventsQueueName },
+              { contentType: "application/octet-stream" },
+              serializeEventMessage({
+                address: addressBytes,
+                sigHash: item.abiHash as unknown as Uint8Array,
+                topics: topicsBytes,
                 blockTimestamp: timestamp,
-                txIndex: log.transactionIndex,
-                logIndex: log.logIndex,
+                txIndex: BigInt(log.transactionIndex),
+                logIndex: BigInt(log.logIndex),
                 blockNumber: log.blockNumber,
-                blockHash: log.blockHash,
-              })),
+                blockHash: blockHashBytes,
+              }),
             );
           }
         },

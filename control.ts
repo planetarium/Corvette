@@ -1,25 +1,36 @@
+import type { AmqpChannel } from "https://deno.land/x/amqp@v0.23.1/mod.ts";
+
 import {
-  controlEmitterRoutingKey,
-  controlExchangeName,
-  controlObserverRoutingKey,
+  EmitterControlMessages,
+  ObserverControlMessages,
+  ReloadControlMessage,
+  serializeControlMessage,
+} from "./ControlMessage.ts";
+import {
+  ControlEmitterRoutingKey,
+  ControlExchangeName,
+  ControlObserverRoutingKey,
 } from "./constants.ts";
 
-import type { AmqpChannel } from "https://deno.land/x/amqp@v0.23.1/mod.ts";
-import type { ControlMessage } from "./ControlMessage.ts";
-
-export const reload = (
+export function reload(
   amqpChannel: AmqpChannel,
   destination:
-    | typeof controlEmitterRoutingKey
-    | typeof controlObserverRoutingKey,
-) =>
+    | typeof ControlEmitterRoutingKey
+    | typeof ControlObserverRoutingKey,
+) {
+  const { routingKey, reloadMessage }: {
+    routingKey: typeof ControlEmitterRoutingKey;
+    reloadMessage: EmitterControlMessages;
+  } | {
+    routingKey: typeof ControlObserverRoutingKey;
+    reloadMessage: ObserverControlMessages;
+  } = { routingKey: destination, reloadMessage: ReloadControlMessage };
   amqpChannel.publish(
     {
-      exchange: controlExchangeName,
-      routingKey: destination,
+      exchange: ControlExchangeName,
+      routingKey,
     },
-    { contentEncoding: "application/json" },
-    new TextEncoder().encode(
-      JSON.stringify({ action: "reload" } satisfies ControlMessage),
-    ),
+    { contentEncoding: "application/octet-stream" },
+    serializeControlMessage(reloadMessage),
   );
+}

@@ -3,7 +3,7 @@ import { load } from "https://deno.land/std@0.194.0/dotenv/mod.ts";
 import { Chain } from "npm:viem";
 
 import type { Prisma } from "./generated/client/deno/index.d.ts";
-import { PrismaClient } from "./generated/client/deno/edge.ts";
+import { PrismaClient } from "./prisma.ts";
 
 import { importESOrJson } from "./moduleUtils.ts";
 

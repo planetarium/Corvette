@@ -10,7 +10,7 @@ import {
   toHex,
 } from "npm:viem";
 
-import type { PrismaClient } from "./generated/client/deno/edge.ts";
+import type { PrismaClient } from "./prisma.ts";
 
 import {
   deserializeControlMessage,
@@ -67,7 +67,11 @@ export async function observer(chain: Chain, prisma: PrismaClient) {
 
   async function createWatch() {
     return (await prisma.eventSource.findMany({
-      select: { abiHash: true, address: true, Abi: { select: { json: true } } },
+      select: {
+        abiHash: true,
+        address: true,
+        Abi: { select: { json: true } },
+      },
     })).map((item) => {
       const event = JSON.parse(item.Abi.json) as AbiEvent;
       return client.watchEvent({
@@ -75,16 +79,21 @@ export async function observer(chain: Chain, prisma: PrismaClient) {
         event,
         onLogs: async (logs) => {
           for (const log of logs) {
-            if (log.blockNumber == null) throw new Error("blockNumber is null");
+            if (log.blockNumber == null) {
+              throw new Error("blockNumber is null");
+            }
             if (log.transactionIndex == null) {
               throw new Error("txIndex is null");
             }
             if (log.logIndex == null) throw new Error("logIndex is null");
             if (log.blockHash == null) throw new Error("blockHash is null");
-            if (log.transactionHash == null) throw new Error("txHash is null");
+            if (log.transactionHash == null) {
+              throw new Error("txHash is null");
+            }
 
             const timestamp =
-              (await client.getBlock({ blockHash: log.blockHash! })).timestamp;
+              (await client.getBlock({ blockHash: log.blockHash! }))
+                .timestamp;
             const blockHashBytes = toBytes(log.blockHash);
             const addressBytes = toBytes(log.address);
             const topicsBytes = log.topics.map(toBytes).map(Buffer.from);

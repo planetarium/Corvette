@@ -636,6 +636,8 @@
     "https://esm.sh/abitype@0.9.0/dist/esm/regex.js": "02dd42a2f5e263f695125b96f34f0cae085b22adc808422f8de43918a5c26418",
     "https://esm.sh/abitype@0.9.2": "ce510100196dc071d5f5bd2e5d24bc635f5200d38d700a6ef8e1ab9391669ce7",
     "https://esm.sh/abitype@0.9.2/dist/esm/regex.js": "644c02d5caae5eaee7c2dbaa482bc99e03ee0ad564e1672ec6b0d460facc62b2",
+    "https://esm.sh/abitype@0.9.3": "ec996516138339ab2f44f4004bfc976f21eb8b0a9f291ebc2e5c4e9e8ac69adc",
+    "https://esm.sh/abitype@0.9.3/dist/esm/regex.js": "f615bbee3db793c94420a0c09756cd75d2651183d5ee68bef8b88759314f9e36",
     "https://esm.sh/v128/@noble/hashes@1.3.0/denonext/_assert.js": "71dd0f5dc02b25513b5626a31922758a28a33baa07a25c41632b98e5e0aae1b7",
     "https://esm.sh/v128/@noble/hashes@1.3.0/denonext/crypto.js": "d829e4359b7f8dfc710b209d172a443d92575e49ddd07562a01cf580dbded402",
     "https://esm.sh/v128/@noble/hashes@1.3.0/denonext/sha3.js": "2e4de2f0618385ca84eb0e315d9a1fe942cf651b237ec0d7df3f1a80acb99d69",
@@ -644,6 +646,8 @@
     "https://esm.sh/v128/abitype@0.9.0/denonext/dist/esm/regex.js": "c6b3f328f3e112e78265250d18af200175b3b560a9e11b66de2b63cfb21a21b2",
     "https://esm.sh/v128/abitype@0.9.2/denonext/abitype.mjs": "e3cbdb099c0b18abc5734b29da3bf1013b54033da3eab4222df4bd6a35516cf2",
     "https://esm.sh/v128/abitype@0.9.2/denonext/dist/esm/regex.js": "e5112e919ed3680b8e2eaf965b83f64c2d24cf31ee9c21b95857d02c62521b96",
+    "https://esm.sh/v128/abitype@0.9.3/denonext/abitype.mjs": "c34994f6b891b4dd14327365366fe144ff9dc1c4ad9e2f51f00fd1859ac08df2",
+    "https://esm.sh/v128/abitype@0.9.3/denonext/dist/esm/regex.js": "1c31eb3f16163997f215057fa6770340e7a999f7f060187adc8eecb13f2f3cb6",
     "https://esm.sh/v128/viem@1.2.10/denonext/dist/esm/errors/abi.js": "c62b4bf7a44ba1f4278a106656334ae444ed523f749cd98ebf6d5d34ab37f67b",
     "https://esm.sh/v128/viem@1.2.10/denonext/dist/esm/utils/abi/decodeAbiParameters.js": "de6ae684ca86d627609e343e53c167b76b9ca85da8dffad98f754335745da365",
     "https://esm.sh/v128/viem@1.2.10/denonext/dist/esm/utils/abi/formatAbiItem.js": "c85ae0314f419900ebb740ac98c7cb700f41d48986ed4975de92488f2b9282d3",
@@ -652,6 +656,10 @@
     "https://esm.sh/v128/viem@1.3.0/denonext/dist/esm/utils/abi/decodeAbiParameters.js": "0601d16343a770981f9dddd335b847f44cd509f37f51ebdb33931786edc63b62",
     "https://esm.sh/v128/viem@1.3.0/denonext/dist/esm/utils/abi/formatAbiItem.js": "5a437bdb99188bd8efbb243cbf481e2758d2ba4f3426e656eb28cfb2696db505",
     "https://esm.sh/v128/viem@1.3.0/denonext/dist/esm/utils/hash/getEventSelector.js": "1d3c6c6af5ecb0948b1b4e188eea77aa2011fd24fa06f1bde57760abe27dab1a",
+    "https://esm.sh/v128/viem@1.3.1/denonext/dist/esm/errors/abi.js": "c5c9a27f533c6b208147c77e1fc8906bee0d98e9aaeaf2d5ac916cf56e0bc736",
+    "https://esm.sh/v128/viem@1.3.1/denonext/dist/esm/utils/abi/decodeAbiParameters.js": "f2ed7554f903a913d27da2af4ab85d2a87580e7840c73543ecc848380f9dfaa9",
+    "https://esm.sh/v128/viem@1.3.1/denonext/dist/esm/utils/abi/formatAbiItem.js": "69a4b3f631562e86e67f7bd621c0c44e305779f4192fa986a772a79feb47b127",
+    "https://esm.sh/v128/viem@1.3.1/denonext/dist/esm/utils/hash/getEventSelector.js": "5c48e7a7d37fca1eaa81731617764fbeed0c10df9fe7c8afaf46ac0f37b2f4f4",
     "https://esm.sh/viem@1.2.10/dist/esm/errors/abi.js": "e667d6c635d66ea6578cd324246bf4944b68b3ed5662a454b8898fb15336fd05",
     "https://esm.sh/viem@1.2.10/dist/esm/utils/abi/decodeAbiParameters.js": "67bd66319c2aebb0ea66921be5ccad5517e018855938d7750180d84f6c1c0ccc",
     "https://esm.sh/viem@1.2.10/dist/esm/utils/abi/formatAbiItem.js": "855c06338b7d784857d098368ef25a09f45194caff6520c5205b696f85911c83",
@@ -660,19 +668,23 @@
     "https://esm.sh/viem@1.3.0/dist/esm/utils/abi/decodeAbiParameters.js": "f24535ec07fd27d76fc88520a73e1d1e54cffa53d7199dcbaf883d0d433046f6",
     "https://esm.sh/viem@1.3.0/dist/esm/utils/abi/formatAbiItem.js": "a33ca5ed9b164dcaa5e73f80831530ca78567f8b6a3892efc73aa9bfbc8c0d75",
     "https://esm.sh/viem@1.3.0/dist/esm/utils/hash/getEventSelector.js": "fb615a4870549726e34e51c7c413068ea31c6ad72be600c8fd1cdda19fbb0613",
+    "https://esm.sh/viem@1.3.1/dist/esm/errors/abi.js": "f0b64b8054501ad57dbf75c09aa731927e93c983ebf970cf350ca64bfc5368d2",
+    "https://esm.sh/viem@1.3.1/dist/esm/utils/abi/decodeAbiParameters.js": "78ae1892dc7626add7c7e4af6bfab96154b852933d7168d39c336f836386f10d",
+    "https://esm.sh/viem@1.3.1/dist/esm/utils/abi/formatAbiItem.js": "9ec1a9691ad7fcb5da3a1d22d892e96042226024bcee663621aa2871a435f598",
+    "https://esm.sh/viem@1.3.1/dist/esm/utils/hash/getEventSelector.js": "6f7351d72d356fe67a5d7c4fffd0b57808d49b2a164ec020ea49399edf1dad06",
     "https://raw.githubusercontent.com/jshttp/mime-db/v1.52.0/db.json": "85c8e1ba609079947c8df83c092900ab0226e1d7b60e5e7105fb7dd701833263"
   },
   "npm": {
     "specifiers": {
       "@fastify/express": "@fastify/express@2.3.0",
       "@fastify/http-proxy": "@fastify/http-proxy@9.2.1",
-      "abitype": "abitype@0.9.2",
+      "abitype": "abitype@0.9.3",
       "fastify": "fastify@4.20.0",
       "http-proxy-middleware": "http-proxy-middleware@2.0.6",
       "lossless-json": "lossless-json@2.0.11",
       "node-forge@^1.3": "node-forge@1.3.1",
       "prisma@4.15": "prisma@4.15.0",
-      "viem": "viem@1.3.0_ws@8.12.0"
+      "viem": "viem@1.3.1_ws@8.12.0"
     },
     "packages": {
       "@adraffy/ens-normalize@1.9.0": {
@@ -791,6 +803,10 @@
       },
       "abitype@0.9.2": {
         "integrity": "sha512-1MEiefexgeVAsRD/1uMfkvpyx+yY11HGxpvXayeMrSOgr5VY1/sT4p5LSopIKtVj90UbJNPNZSMZaV1XFW6zew==",
+        "dependencies": {}
+      },
+      "abitype@0.9.3": {
+        "integrity": "sha512-dz4qCQLurx97FQhnb/EIYTk/ldQ+oafEDUqC0VVIeQS1Q48/YWt/9YNfMmp9SLFqN41ktxny3c8aYxHjmFIB/w==",
         "dependencies": {}
       },
       "abort-controller@3.0.0": {
@@ -1601,6 +1617,20 @@
           "@scure/bip39": "@scure/bip39@1.2.0",
           "@wagmi/chains": "@wagmi/chains@1.6.0",
           "abitype": "abitype@0.8.11_typescript@5.1.6",
+          "isomorphic-ws": "isomorphic-ws@5.0.0_ws@8.12.0",
+          "ws": "ws@8.12.0"
+        }
+      },
+      "viem@1.3.1_ws@8.12.0": {
+        "integrity": "sha512-Yv+y3/exrrEN4EAkVUtUuQxsjF4+3taHY2aSinJnNWtcA4fBZ+WfPJBTywcnFIa/Q5oDcQN85yqPFBbkXqWHdw==",
+        "dependencies": {
+          "@adraffy/ens-normalize": "@adraffy/ens-normalize@1.9.0",
+          "@noble/curves": "@noble/curves@1.0.0",
+          "@noble/hashes": "@noble/hashes@1.3.0",
+          "@scure/bip32": "@scure/bip32@1.3.0",
+          "@scure/bip39": "@scure/bip39@1.2.0",
+          "@wagmi/chains": "@wagmi/chains@1.6.0",
+          "abitype": "abitype@0.9.3",
           "isomorphic-ws": "isomorphic-ws@5.0.0_ws@8.12.0",
           "ws": "ws@8.12.0"
         }

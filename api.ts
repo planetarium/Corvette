@@ -12,7 +12,7 @@ import { Buffer } from "node:buffer";
 import type { Abi } from "npm:abitype";
 import { getAddress, keccak256, toBytes, toHex } from "npm:viem";
 
-import type { PrismaClient } from "./generated/client/deno/edge.ts";
+import type { PrismaClient } from "./prisma.ts";
 
 import { serializeEventMessage } from "./EventMessage.ts";
 import { formatAbiItemPrototype } from "./abitype.ts";

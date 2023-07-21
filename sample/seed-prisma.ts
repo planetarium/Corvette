@@ -2,7 +2,7 @@ import { AbiEvent, narrow } from "npm:abitype";
 import { keccak256, toBytes } from "npm:viem";
 import { Buffer } from "node:buffer";
 
-import { PrismaClient } from "../generated/client/deno/edge.ts";
+import { PrismaClient } from "../prisma.ts";
 
 import { formatAbiItemPrototype } from "../abitype.ts";
 

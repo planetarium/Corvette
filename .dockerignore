@@ -1,0 +1,11 @@
+node_modules
+# Keep environment variables out of version control
+.env
+/prisma/dev.db
+/prisma/dev.db-journal
+/.vscode
+/dev.crt
+/dev.key
+/dataproxy/schema.prisma
+/generated
+.DS_Store

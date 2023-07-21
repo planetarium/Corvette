@@ -1,48 +1,48 @@
-import { load as load_env } from "https://deno.land/std@0.194.0/dotenv/mod.ts";
-import * as path from "https://deno.land/std@0.194.0/path/mod.ts";
-
 import { broker } from "https://deno.land/x/lop@0.0.0-alpha.2/mod.ts";
-import { Chain } from "npm:viem";
-
-import { PrismaClient } from "./generated/client/deno/edge.ts";
 
 import { api } from "./api.ts";
-import { dataproxy } from "./dataproxy.ts";
+import { dataproxy, generateDataproxy } from "./dataproxy.ts";
 import { emitter } from "./emitter.ts";
 import { observer } from "./observer.ts";
+import { block, runWithChainDefinition, runWithPrisma } from "./runHelpers.ts";
 import { testWebhookReceiver } from "./testWebhookReceiver.ts";
 
-const env = await load_env();
-const { abort: abortDataproxy } = await dataproxy();
-
-const prisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: env.DATABASE_URL,
-    },
-  },
-});
-
-const abortBroker = broker();
-
 async function main() {
-  const chain = (await import(
-    new URL(
-      path.join("sample", "chainDefinitions", "sepolia.json"),
-      import.meta.url,
-    )
-      .toString(),
-    { assert: { type: "json" } }
-  )).default as Chain;
-  await observer(chain, prisma);
-  await emitter(chain, prisma);
-  await Promise.all([api(prisma), testWebhookReceiver()]);
+  await new Deno.Command("deno", {
+    args: ["task", "prisma-generate"],
+    stdout: "inherit",
+    stderr: "inherit",
+  }).output();
+  await generateDataproxy();
+
+  const abortBroker = broker();
+  const { cleanup: cleanupDataProxy } = await dataproxy();
+  try {
+    await runWithChainDefinition((chain) =>
+      new Promise(() => ({
+        runningPromise: runWithPrisma(async (prisma) => {
+          const { cleanup: cleanupObserver } = await observer(chain, prisma);
+          const { cleanup: cleanupEmitter } = await emitter(chain, prisma);
+          const { cleanup: cleanupApi } = await api(prisma);
+          const { cleanup: cleanupTestWebhookReceiver } =
+            await testWebhookReceiver();
+
+          return {
+            runningPromise: block(),
+            cleanup: async () => {
+              await cleanupTestWebhookReceiver();
+              await cleanupApi();
+              await cleanupEmitter();
+              await cleanupObserver();
+            },
+          };
+        }),
+      }))
+    );
+  } finally {
+    await cleanupDataProxy();
+    abortBroker();
+  }
 }
 
-main().catch((e) => {
-  throw e;
-}).finally(async () => {
-  abortBroker();
-  await prisma.$disconnect();
-  abortDataproxy();
-});
+if (import.meta.main) await main();

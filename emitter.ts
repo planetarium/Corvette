@@ -23,7 +23,8 @@ import {
   EvmEventsQueueName,
 } from "./constants.ts";
 import { decodeEventLog } from "./decodeEventLog.ts";
-import { uint8ArrayEqual } from "./utils.ts";
+import { uint8ArrayEquals } from "./uint8ArrayUtils.ts";
+import { block, runWithChainDefinition, runWithPrisma } from "./runHelpers.ts";
 
 export async function emitter(chain: Chain, prisma: PrismaClient) {
   const client = createPublicClient({
@@ -71,14 +72,14 @@ export async function emitter(chain: Chain, prisma: PrismaClient) {
         blockHash,
       } = message;
       emitDestinations.filter((x) =>
-        uint8ArrayEqual(x.sourceAddress as unknown as Uint8Array, address) &&
-        uint8ArrayEqual(x.abiHash as unknown as Uint8Array, sigHash) &&
+        uint8ArrayEquals(x.sourceAddress as unknown as Uint8Array, address) &&
+        uint8ArrayEquals(x.abiHash as unknown as Uint8Array, sigHash) &&
         (x.topic1 == null ||
-          (uint8ArrayEqual(x.topic1 as unknown as Uint8Array, topics[1]) &&
+          (uint8ArrayEquals(x.topic1 as unknown as Uint8Array, topics[1]) &&
             (x.topic2 == null ||
-              (uint8ArrayEqual(x.topic2 as unknown as Uint8Array, topics[2]) &&
+              (uint8ArrayEquals(x.topic2 as unknown as Uint8Array, topics[2]) &&
                 (x.topic3 == null ||
-                  uint8ArrayEqual(
+                  uint8ArrayEquals(
                     x.topic3 as unknown as Uint8Array,
                     topics[3],
                   ))))))
@@ -106,7 +107,7 @@ export async function emitter(chain: Chain, prisma: PrismaClient) {
     },
   );
 
-  const watch = client.watchBlockNumber(
+  const unwatch = client.watchBlockNumber(
     {
       onBlockNumber: async () => {
         const finalizedBlockNumber =
@@ -233,5 +234,23 @@ export async function emitter(chain: Chain, prisma: PrismaClient) {
       },
     },
   );
-  return { watch };
+
+  const abortController = new AbortController();
+  const runningPromise = block(abortController.signal);
+
+  async function cleanup() {
+    abortController.abort();
+    unwatch();
+    await amqpConnection.close();
+  }
+
+  return { runningPromise, cleanup };
+}
+
+if (import.meta.main) {
+  await runWithChainDefinition((chain) =>
+    new Promise(() => ({
+      runningPromise: runWithPrisma((prisma) => emitter(chain, prisma)),
+    }))
+  );
 }

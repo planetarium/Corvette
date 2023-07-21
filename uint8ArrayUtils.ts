@@ -1,4 +1,4 @@
-export const uint8ArrayEqual = (a: Uint8Array, b: Uint8Array) =>
+export const uint8ArrayEquals = (a: Uint8Array, b: Uint8Array) =>
   a === b
     ? true
     : a == null || b == null

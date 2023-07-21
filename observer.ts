@@ -13,8 +13,8 @@ import {
 import type { PrismaClient } from "./generated/client/deno/edge.ts";
 
 import {
-  ReloadControlMessage,
   deserializeControlMessage,
+  ReloadControlMessage,
 } from "./ControlMessage.ts";
 import { serializeEventMessage } from "./EventMessage.ts";
 import {
@@ -22,6 +22,7 @@ import {
   ControlObserverRoutingKey,
   EvmEventsQueueName,
 } from "./constants.ts";
+import { block, runWithChainDefinition, runWithPrisma } from "./runHelpers.ts";
 
 export async function observer(chain: Chain, prisma: PrismaClient) {
   const client = createPublicClient({
@@ -40,7 +41,7 @@ export async function observer(chain: Chain, prisma: PrismaClient) {
     routingKey: ControlObserverRoutingKey,
   });
   await amqpChannel.declareQueue({ queue: EvmEventsQueueName });
-  let unwatchEvents = await CreateWatch();
+  let unwatchEvents = await createWatch();
   await amqpChannel.consume(
     { queue: controlQueue.queue },
     async (_args, _props, data) => {
@@ -48,14 +49,23 @@ export async function observer(chain: Chain, prisma: PrismaClient) {
         deserializeControlMessage(data).action === ReloadControlMessage.action
       ) {
         unwatchEvents.forEach((unwatch) => unwatch());
-        unwatchEvents = await CreateWatch();
+        unwatchEvents = await createWatch();
       }
     },
   );
 
-  return { unwatchEvents };
+  const abortController = new AbortController();
+  const runningPromise = block(abortController.signal);
 
-  async function CreateWatch() {
+  async function cleanup() {
+    abortController.abort();
+    unwatchEvents.forEach((unwatch) => unwatch());
+    await amqpConnection.close();
+  }
+
+  return { runningPromise, cleanup };
+
+  async function createWatch() {
     return (await prisma.eventSource.findMany({
       select: { abiHash: true, address: true, Abi: { select: { json: true } } },
     })).map((item) => {
@@ -115,4 +125,12 @@ export async function observer(chain: Chain, prisma: PrismaClient) {
       });
     });
   }
+}
+
+if (import.meta.main) {
+  await runWithChainDefinition((chain) =>
+    new Promise(() => ({
+      runningPromise: runWithPrisma((prisma) => observer(chain, prisma)),
+    }))
+  );
 }

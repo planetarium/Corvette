@@ -23,8 +23,10 @@ import {
   EvmEventsQueueName,
 } from "./constants.ts";
 import { reload as reloadControl } from "./control.ts";
+import { runWithPrisma } from "./runHelpers.ts";
 
 export async function api(prisma: PrismaClient) {
+  const abortController = new AbortController();
   const amqpConnection = await connectAmqp();
   const amqpChannel = await amqpConnection.openChannel();
   await amqpChannel.declareQueue({ queue: EvmEventsQueueName });
@@ -277,6 +279,20 @@ export async function api(prisma: PrismaClient) {
   app.use(oakCors());
   app.use(router.routes());
   app.use(router.allowedMethods());
+
   // TODO: configuration
-  return app.listen({ port: 8000 });
+  const runningPromise = app.listen({
+    port: 8000,
+    signal: abortController.signal,
+  });
+
+  async function cleanup() {
+    abortController.abort();
+    amqpConnection.close();
+    return await runningPromise;
+  }
+
+  return { runningPromise, cleanup };
 }
+
+if (import.meta.main) runWithPrisma(api);

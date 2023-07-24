@@ -45,7 +45,7 @@ async function main() {
         data: {
           sourceAddress: sampleContractAddress,
           abiHash: hash,
-          webhookUrl: "http://localhost:8001",
+          webhookUrl: "http://localhost:8888",
         },
       },
     );

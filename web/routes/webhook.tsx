@@ -2,7 +2,7 @@ import { Handlers, PageProps } from "fresh/server.ts";
 import { Layout } from "~/components/Layout.tsx";
 import { ListWebhook, type WebhookEntry } from "~/islands/ListWebhook.tsx";
 
-import { ApiUrlEnvKey } from "../../constants.ts";
+import { ApiExternalUrlEnvKey, ApiUrlEnvKey } from "../../constants.ts";
 import { combinedEnv } from "../../runHelpers.ts";
 
 const fetchWebhook = (): Promise<WebhookEntry[]> => {
@@ -20,7 +20,7 @@ export const handler: Handlers<WebhookEntry[]> = {
 export default (props: PageProps<WebhookEntry[]>) => {
   return (
     <Layout title="Webhooks">
-      <ListWebhook entries={props.data} apiUrl={combinedEnv[ApiUrlEnvKey]} />
+      <ListWebhook entries={props.data} apiUrl={combinedEnv[ApiExternalUrlEnvKey] || combinedEnv[ApiUrlEnvKey]} />
     </Layout>
   );
 };

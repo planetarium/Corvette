@@ -2,7 +2,7 @@ import { Handlers, PageProps } from "fresh/server.ts";
 import { Layout } from "~/components/Layout.tsx";
 import { ListSources, type SourceEntry } from "~/islands/ListSources.tsx";
 
-import { ApiUrlEnvKey } from "../../constants.ts";
+import { ApiExternalUrlEnvKey, ApiUrlEnvKey } from "../../constants.ts";
 import { combinedEnv } from "../../runHelpers.ts";
 
 const fetchSources = (): Promise<SourceEntry[]> => {
@@ -20,7 +20,7 @@ export const handler: Handlers<SourceEntry[]> = {
 export default (props: PageProps<SourceEntry[]>) => {
   return (
     <Layout title="Event Sources">
-      <ListSources entries={props.data} apiUrl={combinedEnv[ApiUrlEnvKey]} />
+      <ListSources entries={props.data} apiUrl={combinedEnv[ApiExternalUrlEnvKey] || combinedEnv[ApiUrlEnvKey]} />
     </Layout>
   );
 };

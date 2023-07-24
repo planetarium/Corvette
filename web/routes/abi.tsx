@@ -2,7 +2,7 @@ import { Handlers, PageProps } from "fresh/server.ts";
 import { Layout } from "~/components/Layout.tsx";
 import { type AbiEntry, ListAbi } from "~/islands/ListAbi.tsx";
 
-import { ApiUrlEnvKey } from "../../constants.ts";
+import { ApiExternalUrlEnvKey, ApiUrlEnvKey } from "../../constants.ts";
 import { combinedEnv } from "../../runHelpers.ts";
 
 interface AbiResponse {
@@ -31,7 +31,7 @@ export const handler: Handlers<AbiEntry[]> = {
 export default (props: PageProps<AbiEntry[]>) => {
   return (
     <Layout title="ABI">
-      <ListAbi entries={props.data} apiUrl={combinedEnv[ApiUrlEnvKey]} />
+      <ListAbi entries={props.data} apiUrl={combinedEnv[ApiExternalUrlEnvKey] || combinedEnv[ApiUrlEnvKey]} />
     </Layout>
   );
 };

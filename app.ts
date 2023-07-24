@@ -3,6 +3,7 @@ import { broker } from "https://deno.land/x/lop@0.0.0-alpha.2/mod.ts";
 import { parseOptions } from "https://deno.land/x/amqp@v0.23.1/src/amqp_connect_options.ts";
 
 import { api } from "./api.ts";
+import { AmqpBrokerUrlEnvKey } from "./constants.ts";
 import { dataproxy, generateDataproxy } from "./dataproxy.ts";
 import { emitter } from "./emitter.ts";
 import { observer } from "./observer.ts";
@@ -23,7 +24,7 @@ async function main() {
   }).output();
   await generateDataproxy();
 
-  const amqpOptions = parseOptions(combinedEnv["AMQP_BROKER_URL"]);
+  const amqpOptions = parseOptions(combinedEnv[AmqpBrokerUrlEnvKey]);
   const abortBroker = broker({
     hostname: amqpOptions.hostname,
     port: amqpOptions.port,

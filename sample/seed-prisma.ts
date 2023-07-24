@@ -5,14 +5,15 @@ import { Buffer } from "node:buffer";
 import { PrismaClient } from "../generated/client/deno/edge.ts";
 
 import { formatAbiItemPrototype } from "../abitype.ts";
+import { DatabaseUrlEnvKey } from "../constants.ts";
+import { combinedEnv } from "../runHelpers.ts";
 
 import sampleAbiJson from "./contracts/sampleAbi.json" assert { type: "json" };
-import { combinedEnv } from "../runHelpers.ts";
 
 const prisma = new PrismaClient({
   datasources: {
     db: {
-      url: combinedEnv["DATABASE_URL"],
+      url: combinedEnv[DatabaseUrlEnvKey],
     },
   },
 });

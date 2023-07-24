@@ -13,6 +13,11 @@ import { Chain } from "npm:viem";
 import type { Prisma } from "./generated/client/deno/index.d.ts";
 import { PrismaClient } from "./generated/client/deno/edge.ts";
 
+import {
+  AmqpBrokerUrlEnvKey,
+  ChainDefinitionUrlEnvKey,
+  DatabaseUrlEnvKey,
+} from "./constants.ts";
 import { importESOrJson } from "./moduleUtils.ts";
 
 type CleanupFunction = () => Promise<void>;
@@ -51,7 +56,7 @@ export async function runWithPrisma(
   const prisma = new PrismaClient({
     datasources: {
       db: {
-        url: combinedEnv["DATABASE_URL"],
+        url: combinedEnv[DatabaseUrlEnvKey],
       },
     },
     ...optionsArg,
@@ -78,7 +83,7 @@ export async function runWithAmqp(
   func: (amqpConnection: AmqpConnection) => Promise<Runnable>,
   optionsOrUrl?: AmqpConnectOptions | string,
 ): Promise<void> {
-  const defaultOptions = parseOptions(combinedEnv["AMQP_BROKER_URL"]);
+  const defaultOptions = parseOptions(combinedEnv[AmqpBrokerUrlEnvKey]);
   const options = optionsOrUrl === undefined
     ? defaultOptions
     : typeof (optionsOrUrl) === "string"
@@ -95,6 +100,6 @@ export async function runWithAmqp(
 export async function runWithChainDefinition(
   func: (chain: Chain) => Promise<Runnable>,
 ) {
-  const chain = await importESOrJson(combinedEnv["CHAIN_DEFINITION_URL"]);
+  const chain = await importESOrJson(combinedEnv[ChainDefinitionUrlEnvKey]);
   await runAndCleanup(() => func(chain));
 }

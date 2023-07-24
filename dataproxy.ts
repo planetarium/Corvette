@@ -8,6 +8,7 @@ import {
 } from "https://deno.land/x/oak@v12.5.0/mod.ts";
 import { getFreePort } from "https://deno.land/x/free_port@v1.2.0/mod.ts";
 
+import { DataproxyInternalPortEnvKey } from "./constants.ts";
 import { baseDir, getRelativeScriptPath } from "./moduleUtils.ts";
 import { combinedEnv, runAndCleanup } from "./runHelpers.ts";
 
@@ -64,7 +65,7 @@ export async function dataproxy() {
     );
   }
   const port = Number(listenUrl.port) || 443;
-  const parsedInternalPort = Number(combinedEnv["DATAPROXY_INTERNAL_PORT"]);
+  const parsedInternalPort = Number(combinedEnv[DataproxyInternalPortEnvKey]);
   const internalPort = parsedInternalPort === 0
     ? await getFreePort(8089)
     : Number.isNaN(parsedInternalPort)

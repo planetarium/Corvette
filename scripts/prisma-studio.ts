@@ -1,3 +1,4 @@
+import { DirectDatabaseUrlEnvKey } from "../constants.ts";
 import { combinedEnv } from "../runHelpers.ts";
 
 new Deno.Command("npx", {
@@ -6,7 +7,7 @@ new Deno.Command("npx", {
     "studio",
   ],
   env: {
-    "DATABASE_URL": combinedEnv["DIRECT_URL"],
+    "DATABASE_URL": combinedEnv[DirectDatabaseUrlEnvKey],
   },
   stdout: "inherit",
   stderr: "inherit",

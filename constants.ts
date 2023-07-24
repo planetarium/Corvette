@@ -7,3 +7,5 @@ export const DirectDatabaseUrlEnvKey = "DIRECT_URL";
 export const ChainDefinitionUrlEnvKey = "CHAIN_DEFINITION_URL";
 export const AmqpBrokerUrlEnvKey = "AMQP_BROKER_URL";
 export const DataproxyInternalPortEnvKey = "DATAPROXY_INTERNAL_PORT";
+export const ApiUrlEnvKey = "API_URL";
+export const WebUIUrlEnvKey = "WEBUI_URL";

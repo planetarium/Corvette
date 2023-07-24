@@ -17,13 +17,14 @@ import type { PrismaClient } from "./generated/client/deno/edge.ts";
 import { serializeEventMessage } from "./EventMessage.ts";
 import { formatAbiItemPrototype } from "./abitype.ts";
 import {
+  ApiUrlEnvKey,
   ControlEmitterRoutingKey,
   ControlExchangeName,
   ControlObserverRoutingKey,
   EvmEventsQueueName,
 } from "./constants.ts";
 import { reload as reloadControl } from "./control.ts";
-import { runWithAmqp, runWithPrisma } from "./runHelpers.ts";
+import { combinedEnv, runWithAmqp, runWithPrisma } from "./runHelpers.ts";
 
 export async function api(
   prisma: PrismaClient,
@@ -282,9 +283,10 @@ export async function api(
   app.use(router.routes());
   app.use(router.allowedMethods());
 
-  // TODO: configuration
+  const listenUrl = new URL(combinedEnv[ApiUrlEnvKey]);
   const runningPromise = app.listen({
-    port: 8000,
+    port: Number(listenUrl.port) || 80,
+    hostname: listenUrl.hostname,
     signal: abortController.signal,
   });
 

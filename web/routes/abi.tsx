@@ -2,13 +2,15 @@ import { Handlers, PageProps } from "fresh/server.ts";
 import { Layout } from "~/components/Layout.tsx";
 import { type AbiEntry, ListAbi } from "~/islands/ListAbi.tsx";
 
+import { ApiUrlEnvKey } from "../../constants.ts";
+import { combinedEnv } from "../../runHelpers.ts";
+
 interface AbiResponse {
   [hash: string]: Omit<AbiEntry, "hash">;
 }
 
 const fetchAbis = (): Promise<AbiResponse> => {
-  // TODO: configuration
-  return fetch("http://localhost:8000/abi", {
+  return fetch(`${combinedEnv[ApiUrlEnvKey]}/abi`, {
     method: "POST",
   }).then((res) => res.json());
 };
@@ -29,7 +31,7 @@ export const handler: Handlers<AbiEntry[]> = {
 export default (props: PageProps<AbiEntry[]>) => {
   return (
     <Layout title="ABI">
-      <ListAbi entries={props.data} />
+      <ListAbi entries={props.data} apiUrl={combinedEnv[ApiUrlEnvKey]} />
     </Layout>
   );
 };

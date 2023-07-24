@@ -17,16 +17,16 @@ export interface WebhookEntry {
 
 interface ListWebhookProps {
   entries: WebhookEntry[];
+  apiUrl: string;
 }
 
-export const ListWebhook = ({ entries }: ListWebhookProps) => {
+export const ListWebhook = ({ apiUrl, entries }: ListWebhookProps) => {
   const handleSubmit = useCallback(async (e: Event) => {
     e.preventDefault();
 
     const formData = new FormData(e.target as HTMLFormElement);
 
-    // TODO: configuration
-    await fetch("http://localhost:8000/webhook", {
+    await fetch(`${apiUrl}/webhook`, {
       method: "PUT",
       body: JSON.stringify(Object.fromEntries(formData.entries())),
     });
@@ -38,8 +38,7 @@ export const ListWebhook = ({ entries }: ListWebhookProps) => {
     (id: number) => async (e: Event) => {
       e.preventDefault();
 
-      // TODO: configuration
-      await fetch(`http://localhost:8000/webhook/${id}`, {
+      await fetch(`${apiUrl}/webhook/${id}`, {
         method: "DELETE",
       });
 

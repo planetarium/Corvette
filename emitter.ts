@@ -1,4 +1,4 @@
-import { connect as connectAmqp } from "https://deno.land/x/amqp@v0.23.1/mod.ts";
+import { AmqpConnection } from "https://deno.land/x/amqp@v0.23.1/mod.ts";
 
 import { stringify as losslessJsonStringify } from "npm:lossless-json";
 import {
@@ -23,17 +23,24 @@ import {
   EvmEventsQueueName,
 } from "./constants.ts";
 import { decodeEventLog } from "./decodeEventLog.ts";
+import {
+  block,
+  runWithAmqp,
+  runWithChainDefinition,
+  runWithPrisma,
+} from "./runHelpers.ts";
 import { uint8ArrayEquals } from "./uint8ArrayUtils.ts";
-import { block, runWithChainDefinition, runWithPrisma } from "./runHelpers.ts";
 
-export async function emitter(chain: Chain, prisma: PrismaClient) {
+export async function emitter(
+  chain: Chain,
+  prisma: PrismaClient,
+  amqpConnection: AmqpConnection,
+) {
   const client = createPublicClient({
     chain,
     transport: httpViemTransport(),
   });
 
-  // TODO: configuration
-  const amqpConnection = await connectAmqp();
   const amqpChannel = await amqpConnection.openChannel();
   await amqpChannel.declareExchange({ exchange: ControlExchangeName });
   const controlQueue = await amqpChannel.declareQueue({});
@@ -241,7 +248,6 @@ export async function emitter(chain: Chain, prisma: PrismaClient) {
   async function cleanup() {
     abortController.abort();
     unwatch();
-    await amqpConnection.close();
     await runningPromise;
   }
 
@@ -250,8 +256,14 @@ export async function emitter(chain: Chain, prisma: PrismaClient) {
 
 if (import.meta.main) {
   await runWithChainDefinition((chain) =>
-    new Promise(() => ({
-      runningPromise: runWithPrisma((prisma) => emitter(chain, prisma)),
-    }))
+    Promise.resolve({
+      runningPromise: runWithPrisma((prisma) =>
+        Promise.resolve({
+          runningPromise: runWithAmqp((amqpConnection) =>
+            emitter(chain, prisma, amqpConnection)
+          ),
+        })
+      ),
+    })
   );
 }

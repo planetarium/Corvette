@@ -1,5 +1,13 @@
 import { load } from "https://deno.land/std@0.194.0/dotenv/mod.ts";
 
+import {
+  AmqpConnection,
+  AmqpConnectOptions,
+  connect as connectAmqp,
+} from "https://deno.land/x/amqp@v0.23.1/mod.ts";
+
+import { parseOptions } from "https://deno.land/x/amqp@v0.23.1/src/amqp_connect_options.ts";
+
 import { Chain } from "npm:viem";
 
 import type { Prisma } from "./generated/client/deno/index.d.ts";
@@ -52,6 +60,35 @@ export async function runWithPrisma(
     await runAndCleanup(() => func(prisma));
   } finally {
     await prisma.$disconnect();
+  }
+}
+
+export async function runWithAmqp(
+  func: (amqpConnection: AmqpConnection) => Promise<Runnable>,
+): Promise<void>;
+export async function runWithAmqp(
+  func: (amqpConnection: AmqpConnection) => Promise<Runnable>,
+  options?: AmqpConnectOptions,
+): Promise<void>;
+export async function runWithAmqp(
+  func: (amqpConnection: AmqpConnection) => Promise<Runnable>,
+  uri?: string,
+): Promise<void>;
+export async function runWithAmqp(
+  func: (amqpConnection: AmqpConnection) => Promise<Runnable>,
+  optionsOrUrl?: AmqpConnectOptions | string,
+): Promise<void> {
+  const defaultOptions = parseOptions(combinedEnv["AMQP_BROKER_URL"]);
+  const options = optionsOrUrl === undefined
+    ? defaultOptions
+    : typeof (optionsOrUrl) === "string"
+    ? parseOptions(optionsOrUrl)
+    : parseOptions({ ...defaultOptions, ...optionsOrUrl });
+  const amqpConnection = await connectAmqp(options);
+  try {
+    await runAndCleanup(() => func(amqpConnection));
+  } finally {
+    await amqpConnection.close();
   }
 }
 

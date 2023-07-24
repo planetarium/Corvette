@@ -1,4 +1,4 @@
-import { connect as connectAmqp } from "https://deno.land/x/amqp@v0.23.1/mod.ts";
+import { AmqpConnection } from "https://deno.land/x/amqp@v0.23.1/mod.ts";
 
 import { Buffer } from "node:buffer";
 import { AbiEvent } from "npm:abitype";
@@ -13,8 +13,8 @@ import {
 import type { PrismaClient } from "./generated/client/deno/edge.ts";
 
 import {
-  deserializeControlMessage,
   ReloadControlMessage,
+  deserializeControlMessage,
 } from "./ControlMessage.ts";
 import { serializeEventMessage } from "./EventMessage.ts";
 import {
@@ -22,16 +22,23 @@ import {
   ControlObserverRoutingKey,
   EvmEventsQueueName,
 } from "./constants.ts";
-import { block, runWithChainDefinition, runWithPrisma } from "./runHelpers.ts";
+import {
+  block,
+  runWithAmqp,
+  runWithChainDefinition,
+  runWithPrisma,
+} from "./runHelpers.ts";
 
-export async function observer(chain: Chain, prisma: PrismaClient) {
+export async function observer(
+  chain: Chain,
+  prisma: PrismaClient,
+  amqpConnection: AmqpConnection,
+) {
   const client = createPublicClient({
     chain,
     transport: httpViemTransport(),
   });
 
-  // TODO: configuration
-  const amqpConnection = await connectAmqp();
   const amqpChannel = await amqpConnection.openChannel();
   await amqpChannel.declareExchange({ exchange: ControlExchangeName });
   const controlQueue = await amqpChannel.declareQueue({});
@@ -60,7 +67,6 @@ export async function observer(chain: Chain, prisma: PrismaClient) {
   async function cleanup() {
     abortController.abort();
     unwatchEvents.forEach((unwatch) => unwatch());
-    await amqpConnection.close();
     await runningPromise;
   }
 
@@ -130,8 +136,14 @@ export async function observer(chain: Chain, prisma: PrismaClient) {
 
 if (import.meta.main) {
   await runWithChainDefinition((chain) =>
-    new Promise(() => ({
-      runningPromise: runWithPrisma((prisma) => observer(chain, prisma)),
-    }))
+    Promise.resolve({
+      runningPromise: runWithPrisma((prisma) =>
+        Promise.resolve({
+          runningPromise: runWithAmqp((amqpConnection) =>
+            observer(chain, prisma, amqpConnection)
+          ),
+        })
+      ),
+    })
   );
 }

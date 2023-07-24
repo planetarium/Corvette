@@ -1,10 +1,18 @@
 import { broker } from "https://deno.land/x/lop@0.0.0-alpha.2/mod.ts";
 
+import { parseOptions } from "https://deno.land/x/amqp@v0.23.1/src/amqp_connect_options.ts";
+
 import { api } from "./api.ts";
 import { dataproxy, generateDataproxy } from "./dataproxy.ts";
 import { emitter } from "./emitter.ts";
 import { observer } from "./observer.ts";
-import { block, runWithChainDefinition, runWithPrisma } from "./runHelpers.ts";
+import {
+  block,
+  combinedEnv,
+  runWithAmqp,
+  runWithChainDefinition,
+  runWithPrisma,
+} from "./runHelpers.ts";
 import { testWebhookReceiver } from "./testWebhookReceiver.ts";
 
 async function main() {
@@ -15,25 +23,44 @@ async function main() {
   }).output();
   await generateDataproxy();
 
-  const abortBroker = broker();
+  const amqpOptions = parseOptions(combinedEnv["AMQP_BROKER_URL"]);
+  const abortBroker = broker({
+    hostname: amqpOptions.hostname,
+    port: amqpOptions.port,
+  });
   const { cleanup: cleanupDataProxy } = await dataproxy();
   try {
     await runWithChainDefinition((chain) =>
       Promise.resolve({
         runningPromise: runWithPrisma(async (prisma) => {
-          const { cleanup: cleanupObserver } = await observer(chain, prisma);
-          const { cleanup: cleanupEmitter } = await emitter(chain, prisma);
-          const { cleanup: cleanupApi } = await api(prisma);
+          const runningPromise = runWithAmqp(async (amqpConnection) => {
+            const { cleanup: cleanupObserver } = await observer(
+              chain,
+              prisma,
+              amqpConnection,
+            );
+            const { cleanup: cleanupEmitter } = await emitter(
+              chain,
+              prisma,
+              amqpConnection,
+            );
+            const { cleanup: cleanupApi } = await api(prisma, amqpConnection);
+            return {
+              runningPromise: block(),
+              cleanup: async () => {
+                await cleanupApi();
+                await cleanupEmitter();
+                await cleanupObserver();
+              },
+            };
+          });
           const { cleanup: cleanupTestWebhookReceiver } =
             await testWebhookReceiver();
 
           return {
-            runningPromise: block(),
+            runningPromise,
             cleanup: async () => {
               await cleanupTestWebhookReceiver();
-              await cleanupApi();
-              await cleanupEmitter();
-              await cleanupObserver();
             },
           };
         }),

@@ -1,6 +1,6 @@
 import { Status } from "https://deno.land/std@0.188.0/http/http_status.ts";
 
-import { connect as connectAmqp } from "https://deno.land/x/amqp@v0.23.1/mod.ts";
+import { AmqpConnection } from "https://deno.land/x/amqp@v0.23.1/mod.ts";
 import { oakCors } from "https://deno.land/x/cors@v1.2.2/mod.ts";
 import {
   Application as OakApplication,
@@ -23,11 +23,13 @@ import {
   EvmEventsQueueName,
 } from "./constants.ts";
 import { reload as reloadControl } from "./control.ts";
-import { runWithPrisma } from "./runHelpers.ts";
+import { runWithAmqp, runWithPrisma } from "./runHelpers.ts";
 
-export async function api(prisma: PrismaClient) {
+export async function api(
+  prisma: PrismaClient,
+  amqpConnection: AmqpConnection,
+) {
   const abortController = new AbortController();
-  const amqpConnection = await connectAmqp();
   const amqpChannel = await amqpConnection.openChannel();
   await amqpChannel.declareQueue({ queue: EvmEventsQueueName });
   await amqpChannel.declareExchange({ exchange: ControlExchangeName });
@@ -288,11 +290,18 @@ export async function api(prisma: PrismaClient) {
 
   async function cleanup() {
     abortController.abort();
-    amqpConnection.close();
     return await runningPromise;
   }
 
   return { runningPromise, cleanup };
 }
 
-if (import.meta.main) runWithPrisma(api);
+if (import.meta.main) {
+  runWithPrisma((prisma) =>
+    Promise.resolve({
+      runningPromise: runWithAmqp((amqpConnection) =>
+        api(prisma, amqpConnection)
+      ),
+    })
+  );
+}

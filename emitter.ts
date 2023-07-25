@@ -6,6 +6,7 @@ import {
   createPublicClient,
   getAddress,
   http as httpViemTransport,
+  InvalidParamsRpcError,
   toHex,
 } from "npm:viem";
 
@@ -18,6 +19,7 @@ import {
 import { deserializeEventMessage, EventMessage } from "./EventMessage.ts";
 import { formatAbiItemPrototype } from "./abitype.ts";
 import {
+  BlockFinalityEnvKey,
   ControlEmitterRoutingKey,
   ControlExchangeName,
   EvmEventsQueueName,
@@ -25,6 +27,7 @@ import {
 import { decodeEventLog } from "./decodeEventLog.ts";
 import {
   block,
+  combinedEnv,
   runWithAmqp,
   runWithChainDefinition,
   runWithPrisma,
@@ -114,13 +117,39 @@ export async function emitter(
     },
   );
 
+  const blockFinalityEnvVar = combinedEnv[BlockFinalityEnvKey];
+  const blockFinalityNumber = Number(blockFinalityEnvVar);
+  const blockFinality =
+    blockFinalityEnvVar === "safe" || blockFinalityEnvVar === "finalized"
+      ? blockFinalityEnvVar
+      : Number.isInteger(blockFinalityNumber)
+      ? BigInt(blockFinalityEnvVar)
+      : undefined;
+  if (blockFinality === undefined) {
+    throw new Error(
+      `${BlockFinalityEnvKey} environment may only take either an integer or string "safe" or "finalized" as the value.`,
+    );
+  }
+  if (typeof (blockFinality) === "string") {
+    try {
+      await client.getBlock({ blockTag: blockFinality });
+    } catch (e) {
+      if (e instanceof InvalidParamsRpcError) {
+        throw new Error(
+          `The given RPC node does not support the blockTag '${blockFinality}'.`,
+        );
+      }
+      throw e;
+    }
+  }
+
+  // TODO: customizable poll interval and transport
   const unwatch = client.watchBlockNumber(
     {
-      onBlockNumber: async () => {
-        const finalizedBlockNumber =
-          // polygon-edge does not support finalized tag at the moment
-          //(await client.getBlock({ blockTag: "finalized" })).number!;
-          (await client.getBlock({ blockTag: "latest" })).number! - 64n;
+      onBlockNumber: async (blockNumber) => {
+        const finalizedBlockNumber = typeof (blockFinality) === "bigint"
+          ? blockNumber - blockFinality
+          : (await client.getBlock({ blockTag: blockFinality })).number!;
         const observed = finalizationQueue.filter((x) =>
           x.blockNumber <= finalizedBlockNumber
         );

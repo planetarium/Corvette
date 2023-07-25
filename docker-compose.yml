@@ -26,6 +26,7 @@ services:
       DATABASE_URL: prisma://dataproxy:8088?api_key=x5aol207TyRdhHuanAXlpTgVWDcK8jm2rVKJOQGbwaMqfvZbmGJnIbwBjUxYaBrFx1XOfyF4
       AMQP_BROKER_URL: amqp://message-queue-broker
       CHAIN_DEFINITION_URL: https://esm.sh/@wagmi/chains@1.6.0#goerli
+      BLOCK_FINALITY: safe
   api:
     depends_on:
       message-queue-broker:

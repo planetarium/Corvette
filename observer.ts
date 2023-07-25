@@ -13,8 +13,8 @@ import {
 import type { PrismaClient } from "./generated/client/deno/edge.ts";
 
 import {
-  ReloadControlMessage,
   deserializeControlMessage,
+  ReloadControlMessage,
 } from "./ControlMessage.ts";
 import { serializeEventMessage } from "./EventMessage.ts";
 import {
@@ -72,6 +72,7 @@ export async function observer(
 
   return { runningPromise, cleanup };
 
+  // TODO: customizable poll interval and transport
   async function createWatch() {
     return (await prisma.eventSource.findMany({
       select: { abiHash: true, address: true, Abi: { select: { json: true } } },

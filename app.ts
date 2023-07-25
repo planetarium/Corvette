@@ -1,3 +1,6 @@
+import { parse } from "https://deno.land/std@0.194.0/flags/mod.ts";
+import * as path from "https://deno.land/std@0.194.0/path/mod.ts";
+
 import { broker } from "https://deno.land/x/lop@0.0.0-alpha.2/mod.ts";
 
 import { parseOptions } from "https://deno.land/x/amqp@v0.23.1/src/amqp_connect_options.ts";
@@ -15,21 +18,57 @@ import {
   runWithPrisma,
 } from "./runHelpers.ts";
 import { testWebhookReceiver } from "./testWebhookReceiver.ts";
+import { getSchemaPath, shouldUseDataproxy } from "./prismaSchemaUtils.ts";
 
-async function main() {
+async function prepareAndMain() {
   await new Deno.Command("deno", {
     args: ["task", "prisma-generate"],
     stdout: "inherit",
     stderr: "inherit",
-  }).output();
-  await generateDataproxy();
+  }).spawn().status;
+  await new Deno.Command("deno", {
+    args: [
+      "run",
+      ...(
+        await shouldUseDataproxy()
+          ? ["--unsafely-ignore-certificate-errors=localhost"]
+          : []
+      ),
+      "--allow-read",
+      "--allow-write",
+      "--allow-env",
+      "--allow-run",
+      "--allow-net",
+      "--allow-ffi",
+      path.fromFileUrl(import.meta.url),
+      "--main",
+    ],
+    stdin: "inherit",
+    stdout: "inherit",
+    stderr: "inherit",
+    cwd: Deno.cwd(),
+    uid: Deno.uid() !== null ? Deno.uid()! : undefined,
+    gid: Deno.gid() !== null ? Deno.gid()! : undefined,
+  }).spawn().status;
+}
+
+async function main() {
+  let useDataproxy: boolean;
+  try {
+    useDataproxy = await shouldUseDataproxy();
+  } catch (e) {
+    console.error(`Could not load ${getSchemaPath({ useParams: true })}`);
+    throw e;
+  }
+  if (useDataproxy) await generateDataproxy();
 
   const amqpOptions = parseOptions(combinedEnv[AmqpBrokerUrlEnvKey]);
   const abortBroker = broker({
     hostname: amqpOptions.hostname,
     port: amqpOptions.port,
   });
-  const { cleanup: cleanupDataProxy } = await dataproxy();
+  let cleanupDataProxy: (() => Promise<void>) | undefined;
+  if (useDataproxy) ({ cleanup: cleanupDataProxy } = await dataproxy());
   try {
     await runWithChainDefinition((chain) =>
       Promise.resolve({
@@ -68,9 +107,13 @@ async function main() {
       })
     );
   } finally {
-    await cleanupDataProxy();
+    if (cleanupDataProxy !== undefined) await cleanupDataProxy();
     abortBroker();
   }
 }
 
-if (import.meta.main) await main();
+if (import.meta.main) {
+  const params = parse(Deno.args, { boolean: ["main"] });
+  if (params.main) await main();
+  else prepareAndMain();
+}

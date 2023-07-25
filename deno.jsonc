@@ -1,8 +1,9 @@
 {
   "tasks": {
-    "prisma": "deno run --allow-read --allow-env --allow-write --allow-run --allow-ffi --allow-sys --allow-net npm:prisma@4.15",
-    "prisma-generate": "deno task prisma generate --data-proxy",
+    "prisma": "deno run --allow-read --allow-sys --allow-run --allow-write scripts/prisma-wrapper.ts",
+    "prisma-generate": "deno run --allow-read --allow-env --allow-sys --allow-run --allow-write scripts/prisma-generate.ts",
     "prisma-studio": "deno run --allow-read --allow-env --allow-run scripts/prisma-studio.ts",
-    "serve": "deno run --allow-read --allow-write generate-cert.ts && deno run --unsafely-ignore-certificate-errors=localhost --allow-read --allow-write --allow-env --allow-run --allow-net app.ts"
-  }
+    "serve": "deno run --allow-read --allow-write generate-cert.ts && deno run --allow-read --allow-env --allow-run --allow-sys app.ts"
+  },
+  "lock": false
 }

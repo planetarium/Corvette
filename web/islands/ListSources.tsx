@@ -1,9 +1,6 @@
 import { useCallback, useRef } from "preact/hooks";
 
-import {
-  CollapsibleTable,
-  CollapsibleTableRow,
-} from "~/components/CollapsibleTable.tsx";
+import { CollapsibleTable, CollapsibleTableRow } from "~/components/CollapsibleTable.tsx";
 import { Modal } from "~/components/Modal.tsx";
 
 export interface SourceEntry {
@@ -14,17 +11,16 @@ export interface SourceEntry {
 
 interface ListSourcesProps {
   entries: SourceEntry[];
-  apiUrl: string
 }
 
-export const ListSources = ({ apiUrl, entries }: ListSourcesProps) => {
+export const ListSources = ({ entries }: ListSourcesProps) => {
   const handleSubmit = useCallback(async (e: Event) => {
     e.preventDefault();
 
     const formData = new FormData(e.target as HTMLFormElement);
 
-    await fetch(`${apiUrl}/sources`, {
-      method: "PUT",
+    await fetch("/api/sources", {
+      method: "POST",
       body: JSON.stringify(Object.fromEntries(formData.entries())),
     });
 
@@ -35,7 +31,7 @@ export const ListSources = ({ apiUrl, entries }: ListSourcesProps) => {
     (address: string, abiHash: string) => async (e: Event) => {
       e.preventDefault();
 
-      await fetch(`${apiUrl}/sources`, {
+      await fetch(`/api/sources`, {
         method: "DELETE",
         body: JSON.stringify({ address, abiHash }),
       });
@@ -54,7 +50,7 @@ export const ListSources = ({ apiUrl, entries }: ListSourcesProps) => {
         body: JSON.stringify({ address, abiHash }),
       });
     },
-    [],
+    []
   );
 
   const modalRef = useRef<HTMLDialogElement>(null);

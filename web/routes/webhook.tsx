@@ -1,26 +1,25 @@
 import { Handlers, PageProps } from "fresh/server.ts";
 import { Layout } from "~/components/Layout.tsx";
 import { ListWebhook, type WebhookEntry } from "~/islands/ListWebhook.tsx";
-
-import { ApiExternalUrlEnvKey, ApiUrlEnvKey } from "../../constants.ts";
-import { combinedEnv } from "../../runHelpers.ts";
-
-const fetchWebhook = (): Promise<WebhookEntry[]> => {
-  return fetch(`${combinedEnv[ApiUrlEnvKey]}/webhook`, {
-    method: "POST",
-  }).then((res) => res.json());
-};
+import { getCookieString, getOrigin } from "~/util.ts";
 
 export const handler: Handlers<WebhookEntry[]> = {
-  async GET(_req, ctx) {
-    return ctx.render(await fetchWebhook());
+  async GET(req, ctx) {
+    const res = await fetch(`${getOrigin(req)}/api/webhook/`, {
+      credentials: "include",
+      headers: { cookie: getCookieString(req) },
+    });
+    if (!res.ok) {
+      throw new Error(await res.text());
+    }
+    return ctx.render(await res.json());
   },
 };
 
 export default (props: PageProps<WebhookEntry[]>) => {
   return (
     <Layout title="Webhooks">
-      <ListWebhook entries={props.data} apiUrl={combinedEnv[ApiExternalUrlEnvKey] || combinedEnv[ApiUrlEnvKey]} />
+      <ListWebhook entries={props.data} />
     </Layout>
   );
 };

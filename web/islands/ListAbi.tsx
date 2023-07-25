@@ -1,10 +1,7 @@
 import { useCallback, useRef } from "preact/hooks";
 
 import { AbiTable } from "~/components/AbiTable.tsx";
-import {
-  CollapsibleTable,
-  CollapsibleTableRow,
-} from "~/components/CollapsibleTable.tsx";
+import { CollapsibleTable, CollapsibleTableRow } from "~/components/CollapsibleTable.tsx";
 import { Modal } from "~/components/Modal.tsx";
 
 import type { AbiEvent } from "https://esm.sh/abitype@0.9.0";
@@ -16,29 +13,24 @@ export interface AbiEntry {
 }
 
 const getSignatureFromAbiEvent = (event: AbiEvent) => {
-  return `${event.name}(${
-    event.inputs
-      .map((input) =>
-        `${input.type}${input.indexed ? " indexed" : ""} ${input.name}`
-      )
-      .join(", ")
-  })`;
+  return `${event.name}(${event.inputs
+    .map((input) => `${input.type}${input.indexed ? " indexed" : ""} ${input.name}`)
+    .join(", ")})`;
 };
 
 interface Props {
   entries: AbiEntry[];
-  apiUrl: string;
 }
 
-export const ListAbi = ({ apiUrl, entries }: Props) => {
+export const ListAbi = ({ entries }: Props) => {
   const handleSubmit = useCallback(async (e: Event) => {
     e.preventDefault();
 
     const formData = new FormData(e.target as HTMLFormElement);
     const abiJson = formData.get("abiJson");
 
-    await fetch(`${apiUrl}/abi`, {
-      method: "PUT",
+    await fetch(`/api/abi`, {
+      method: "POST",
       body: abiJson,
     });
 
@@ -49,8 +41,9 @@ export const ListAbi = ({ apiUrl, entries }: Props) => {
     (hash: string) => async (e: Event) => {
       e.preventDefault();
 
-      await fetch(`${apiUrl}/abi/${hash}`, {
+      await fetch(`/api/abi`, {
         method: "DELETE",
+        body: JSON.stringify({ hash }),
       });
 
       location.reload();
@@ -87,10 +80,7 @@ export const ListAbi = ({ apiUrl, entries }: Props) => {
             collapsible={
               <>
                 <div class="float-right">
-                  <button
-                    class="btn btn-warning"
-                    onClick={handleDelete(entry.hash)}
-                  >
+                  <button class="btn btn-warning" onClick={handleDelete(entry.hash)}>
                     X
                   </button>
                 </div>

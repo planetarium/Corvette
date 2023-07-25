@@ -1,8 +1,5 @@
 import { useCallback, useRef } from "preact/hooks";
-import {
-  CollapsibleTable,
-  CollapsibleTableRow,
-} from "~/components/CollapsibleTable.tsx";
+import { CollapsibleTable, CollapsibleTableRow } from "~/components/CollapsibleTable.tsx";
 import { Modal } from "~/components/Modal.tsx";
 
 export interface WebhookEntry {
@@ -17,17 +14,16 @@ export interface WebhookEntry {
 
 interface ListWebhookProps {
   entries: WebhookEntry[];
-  apiUrl: string;
 }
 
-export const ListWebhook = ({ apiUrl, entries }: ListWebhookProps) => {
+export const ListWebhook = ({ entries }: ListWebhookProps) => {
   const handleSubmit = useCallback(async (e: Event) => {
     e.preventDefault();
 
     const formData = new FormData(e.target as HTMLFormElement);
 
-    await fetch(`${apiUrl}/webhook`, {
-      method: "PUT",
+    await fetch("/api/webhook", {
+      method: "POST",
       body: JSON.stringify(Object.fromEntries(formData.entries())),
     });
 
@@ -38,8 +34,9 @@ export const ListWebhook = ({ apiUrl, entries }: ListWebhookProps) => {
     (id: number) => async (e: Event) => {
       e.preventDefault();
 
-      await fetch(`${apiUrl}/webhook/${id}`, {
+      await fetch(`/api/webhook/`, {
         method: "DELETE",
+        body: JSON.stringify({ id }),
       });
 
       location.reload();
@@ -89,18 +86,13 @@ export const ListWebhook = ({ apiUrl, entries }: ListWebhookProps) => {
         </Modal>
       </div>
 
-      <CollapsibleTable
-        headers={["Contract Address", "ABI Hash", "Webhook URL"]}
-      >
+      <CollapsibleTable headers={["Contract Address", "ABI Hash", "Webhook URL"]}>
         {entries.map((entry) => (
           <CollapsibleTableRow
             collapsible={
               <>
                 <div class="float-right">
-                  <button
-                    class="btn btn-warning"
-                    onClick={handleDelete(entry.id)}
-                  >
+                  <button class="btn btn-warning" onClick={handleDelete(entry.id)}>
                     X
                   </button>
                 </div>

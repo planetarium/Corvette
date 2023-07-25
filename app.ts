@@ -28,7 +28,7 @@ const abortBroker = broker();
 async function main() {
   const chain = (await import(
     new URL(
-      path.join("sample", "chainDefinitions", "sepolia.json"),
+      path.join("sample", "chainDefinitions", "goerli.json"),
       import.meta.url,
     )
       .toString(),

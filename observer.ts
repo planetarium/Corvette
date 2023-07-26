@@ -10,7 +10,7 @@ import {
   toHex,
 } from "npm:viem";
 
-import type { PrismaClient } from "./generated/client/deno/edge.ts";
+import type { PrismaClient } from "./prisma-shim.ts";
 
 import {
   deserializeControlMessage,

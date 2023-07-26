@@ -10,7 +10,7 @@ services:
       target: observer
     container_name: observer
     environment:
-      DATABASE_URL: prisma://dataproxy:8088?api_key=x5aol207TyRdhHuanAXlpTgVWDcK8jm2rVKJOQGbwaMqfvZbmGJnIbwBjUxYaBrFx1XOfyF4
+      DATABASE_URL: postgres://postgres:V0uYcxk2dFixtPWfK4Nb@db/postgres
       AMQP_BROKER_URL: amqp://message-queue-broker
       CHAIN_DEFINITION_URL: https://esm.sh/@wagmi/chains@1.6.0#goerli
   emitter:
@@ -23,7 +23,7 @@ services:
       target: emitter
     container_name: emitter
     environment:
-      DATABASE_URL: prisma://dataproxy:8088?api_key=x5aol207TyRdhHuanAXlpTgVWDcK8jm2rVKJOQGbwaMqfvZbmGJnIbwBjUxYaBrFx1XOfyF4
+      DATABASE_URL: postgres://postgres:V0uYcxk2dFixtPWfK4Nb@db/postgres
       AMQP_BROKER_URL: amqp://message-queue-broker
       CHAIN_DEFINITION_URL: https://esm.sh/@wagmi/chains@1.6.0#goerli
       BLOCK_FINALITY: safe
@@ -39,7 +39,7 @@ services:
       target: api
     container_name: api
     environment:
-      DATABASE_URL: prisma://dataproxy:8088?api_key=x5aol207TyRdhHuanAXlpTgVWDcK8jm2rVKJOQGbwaMqfvZbmGJnIbwBjUxYaBrFx1XOfyF4
+      DATABASE_URL: postgres://postgres:V0uYcxk2dFixtPWfK4Nb@db/postgres
       AMQP_BROKER_URL: amqp://message-queue-broker
       API_URL: http://api:8000
   web:
@@ -69,19 +69,18 @@ services:
       context: .
       target: common
     environment:
-      DATABASE_URL: prisma://dataproxy:8088?api_key=x5aol207TyRdhHuanAXlpTgVWDcK8jm2rVKJOQGbwaMqfvZbmGJnIbwBjUxYaBrFx1XOfyF4
-      DIRECT_URL: postgres://postgres:V0uYcxk2dFixtPWfK4Nb@db/postgres
+      DATABASE_URL: postgres://postgres:V0uYcxk2dFixtPWfK4Nb@db/postgres
     command: deno task prisma db push
-  dataproxy:
-    depends_on:
-      db:
-        condition: service_healthy
-    build:
-      context: .
-      target: dataproxy
-    environment:
-      DATABASE_URL: prisma://dataproxy:8088?api_key=x5aol207TyRdhHuanAXlpTgVWDcK8jm2rVKJOQGbwaMqfvZbmGJnIbwBjUxYaBrFx1XOfyF4
-      DIRECT_URL: postgres://postgres:V0uYcxk2dFixtPWfK4Nb@db/postgres
+  # dataproxy:
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #   build:
+  #     context: .
+  #     target: dataproxy
+  #   environment:
+  #     DATABASE_URL: prisma://dataproxy:8088?api_key=x5aol207TyRdhHuanAXlpTgVWDcK8jm2rVKJOQGbwaMqfvZbmGJnIbwBjUxYaBrFx1XOfyF4
+  #     DIRECT_URL: postgres://postgres:V0uYcxk2dFixtPWfK4Nb@db/postgres
   message-queue-broker:
     image: rabbitmq:3.12.2-alpine
     restart: always

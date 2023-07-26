@@ -8,7 +8,7 @@ import {
 } from "https://deno.land/x/oak@v12.5.0/mod.ts";
 import { getFreePort } from "https://deno.land/x/free_port@v1.2.0/mod.ts";
 
-import { DataproxyInternalPortEnvKey } from "./constants.ts";
+import { DatabaseUrlEnvKey, DataproxyInternalPortEnvKey } from "./constants.ts";
 import { baseDir, getRelativeScriptPath } from "./moduleUtils.ts";
 import { combinedEnv, runAndCleanup } from "./runHelpers.ts";
 
@@ -57,8 +57,13 @@ export async function generateDataproxy() {
 
 export async function dataproxy() {
   const listenUrl = new URL(combinedEnv.DATABASE_URL);
+  if (listenUrl.protocol !== "prisma:") {
+    throw new Error(
+      `${DatabaseUrlEnvKey} should be a data proxy URL starting with 'prisma://' to work with data proxy.`,
+    );
+  }
   const apiKey = new URLSearchParams(listenUrl.search).get("api_key");
-  if (!apiKey) throw new Error("Missing api_key in DATABASE_URL");
+  if (!apiKey) throw new Error(`Missing api_key in ${DatabaseUrlEnvKey}`);
   if (!await fileExists(schemaPath)) {
     throw new Error(
       `Prisma schema does not exist at ${schemaPath}. Generate with \`${scriptString} generate\`.`,

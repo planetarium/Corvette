@@ -3,39 +3,29 @@ WORKDIR /Corvette
 COPY . .
 RUN apk add npm && \
   corepack enable && \
-  awk '/generator[[:space:]]+[^[:space:]]+[[:space:]]*\{/{ print; print "  binaryTargets = [\"native\", \"linux-musl\"]"; next }1' \
-  prisma/schema.prisma > prisma/schema.prisma.new && \
-  awk '/datasource[[:space:]]+[^[:space:]]+[[:space:]]*\{/{ print; print "  provider = \"postgresql\""; flag=1; noprint=1 } /}/ { flag=0 } (!flag || !/provider[[:space:]]*=/) { if (!noprint) print; noprint=0 }' \
-  prisma/schema.prisma.new > prisma/schema.prisma && \
-  rm prisma/schema.prisma.new && \
+  cat prisma/schema.prisma | \
+  awk '/generator[[:space:]]+[^[:space:]]+[[:space:]]*\{/{ print; print "  binaryTargets = [\"native\", \"linux-musl-openssl-3.0.x\"]"; next }1' | \
+  awk '/datasource[[:space:]]+[^[:space:]]+[[:space:]]*\{/{ flag=1 } /}/ { flag=0 } (flag && /provider[[:space:]]*=/) { print "  provider = \"postgresql\""; next } (flag && /directUrl[[:space:]]*=/) { next } { print }' \
+  > prisma/schema.prisma.new && \
+  mv prisma/schema.prisma.new prisma/schema.prisma && \
+  deno task prisma format && \
   deno task prisma-generate
 
-# temporary --unsafely-ignore-certificate-errors due to having to use dataproxy
-FROM common as observer-builder
+FROM common as observer
 RUN deno cache observer.ts
+# --unsafely-ignore-certificate-errors should be included to use data proxy
+ENTRYPOINT [ "deno", "run", "--allow-env", "--allow-read", "--allow-net", "--allow-ffi", "observer.ts" ]
 
-FROM denoland/deno:distroless-1.35.2 as observer
-WORKDIR /Corvette
-COPY --from=observer-builder /Corvette /Corvette
-ENTRYPOINT [ "deno", "run", "--allow-env", "--allow-read", "--allow-net", "--unsafely-ignore-certificate-errors", "observer.ts" ]
-
-FROM common as emitter-builder
+FROM common as emitter
 RUN deno cache emitter.ts
+# --unsafely-ignore-certificate-errors should be included to use data proxy
+ENTRYPOINT [ "deno", "run", "--allow-env", "--allow-read", "--allow-net", "--allow-ffi", "emitter.ts" ]
 
-FROM denoland/deno:distroless-1.35.2 as emitter
-WORKDIR /Corvette
-COPY --from=emitter-builder /Corvette /Corvette
-ENTRYPOINT [ "deno", "run", "--allow-env", "--allow-read", "--allow-net", "--unsafely-ignore-certificate-errors", "emitter.ts" ]
-
-FROM common as api-builder
-RUN deno cache api.ts
-
-FROM denoland/deno:distroless-1.35.2 as api
-WORKDIR /Corvette
-COPY --from=api-builder /Corvette /Corvette
+FROM common as api
 ENV API_URL="http://0.0.0.0:8000"
 EXPOSE 8000
-ENTRYPOINT [ "deno", "run", "--allow-env", "--allow-read", "--allow-net", "--unsafely-ignore-certificate-errors", "api.ts" ]
+# --unsafely-ignore-certificate-errors should be included to use data proxy
+ENTRYPOINT [ "deno", "run", "--allow-env", "--allow-read", "--allow-net", "--allow-ffi", "api.ts" ]
 
 FROM common as web-builder
 WORKDIR /Corvette/web
@@ -60,7 +50,9 @@ RUN apk add openssl && \
 
 FROM common as dataproxy
 COPY --from=dataproxy-builder /Corvette/dev.key /Corvette/dev.crt /Corvette/
-RUN apk add libssl1.1 && \
+RUN awk '/datasource[[:space:]]+[^[:space:]]+[[:space:]]*\{/{ print; print "directUrl = env(\"DIRECT_URL\")" }' \
+  prisma/schema.prisma > prisma/schema.prisma.new && \
+  mv prisma/schema.prisma.new prisma/schema.prisma && \
   deno run --allow-env --allow-read --allow-write --allow-run dataproxy.ts generate
 EXPOSE 8088
 ENTRYPOINT [ "deno", "run", "--allow-env", "--allow-read", "--allow-write", "--allow-net", "--allow-run", "--unsafely-ignore-certificate-errors=localhost", "dataproxy.ts" ]

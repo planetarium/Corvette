@@ -6,7 +6,7 @@ import { runAndCleanup } from "./runHelpers.ts";
 
 function numberParser(value: string) {
   const n = Number(value);
-  if (!Number.isSafeInteger(n)) return n;
+  if (!Number.isInteger(n) || Number.isSafeInteger(n)) return n;
   return BigInt(value);
 }
 

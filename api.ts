@@ -1,6 +1,6 @@
 import { Status } from "https://deno.land/std@0.188.0/http/http_status.ts";
 
-import { connect as connectAmqp } from "https://deno.land/x/amqp@v0.23.1/mod.ts";
+import { AmqpConnection } from "https://deno.land/x/amqp@v0.23.1/mod.ts";
 import { oakCors } from "https://deno.land/x/cors@v1.2.2/mod.ts";
 import {
   Application as OakApplication,
@@ -17,15 +17,20 @@ import type { PrismaClient } from "./generated/client/deno/edge.ts";
 import { serializeEventMessage } from "./EventMessage.ts";
 import { formatAbiItemPrototype } from "./abitype.ts";
 import {
+  ApiUrlEnvKey,
   ControlEmitterRoutingKey,
   ControlExchangeName,
   ControlObserverRoutingKey,
   EvmEventsQueueName,
 } from "./constants.ts";
 import { reload as reloadControl } from "./control.ts";
+import { combinedEnv, runWithAmqp, runWithPrisma } from "./runHelpers.ts";
 
-export async function api(prisma: PrismaClient) {
-  const amqpConnection = await connectAmqp();
+export async function api(
+  prisma: PrismaClient,
+  amqpConnection: AmqpConnection,
+) {
+  const abortController = new AbortController();
   const amqpChannel = await amqpConnection.openChannel();
   await amqpChannel.declareQueue({ queue: EvmEventsQueueName });
   await amqpChannel.declareExchange({ exchange: ControlExchangeName });
@@ -277,6 +282,28 @@ export async function api(prisma: PrismaClient) {
   app.use(oakCors());
   app.use(router.routes());
   app.use(router.allowedMethods());
-  // TODO: configuration
-  return app.listen({ port: 8000 });
+
+  const listenUrl = new URL(combinedEnv[ApiUrlEnvKey]);
+  const runningPromise = app.listen({
+    port: Number(listenUrl.port) || 80,
+    hostname: listenUrl.hostname,
+    signal: abortController.signal,
+  });
+
+  async function cleanup() {
+    abortController.abort();
+    return await runningPromise;
+  }
+
+  return { runningPromise, cleanup };
+}
+
+if (import.meta.main) {
+  runWithPrisma((prisma) =>
+    Promise.resolve({
+      runningPromise: runWithAmqp((amqpConnection) =>
+        api(prisma, amqpConnection)
+      ),
+    })
+  );
 }

@@ -1,4 +1,4 @@
-import { connect as connectAmqp } from "https://deno.land/x/amqp@v0.23.1/mod.ts";
+import { AmqpConnection } from "https://deno.land/x/amqp@v0.23.1/mod.ts";
 
 import { Buffer } from "node:buffer";
 import { AbiEvent } from "npm:abitype";
@@ -13,8 +13,8 @@ import {
 import type { PrismaClient } from "./generated/client/deno/edge.ts";
 
 import {
-  ReloadControlMessage,
   deserializeControlMessage,
+  ReloadControlMessage,
 } from "./ControlMessage.ts";
 import { serializeEventMessage } from "./EventMessage.ts";
 import {
@@ -22,15 +22,23 @@ import {
   ControlObserverRoutingKey,
   EvmEventsQueueName,
 } from "./constants.ts";
+import {
+  block,
+  runWithAmqp,
+  runWithChainDefinition,
+  runWithPrisma,
+} from "./runHelpers.ts";
 
-export async function observer(chain: Chain, prisma: PrismaClient) {
+export async function observer(
+  chain: Chain,
+  prisma: PrismaClient,
+  amqpConnection: AmqpConnection,
+) {
   const client = createPublicClient({
     chain,
     transport: httpViemTransport(),
   });
 
-  // TODO: configuration
-  const amqpConnection = await connectAmqp();
   const amqpChannel = await amqpConnection.openChannel();
   await amqpChannel.declareExchange({ exchange: ControlExchangeName });
   const controlQueue = await amqpChannel.declareQueue({});
@@ -40,7 +48,7 @@ export async function observer(chain: Chain, prisma: PrismaClient) {
     routingKey: ControlObserverRoutingKey,
   });
   await amqpChannel.declareQueue({ queue: EvmEventsQueueName });
-  let unwatchEvents = await CreateWatch();
+  let unwatchEvents = await createWatch();
   await amqpChannel.consume(
     { queue: controlQueue.queue },
     async (_args, _props, data) => {
@@ -48,14 +56,24 @@ export async function observer(chain: Chain, prisma: PrismaClient) {
         deserializeControlMessage(data).action === ReloadControlMessage.action
       ) {
         unwatchEvents.forEach((unwatch) => unwatch());
-        unwatchEvents = await CreateWatch();
+        unwatchEvents = await createWatch();
       }
     },
   );
 
-  return { unwatchEvents };
+  const abortController = new AbortController();
+  const runningPromise = block(abortController.signal);
 
-  async function CreateWatch() {
+  async function cleanup() {
+    abortController.abort();
+    unwatchEvents.forEach((unwatch) => unwatch());
+    await runningPromise;
+  }
+
+  return { runningPromise, cleanup };
+
+  // TODO: customizable poll interval and transport
+  async function createWatch() {
     return (await prisma.eventSource.findMany({
       select: { abiHash: true, address: true, Abi: { select: { json: true } } },
     })).map((item) => {
@@ -115,4 +133,18 @@ export async function observer(chain: Chain, prisma: PrismaClient) {
       });
     });
   }
+}
+
+if (import.meta.main) {
+  await runWithChainDefinition((chain) =>
+    Promise.resolve({
+      runningPromise: runWithPrisma((prisma) =>
+        Promise.resolve({
+          runningPromise: runWithAmqp((amqpConnection) =>
+            observer(chain, prisma, amqpConnection)
+          ),
+        })
+      ),
+    })
+  );
 }

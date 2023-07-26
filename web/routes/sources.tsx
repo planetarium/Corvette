@@ -2,9 +2,11 @@ import { Handlers, PageProps } from "fresh/server.ts";
 import { Layout } from "~/components/Layout.tsx";
 import { ListSources, type SourceEntry } from "~/islands/ListSources.tsx";
 
+import { ApiExternalUrlEnvKey, ApiUrlEnvKey } from "../../constants.ts";
+import { combinedEnv } from "../../runHelpers.ts";
+
 const fetchSources = (): Promise<SourceEntry[]> => {
-  // TODO: configuration
-  return fetch("http://localhost:8000/sources", {
+  return fetch(`${combinedEnv[ApiUrlEnvKey]}/sources`, {
     method: "POST",
   }).then((res) => res.json());
 };
@@ -18,7 +20,7 @@ export const handler: Handlers<SourceEntry[]> = {
 export default (props: PageProps<SourceEntry[]>) => {
   return (
     <Layout title="Event Sources">
-      <ListSources entries={props.data} />
+      <ListSources entries={props.data} apiUrl={combinedEnv[ApiExternalUrlEnvKey] || combinedEnv[ApiUrlEnvKey]} />
     </Layout>
   );
 };

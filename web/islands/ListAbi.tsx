@@ -27,17 +27,17 @@ const getSignatureFromAbiEvent = (event: AbiEvent) => {
 
 interface Props {
   entries: AbiEntry[];
+  apiUrl: string;
 }
 
-export const ListAbi = ({ entries }: Props) => {
+export const ListAbi = ({ apiUrl, entries }: Props) => {
   const handleSubmit = useCallback(async (e: Event) => {
     e.preventDefault();
 
     const formData = new FormData(e.target as HTMLFormElement);
     const abiJson = formData.get("abiJson");
 
-    // TODO: configuration
-    await fetch(`http://localhost:8000/abi`, {
+    await fetch(`${apiUrl}/abi`, {
       method: "PUT",
       body: abiJson,
     });
@@ -49,8 +49,7 @@ export const ListAbi = ({ entries }: Props) => {
     (hash: string) => async (e: Event) => {
       e.preventDefault();
 
-      // TODO: configuration
-      await fetch(`http://localhost:8000/abi/${hash}`, {
+      await fetch(`${apiUrl}/abi/${hash}`, {
         method: "DELETE",
       });
 

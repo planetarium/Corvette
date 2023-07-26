@@ -1,48 +1,76 @@
-import { load as load_env } from "https://deno.land/std@0.194.0/dotenv/mod.ts";
-import * as path from "https://deno.land/std@0.194.0/path/mod.ts";
-
 import { broker } from "https://deno.land/x/lop@0.0.0-alpha.2/mod.ts";
-import { Chain } from "npm:viem";
 
-import { PrismaClient } from "./generated/client/deno/edge.ts";
+import { parseOptions } from "https://deno.land/x/amqp@v0.23.1/src/amqp_connect_options.ts";
 
 import { api } from "./api.ts";
-import { dataproxy } from "./dataproxy.ts";
+import { AmqpBrokerUrlEnvKey } from "./constants.ts";
+import { dataproxy, generateDataproxy } from "./dataproxy.ts";
 import { emitter } from "./emitter.ts";
 import { observer } from "./observer.ts";
+import {
+  block,
+  combinedEnv,
+  runWithAmqp,
+  runWithChainDefinition,
+  runWithPrisma,
+} from "./runHelpers.ts";
 import { testWebhookReceiver } from "./testWebhookReceiver.ts";
 
-const env = await load_env();
-const { abort: abortDataproxy } = await dataproxy();
-
-const prisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: env.DATABASE_URL,
-    },
-  },
-});
-
-const abortBroker = broker();
-
 async function main() {
-  const chain = (await import(
-    new URL(
-      path.join("sample", "chainDefinitions", "sepolia.json"),
-      import.meta.url,
-    )
-      .toString(),
-    { assert: { type: "json" } }
-  )).default as Chain;
-  await observer(chain, prisma);
-  await emitter(chain, prisma);
-  await Promise.all([api(prisma), testWebhookReceiver()]);
+  await new Deno.Command("deno", {
+    args: ["task", "prisma-generate"],
+    stdout: "inherit",
+    stderr: "inherit",
+  }).output();
+  await generateDataproxy();
+
+  const amqpOptions = parseOptions(combinedEnv[AmqpBrokerUrlEnvKey]);
+  const abortBroker = broker({
+    hostname: amqpOptions.hostname,
+    port: amqpOptions.port,
+  });
+  const { cleanup: cleanupDataProxy } = await dataproxy();
+  try {
+    await runWithChainDefinition((chain) =>
+      Promise.resolve({
+        runningPromise: runWithPrisma(async (prisma) => {
+          const runningPromise = runWithAmqp(async (amqpConnection) => {
+            const { cleanup: cleanupObserver } = await observer(
+              chain,
+              prisma,
+              amqpConnection,
+            );
+            const { cleanup: cleanupEmitter } = await emitter(
+              chain,
+              prisma,
+              amqpConnection,
+            );
+            const { cleanup: cleanupApi } = await api(prisma, amqpConnection);
+            return {
+              runningPromise: block(),
+              cleanup: async () => {
+                await cleanupApi();
+                await cleanupEmitter();
+                await cleanupObserver();
+              },
+            };
+          });
+          const { cleanup: cleanupTestWebhookReceiver } =
+            await testWebhookReceiver();
+
+          return {
+            runningPromise,
+            cleanup: async () => {
+              await cleanupTestWebhookReceiver();
+            },
+          };
+        }),
+      })
+    );
+  } finally {
+    await cleanupDataProxy();
+    abortBroker();
+  }
 }
 
-main().catch((e) => {
-  throw e;
-}).finally(async () => {
-  abortBroker();
-  await prisma.$disconnect();
-  abortDataproxy();
-});
+if (import.meta.main) await main();

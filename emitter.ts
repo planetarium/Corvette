@@ -1,4 +1,4 @@
-import { connect as connectAmqp } from "https://deno.land/x/amqp@v0.23.1/mod.ts";
+import { AmqpConnection } from "https://deno.land/x/amqp@v0.23.1/mod.ts";
 
 import { stringify as losslessJsonStringify } from "npm:lossless-json";
 import {
@@ -6,6 +6,7 @@ import {
   createPublicClient,
   getAddress,
   http as httpViemTransport,
+  InvalidParamsRpcError,
   toHex,
 } from "npm:viem";
 
@@ -18,21 +19,31 @@ import {
 import { deserializeEventMessage, EventMessage } from "./EventMessage.ts";
 import { formatAbiItemPrototype } from "./abitype.ts";
 import {
+  BlockFinalityEnvKey,
   ControlEmitterRoutingKey,
   ControlExchangeName,
   EvmEventsQueueName,
 } from "./constants.ts";
 import { decodeEventLog } from "./decodeEventLog.ts";
-import { uint8ArrayEqual } from "./utils.ts";
+import {
+  block,
+  combinedEnv,
+  runWithAmqp,
+  runWithChainDefinition,
+  runWithPrisma,
+} from "./runHelpers.ts";
+import { uint8ArrayEquals } from "./uint8ArrayUtils.ts";
 
-export async function emitter(chain: Chain, prisma: PrismaClient) {
+export async function emitter(
+  chain: Chain,
+  prisma: PrismaClient,
+  amqpConnection: AmqpConnection,
+) {
   const client = createPublicClient({
     chain,
     transport: httpViemTransport(),
   });
 
-  // TODO: configuration
-  const amqpConnection = await connectAmqp();
   const amqpChannel = await amqpConnection.openChannel();
   await amqpChannel.declareExchange({ exchange: ControlExchangeName });
   const controlQueue = await amqpChannel.declareQueue({});
@@ -71,14 +82,14 @@ export async function emitter(chain: Chain, prisma: PrismaClient) {
         blockHash,
       } = message;
       emitDestinations.filter((x) =>
-        uint8ArrayEqual(x.sourceAddress as unknown as Uint8Array, address) &&
-        uint8ArrayEqual(x.abiHash as unknown as Uint8Array, sigHash) &&
+        uint8ArrayEquals(x.sourceAddress as unknown as Uint8Array, address) &&
+        uint8ArrayEquals(x.abiHash as unknown as Uint8Array, sigHash) &&
         (x.topic1 == null ||
-          (uint8ArrayEqual(x.topic1 as unknown as Uint8Array, topics[1]) &&
+          (uint8ArrayEquals(x.topic1 as unknown as Uint8Array, topics[1]) &&
             (x.topic2 == null ||
-              (uint8ArrayEqual(x.topic2 as unknown as Uint8Array, topics[2]) &&
+              (uint8ArrayEquals(x.topic2 as unknown as Uint8Array, topics[2]) &&
                 (x.topic3 == null ||
-                  uint8ArrayEqual(
+                  uint8ArrayEquals(
                     x.topic3 as unknown as Uint8Array,
                     topics[3],
                   ))))))
@@ -106,13 +117,39 @@ export async function emitter(chain: Chain, prisma: PrismaClient) {
     },
   );
 
-  const watch = client.watchBlockNumber(
+  const blockFinalityEnvVar = combinedEnv[BlockFinalityEnvKey];
+  const blockFinalityNumber = Number(blockFinalityEnvVar);
+  const blockFinality =
+    blockFinalityEnvVar === "safe" || blockFinalityEnvVar === "finalized"
+      ? blockFinalityEnvVar
+      : Number.isInteger(blockFinalityNumber)
+      ? BigInt(blockFinalityEnvVar)
+      : undefined;
+  if (blockFinality === undefined) {
+    throw new Error(
+      `${BlockFinalityEnvKey} environment may only take either an integer or string "safe" or "finalized" as the value.`,
+    );
+  }
+  if (typeof (blockFinality) === "string") {
+    try {
+      await client.getBlock({ blockTag: blockFinality });
+    } catch (e) {
+      if (e instanceof InvalidParamsRpcError) {
+        throw new Error(
+          `The given RPC node does not support the blockTag '${blockFinality}'.`,
+        );
+      }
+      throw e;
+    }
+  }
+
+  // TODO: customizable poll interval and transport
+  const unwatch = client.watchBlockNumber(
     {
-      onBlockNumber: async () => {
-        const finalizedBlockNumber =
-          // polygon-edge does not support finalized tag at the moment
-          //(await client.getBlock({ blockTag: "finalized" })).number!;
-          (await client.getBlock({ blockTag: "latest" })).number! - 64n;
+      onBlockNumber: async (blockNumber) => {
+        const finalizedBlockNumber = typeof (blockFinality) === "bigint"
+          ? blockNumber - blockFinality
+          : (await client.getBlock({ blockTag: blockFinality })).number!;
         const observed = finalizationQueue.filter((x) =>
           x.blockNumber <= finalizedBlockNumber
         );
@@ -233,5 +270,29 @@ export async function emitter(chain: Chain, prisma: PrismaClient) {
       },
     },
   );
-  return { watch };
+
+  const abortController = new AbortController();
+  const runningPromise = block(abortController.signal);
+
+  async function cleanup() {
+    abortController.abort();
+    unwatch();
+    await runningPromise;
+  }
+
+  return { runningPromise, cleanup };
+}
+
+if (import.meta.main) {
+  await runWithChainDefinition((chain) =>
+    Promise.resolve({
+      runningPromise: runWithPrisma((prisma) =>
+        Promise.resolve({
+          runningPromise: runWithAmqp((amqpConnection) =>
+            emitter(chain, prisma, amqpConnection)
+          ),
+        })
+      ),
+    })
+  );
 }

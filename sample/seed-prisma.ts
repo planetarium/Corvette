@@ -1,4 +1,3 @@
-import { load as load_env } from "https://deno.land/std@0.194.0/dotenv/mod.ts";
 import { AbiEvent, narrow } from "npm:abitype";
 import { keccak256, toBytes } from "npm:viem";
 import { Buffer } from "node:buffer";
@@ -6,15 +5,15 @@ import { Buffer } from "node:buffer";
 import { PrismaClient } from "../generated/client/deno/edge.ts";
 
 import { formatAbiItemPrototype } from "../abitype.ts";
+import { DatabaseUrlEnvKey } from "../constants.ts";
+import { combinedEnv } from "../runHelpers.ts";
 
 import sampleAbiJson from "./contracts/sampleAbi.json" assert { type: "json" };
-
-const env = await load_env();
 
 const prisma = new PrismaClient({
   datasources: {
     db: {
-      url: env.DATABASE_URL,
+      url: combinedEnv[DatabaseUrlEnvKey],
     },
   },
 });
@@ -46,7 +45,7 @@ async function main() {
         data: {
           sourceAddress: sampleContractAddress,
           abiHash: hash,
-          webhookUrl: "http://localhost:8001",
+          webhookUrl: "http://localhost:8888",
         },
       },
     );

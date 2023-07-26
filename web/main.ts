@@ -12,8 +12,13 @@ import manifest from "./fresh.gen.ts";
 import twindPlugin from "fresh/plugins/twind.ts";
 import twindConfig from "./twind.config.ts";
 
-// TODO: configuration
+import { WebUIUrlEnvKey } from "../constants.ts";
+import { combinedEnv } from "../runHelpers.ts";
+
+const listenUrl = new URL(combinedEnv[WebUIUrlEnvKey]);
+
 await start(manifest, {
-  port: 3000,
+  hostname: listenUrl.hostname,
+  port: Number(listenUrl.port) || 80,
   plugins: [twindPlugin(twindConfig)],
 });

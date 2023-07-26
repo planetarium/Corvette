@@ -1,0 +1,114 @@
+version: '3.8'
+services:
+  observer:
+    depends_on:
+      message-queue-broker:
+        condition: service_healthy
+    image: "planetarium/corvette-observer:${VERSION:-build-latest}"
+    build:
+      context: .
+      target: observer
+    container_name: observer
+    environment:
+      DATABASE_URL: prisma://dataproxy:8088?api_key=x5aol207TyRdhHuanAXlpTgVWDcK8jm2rVKJOQGbwaMqfvZbmGJnIbwBjUxYaBrFx1XOfyF4
+      AMQP_BROKER_URL: amqp://message-queue-broker
+      CHAIN_DEFINITION_URL: https://esm.sh/@wagmi/chains@1.6.0#goerli
+  emitter:
+    depends_on:
+      message-queue-broker:
+        condition: service_healthy
+    image: "planetarium/corvette-emitter:${VERSION:-build-latest}"
+    build:
+      context: .
+      target: emitter
+    container_name: emitter
+    environment:
+      DATABASE_URL: prisma://dataproxy:8088?api_key=x5aol207TyRdhHuanAXlpTgVWDcK8jm2rVKJOQGbwaMqfvZbmGJnIbwBjUxYaBrFx1XOfyF4
+      AMQP_BROKER_URL: amqp://message-queue-broker
+      CHAIN_DEFINITION_URL: https://esm.sh/@wagmi/chains@1.6.0#goerli
+      BLOCK_FINALITY: safe
+  api:
+    depends_on:
+      message-queue-broker:
+        condition: service_healthy
+    image: "planetarium/corvette-api:${VERSION:-build-latest}"
+    ports:
+      - "8000:8000/tcp"
+    build:
+      context: .
+      target: api
+    container_name: api
+    environment:
+      DATABASE_URL: prisma://dataproxy:8088?api_key=x5aol207TyRdhHuanAXlpTgVWDcK8jm2rVKJOQGbwaMqfvZbmGJnIbwBjUxYaBrFx1XOfyF4
+      AMQP_BROKER_URL: amqp://message-queue-broker
+      API_URL: http://api:8000
+  web:
+    depends_on:
+      message-queue-broker:
+        condition: service_healthy
+      api:
+        condition: service_started
+    image: "planetarium/corvette-web:${VERSION:-build-latest}"
+    ports:
+      - "3000:3000/tcp"
+    environment:
+      API_URL: http://api:8000
+      API_EXTERNAL_URL: http://localhost:8000
+      WEBUI_URL: http://web:3000
+    build:
+      context: .
+      target: web
+      args:
+        DENO_DEPLOYMENT_ID: "${VERSION}"
+    container_name: web
+  create-db:
+    depends_on:
+      db:
+        condition: service_healthy
+    build:
+      context: .
+      target: common
+    environment:
+      DATABASE_URL: prisma://dataproxy:8088?api_key=x5aol207TyRdhHuanAXlpTgVWDcK8jm2rVKJOQGbwaMqfvZbmGJnIbwBjUxYaBrFx1XOfyF4
+      DIRECT_URL: postgres://postgres:V0uYcxk2dFixtPWfK4Nb@db/postgres
+    command: deno task prisma db push
+  dataproxy:
+    depends_on:
+      db:
+        condition: service_healthy
+    build:
+      context: .
+      target: dataproxy
+    environment:
+      DATABASE_URL: prisma://dataproxy:8088?api_key=x5aol207TyRdhHuanAXlpTgVWDcK8jm2rVKJOQGbwaMqfvZbmGJnIbwBjUxYaBrFx1XOfyF4
+      DIRECT_URL: postgres://postgres:V0uYcxk2dFixtPWfK4Nb@db/postgres
+  message-queue-broker:
+    image: rabbitmq:3.12.2-alpine
+    restart: always
+    container_name: message-queue-broker
+    hostname: message-queue-broker
+    volumes:
+      - /var/lib/rabbitmq
+    healthcheck:
+      timeout: 5s
+      interval: 5s
+      retries: 5
+      test:
+        - "CMD"
+        - "rabbitmqctl"
+        - "status"
+  db:
+    image: postgres:15.3-alpine3.18
+    restart: always
+    container_name: db
+    environment:
+      POSTGRES_PASSWORD: "V0uYcxk2dFixtPWfK4Nb"
+    volumes:
+      - /var/lib/postgresql/data/
+    healthcheck:
+      timeout: 5s
+      interval: 5s
+      retries: 5
+      test:
+        - "CMD-SHELL"
+        - "pg_isready --dbname=postgres --host=localhost --username=postgres"

@@ -10,4 +10,5 @@ export const DataproxyInternalPortEnvKey = "DATAPROXY_INTERNAL_PORT";
 export const ApiUrlEnvKey = "API_URL";
 export const ApiExternalUrlEnvKey = "API_EXTERNAL_URL";
 export const WebUIUrlEnvKey = "WEBUI_URL";
+export const WebUISessionAppKey = "WEBUI_SESSION_APP_KEY";
 export const BlockFinalityEnvKey = "BLOCK_FINALITY";

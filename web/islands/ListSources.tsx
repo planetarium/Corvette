@@ -45,7 +45,7 @@ export const ListSources = ({ entries }: ListSourcesProps) => {
     (address: string, abiHash: string) => (e: Event) => {
       e.preventDefault();
 
-      fetch(`${apiUrl}/sources/testWebhook`, {
+      fetch(`/api/sources/testWebhook`, {
         method: "POST",
         body: JSON.stringify({ address, abiHash }),
       });

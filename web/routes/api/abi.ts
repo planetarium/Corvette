@@ -7,7 +7,7 @@ import { keccak256, toBytes, toHex } from "npm:viem";
 import type { Abi, AbiEvent } from "https://esm.sh/abitype@0.9.0";
 
 import { formatAbiItemPrototype } from "~root/abitype.ts";
-import type { User } from "~root/generated/client/deno/index.d.ts";
+import type { User } from "~root/generated/client/index.d.ts";
 import { prisma } from "~/main.ts";
 import { checkPermission } from "~/util.ts";
 import type { AbiEntry } from "~/islands/ListAbi.tsx";

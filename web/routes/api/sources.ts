@@ -5,7 +5,7 @@ import { Buffer } from "node:buffer";
 import { getAddress, toBytes, toHex } from "npm:viem";
 
 import { formatAbiItemPrototype } from "~root/abitype.ts";
-import type { User } from "~root/generated/client/deno/index.d.ts";
+import type { User } from "~root/generated/client/index.d.ts";
 import { prisma } from "~/main.ts";
 import type { SourceEntry } from "~/islands/ListSources.tsx";
 import { checkPermission } from "~root/web/util.ts";

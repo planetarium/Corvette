@@ -15,13 +15,15 @@ const redirectionHandler = (
   req: Request,
   ctx: MiddlewareHandlerContext<WithSession>,
 ) => {
-  if (req.url.endsWith("/logout")) {
+  const pathname = new URL(req.url).pathname;
+
+  if (pathname === "/logout") {
     ctx.state.session.set("user", undefined);
     ctx.state.session.destroy();
     return redirect(req, "/login");
   }
 
-  if (req.url.endsWith("/login") || req.url.endsWith("/join")) {
+  if (["/login", "/api/login", "/api/join"].includes(pathname)) {
     if (!ctx.state.session.get("user")) {
       return ctx.next();
     }

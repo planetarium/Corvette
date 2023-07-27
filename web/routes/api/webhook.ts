@@ -4,7 +4,7 @@ import type { WithSession } from "fresh-session";
 import { Buffer } from "node:buffer";
 import { getAddress, toBytes, toHex } from "npm:viem";
 
-import type { User } from "~root/generated/client/deno/index.d.ts";
+import type { User } from "~root/generated/client/index.d.ts";
 import { prisma } from "~/main.ts";
 import type { WebhookEntry } from "~/islands/ListWebhook.tsx";
 import { checkPermission } from "~root/web/util.ts";

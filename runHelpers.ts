@@ -19,14 +19,16 @@ import {
 } from "./constants.ts";
 import { importESOrJson } from "./moduleUtils.ts";
 
-type CleanupFunction = () => Promise<void>;
+type Awaitable<T> = T | PromiseLike<T>;
+
+type CleanupFunction = () => Awaitable<void>;
 
 type Runnable = {
-  runningPromise: Promise<unknown>;
+  runningPromise: Awaitable<unknown>;
   cleanup?: CleanupFunction;
 };
 
-export const combinedEnv = { ...await load(), ...Deno.env.toObject() };
+export const combinedEnv = { ...(await load()), ...Deno.env.toObject() };
 
 export async function block(signal?: AbortSignal) {
   let intervalHandle: number;
@@ -36,7 +38,7 @@ export async function block(signal?: AbortSignal) {
   });
 }
 
-export async function runAndCleanup(func: () => Promise<Runnable>) {
+export async function runAndCleanup(func: () => Awaitable<Runnable>) {
   let cleanup: CleanupFunction | undefined;
   try {
     const { runningPromise, cleanup: abort } = await func();
@@ -48,8 +50,8 @@ export async function runAndCleanup(func: () => Promise<Runnable>) {
 }
 
 export async function runWithPrisma(
-  func: (prisma: PrismaClient) => Promise<Runnable>,
-  optionsArg?: Prisma.PrismaClientOptions,
+  func: (prisma: PrismaClient) => Awaitable<Runnable>,
+  optionsArg?: Prisma.PrismaClientOptions
 ) {
   optionsArg = optionsArg || {};
   const prisma = new PrismaClient({
@@ -68,26 +70,27 @@ export async function runWithPrisma(
 }
 
 export async function runWithAmqp(
-  func: (amqpConnection: AmqpConnection) => Promise<Runnable>,
+  func: (amqpConnection: AmqpConnection) => Awaitable<Runnable>
 ): Promise<void>;
 export async function runWithAmqp(
-  func: (amqpConnection: AmqpConnection) => Promise<Runnable>,
-  options?: AmqpConnectOptions,
+  func: (amqpConnection: AmqpConnection) => Awaitable<Runnable>,
+  options?: AmqpConnectOptions
 ): Promise<void>;
 export async function runWithAmqp(
-  func: (amqpConnection: AmqpConnection) => Promise<Runnable>,
-  uri?: string,
+  func: (amqpConnection: AmqpConnection) => Awaitable<Runnable>,
+  uri?: string
 ): Promise<void>;
 export async function runWithAmqp(
-  func: (amqpConnection: AmqpConnection) => Promise<Runnable>,
-  optionsOrUrl?: AmqpConnectOptions | string,
+  func: (amqpConnection: AmqpConnection) => Awaitable<Runnable>,
+  optionsOrUrl?: AmqpConnectOptions | string
 ): Promise<void> {
   const defaultOptions = parseOptions(combinedEnv[AmqpBrokerUrlEnvKey]);
-  const options = optionsOrUrl === undefined
-    ? defaultOptions
-    : typeof (optionsOrUrl) === "string"
-    ? parseOptions(optionsOrUrl)
-    : parseOptions({ ...defaultOptions, ...optionsOrUrl });
+  const options =
+    optionsOrUrl === undefined
+      ? defaultOptions
+      : typeof optionsOrUrl === "string"
+      ? parseOptions(optionsOrUrl)
+      : parseOptions({ ...defaultOptions, ...optionsOrUrl });
   const amqpConnection = await connectAmqp(options);
   try {
     await runAndCleanup(() => func(amqpConnection));
@@ -96,9 +99,7 @@ export async function runWithAmqp(
   }
 }
 
-export async function runWithChainDefinition(
-  func: (chain: Chain) => Promise<Runnable>,
-) {
+export async function runWithChainDefinition(func: (chain: Chain) => Awaitable<Runnable>) {
   const chain = await importESOrJson(combinedEnv[ChainDefinitionUrlEnvKey]);
   await runAndCleanup(() => func(chain));
 }

@@ -9,10 +9,11 @@ import * as $3 from "./routes/api/abi.ts";
 import * as $4 from "./routes/api/join.ts";
 import * as $5 from "./routes/api/login.ts";
 import * as $6 from "./routes/api/sources.ts";
-import * as $7 from "./routes/api/webhook.ts";
-import * as $8 from "./routes/login.tsx";
-import * as $9 from "./routes/sources.tsx";
-import * as $10 from "./routes/webhook.tsx";
+import * as $7 from "./routes/api/sources/testWebhook.ts";
+import * as $8 from "./routes/api/webhook.ts";
+import * as $9 from "./routes/login.tsx";
+import * as $10 from "./routes/sources.tsx";
+import * as $11 from "./routes/webhook.tsx";
 import * as $$0 from "./islands/ListAbi.tsx";
 import * as $$1 from "./islands/ListSources.tsx";
 import * as $$2 from "./islands/ListWebhook.tsx";
@@ -27,10 +28,11 @@ const manifest = {
     "./routes/api/join.ts": $4,
     "./routes/api/login.ts": $5,
     "./routes/api/sources.ts": $6,
-    "./routes/api/webhook.ts": $7,
-    "./routes/login.tsx": $8,
-    "./routes/sources.tsx": $9,
-    "./routes/webhook.tsx": $10,
+    "./routes/api/sources/testWebhook.ts": $7,
+    "./routes/api/webhook.ts": $8,
+    "./routes/login.tsx": $9,
+    "./routes/sources.tsx": $10,
+    "./routes/webhook.tsx": $11,
   },
   islands: {
     "./islands/ListAbi.tsx": $$0,

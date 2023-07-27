@@ -5,10 +5,12 @@ import { Buffer } from "node:buffer";
 import { getAddress, toBytes, toHex } from "npm:viem";
 
 import { formatAbiItemPrototype } from "~root/abitype.ts";
+import { reload as reloadControl } from "~root/control.ts";
+import { ControlObserverRoutingKey } from "~root/constants.ts";
 import type { User } from "~root/generated/client/index.d.ts";
-import { prisma } from "~/main.ts";
+import { prisma, amqpChannel } from "~/main.ts";
+import { checkPermission } from "~/util.ts";
 import type { SourceEntry } from "~/islands/ListSources.tsx";
-import { checkPermission } from "~root/web/util.ts";
 
 export const handler: Handlers<SourceEntry, WithSession> = {
   async GET() {
@@ -48,6 +50,9 @@ export const handler: Handlers<SourceEntry, WithSession> = {
         abi: formatAbiItemPrototype(JSON.parse(item.Abi.json)),
         abiHash: toHex(item.abiHash),
       }));
+
+    reloadControl(amqpChannel, ControlObserverRoutingKey);
+
     return new Response(JSON.stringify(entries));
   },
   async DELETE(req, ctx) {
@@ -64,7 +69,7 @@ export const handler: Handlers<SourceEntry, WithSession> = {
           sourceAddress: address,
           abiHash,
         },
-        user,
+        user
       ))
     ) {
       return new Response(null, { status: Status.Forbidden });
@@ -78,6 +83,8 @@ export const handler: Handlers<SourceEntry, WithSession> = {
         },
       },
     });
+
+    reloadControl(amqpChannel, ControlObserverRoutingKey);
 
     return new Response(null, { status: Status.NoContent });
   },

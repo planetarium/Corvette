@@ -27,18 +27,17 @@ const getSignatureFromAbiEvent = (event: AbiEvent) => {
 
 interface Props {
   entries: AbiEntry[];
-  apiUrl: string;
 }
 
-export const ListAbi = ({ apiUrl, entries }: Props) => {
+export const ListAbi = ({ entries }: Props) => {
   const handleSubmit = useCallback(async (e: Event) => {
     e.preventDefault();
 
     const formData = new FormData(e.target as HTMLFormElement);
     const abiJson = formData.get("abiJson");
 
-    await fetch(`${apiUrl}/abi`, {
-      method: "PUT",
+    await fetch(`/api/abi`, {
+      method: "POST",
       body: abiJson,
     });
 
@@ -49,13 +48,14 @@ export const ListAbi = ({ apiUrl, entries }: Props) => {
     (hash: string) => async (e: Event) => {
       e.preventDefault();
 
-      await fetch(`${apiUrl}/abi/${hash}`, {
+      await fetch(`/api/abi`, {
         method: "DELETE",
+        body: JSON.stringify({ hash }),
       });
 
       location.reload();
     },
-    []
+    [],
   );
 
   const modalRef = useRef<HTMLDialogElement>(null);

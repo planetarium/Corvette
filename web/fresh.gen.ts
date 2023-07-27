@@ -2,25 +2,43 @@
 // This file SHOULD be checked into source version control.
 // This file is automatically updated during development when running `dev.ts`.
 
-import * as $0 from "./routes/abi.tsx";
-import * as $1 from "./routes/index.ts";
-import * as $2 from "./routes/sources.tsx";
-import * as $3 from "./routes/webhook.tsx";
+import * as $0 from "./routes/_404.tsx";
+import * as $1 from "./routes/_middleware.ts";
+import * as $2 from "./routes/abi.tsx";
+import * as $3 from "./routes/api/abi.ts";
+import * as $4 from "./routes/api/join.ts";
+import * as $5 from "./routes/api/login.ts";
+import * as $6 from "./routes/api/sources.ts";
+import * as $7 from "./routes/api/sources/testWebhook.ts";
+import * as $8 from "./routes/api/webhook.ts";
+import * as $9 from "./routes/login.tsx";
+import * as $10 from "./routes/sources.tsx";
+import * as $11 from "./routes/webhook.tsx";
 import * as $$0 from "./islands/ListAbi.tsx";
 import * as $$1 from "./islands/ListSources.tsx";
 import * as $$2 from "./islands/ListWebhook.tsx";
+import * as $$3 from "./islands/Login.tsx";
 
 const manifest = {
   routes: {
-    "./routes/abi.tsx": $0,
-    "./routes/index.ts": $1,
-    "./routes/sources.tsx": $2,
-    "./routes/webhook.tsx": $3,
+    "./routes/_404.tsx": $0,
+    "./routes/_middleware.ts": $1,
+    "./routes/abi.tsx": $2,
+    "./routes/api/abi.ts": $3,
+    "./routes/api/join.ts": $4,
+    "./routes/api/login.ts": $5,
+    "./routes/api/sources.ts": $6,
+    "./routes/api/sources/testWebhook.ts": $7,
+    "./routes/api/webhook.ts": $8,
+    "./routes/login.tsx": $9,
+    "./routes/sources.tsx": $10,
+    "./routes/webhook.tsx": $11,
   },
   islands: {
     "./islands/ListAbi.tsx": $$0,
     "./islands/ListSources.tsx": $$1,
     "./islands/ListWebhook.tsx": $$2,
+    "./islands/Login.tsx": $$3,
   },
   baseUrl: import.meta.url,
 };

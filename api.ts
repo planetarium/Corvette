@@ -128,8 +128,8 @@ export async function api(
       { routingKey: EvmEventsQueueName },
       { contentType: "application/octet-stream" },
       serializeEventMessage({
-        address,
-        sigHash: abiHash,
+        address: toBytes(address),
+        sigHash: toBytes(abiHash),
         topics: [],
         blockTimestamp: BigInt(Math.floor(Date.now() / 1000)),
         txIndex: -1n,

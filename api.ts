@@ -75,33 +75,15 @@ export async function api(
   });
   router.post("/sources", async (ctx) => {
     // TODO: parameters
-    ctx.response.body = (await prisma.eventSource.findMany({
-      include: { Abi: true },
-    })).map((item) => ({
+    ctx.response.body = (
+      await prisma.eventSource.findMany({
+        include: { Abi: true },
+      })
+    ).map((item) => ({
       address: getAddress(toHex(item.address)),
       abi: formatAbiItemPrototype(JSON.parse(item.Abi.json)),
       abiHash: toHex(item.abiHash),
     }));
-  });
-  router.post("/sources/testWebhook", async (ctx) => {
-    const { address, abiHash } = await ctx.request.body({ type: "json" }).value;
-
-    amqpChannel.publish(
-      { routingKey: EvmEventsQueueName },
-      { contentType: "application/octet-stream" },
-      serializeEventMessage({
-        address: toBytes(address),
-        sigHash: toBytes(abiHash),
-        topics: [],
-        blockTimestamp: BigInt(Math.floor(Date.now() / 1000)),
-        txIndex: -1n,
-        logIndex: -1n,
-        blockNumber: -1n,
-        blockHash: new Uint8Array(32),
-      }),
-    );
-
-    ctx.response.status = Status.NoContent;
   });
 
   router.get("/abi", (ctx) => {

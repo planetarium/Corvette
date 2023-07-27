@@ -4,7 +4,7 @@ services:
     depends_on:
       message-queue-broker:
         condition: service_healthy
-    image: "planetarium/corvette-observer:${VERSION:-build-latest}"
+    image: "ghcr.io/planetarium/corvette-observer:${VERSION:-build-latest}"
     build:
       context: .
       target: observer
@@ -17,7 +17,7 @@ services:
     depends_on:
       message-queue-broker:
         condition: service_healthy
-    image: "planetarium/corvette-emitter:${VERSION:-build-latest}"
+    image: "ghcr.io/planetarium/corvette-emitter:${VERSION:-build-latest}"
     build:
       context: .
       target: emitter
@@ -31,7 +31,7 @@ services:
     depends_on:
       message-queue-broker:
         condition: service_healthy
-    image: "planetarium/corvette-api:${VERSION:-build-latest}"
+    image: "ghcr.io/planetarium/corvette-api:${VERSION:-build-latest}"
     ports:
       - "8000:8000/tcp"
     build:
@@ -48,7 +48,7 @@ services:
         condition: service_healthy
       api:
         condition: service_started
-    image: "planetarium/corvette-web:${VERSION:-build-latest}"
+    image: "ghcr.io/planetarium/corvette-web:${VERSION:-build-latest}"
     ports:
       - "3000:3000/tcp"
     environment:

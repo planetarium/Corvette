@@ -31,7 +31,7 @@ FROM common as web-builder
 WORKDIR /Corvette/web
 ARG DENO_DEPLOYMENT_ID
 RUN apk add git && \
-  echo "DENO_DEPLOYMENT_ID=$(git rev-parse HEAD | cut -c -7)-$(date +%s)" > .env && \
+  echo "DENO_DEPLOYMENT_ID=$(git rev-parse HEAD | cut -c -7)-$(date -u +%Y%m%d%H%M%S)" > .env && \
   [ ! -z "$DENO_DEPLOYMENT_ID" ] && echo "DENO_DEPLOYMENT_ID=$DENO_DEPLOYMENT_ID" > .env ; \
   deno cache main.ts && \
   deno cache ../scripts/run-with-env.ts

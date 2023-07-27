@@ -7,6 +7,7 @@
 **/Dockerfile.*
 **/docker-compose.yml
 **/.editorconfig
+**/.github
 
 # Adapted from /.gitignore
 **/node_modules

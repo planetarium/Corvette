@@ -8,7 +8,7 @@ import { formatAbiItemPrototype } from "~root/abitype.ts";
 import { reload as reloadControl } from "~root/control.ts";
 import { ControlObserverRoutingKey } from "~root/constants.ts";
 import type { User } from "~root/generated/client/index.d.ts";
-import { prisma, amqpChannel } from "~/main.ts";
+import { amqpChannel, prisma } from "~/main.ts";
 import { checkPermission } from "~/util.ts";
 import type { SourceEntry } from "~/islands/ListSources.tsx";
 
@@ -69,7 +69,7 @@ export const handler: Handlers<SourceEntry, WithSession> = {
           sourceAddress: address,
           abiHash,
         },
-        user
+        user,
       ))
     ) {
       return new Response(null, { status: Status.Forbidden });

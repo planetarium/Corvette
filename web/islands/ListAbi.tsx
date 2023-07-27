@@ -1,7 +1,10 @@
 import { useCallback, useRef } from "preact/hooks";
 
 import { AbiTable } from "~/components/AbiTable.tsx";
-import { CollapsibleTable, CollapsibleTableRow } from "~/components/CollapsibleTable.tsx";
+import {
+  CollapsibleTable,
+  CollapsibleTableRow,
+} from "~/components/CollapsibleTable.tsx";
 import { Modal } from "~/components/Modal.tsx";
 
 import type { AbiEvent } from "https://esm.sh/abitype@0.9.0";
@@ -13,9 +16,13 @@ export interface AbiEntry {
 }
 
 const getSignatureFromAbiEvent = (event: AbiEvent) => {
-  return `${event.name}(${event.inputs
-    .map((input) => `${input.type}${input.indexed ? " indexed" : ""} ${input.name}`)
-    .join(", ")})`;
+  return `${event.name}(${
+    event.inputs
+      .map((input) =>
+        `${input.type}${input.indexed ? " indexed" : ""} ${input.name}`
+      )
+      .join(", ")
+  })`;
 };
 
 interface Props {
@@ -48,7 +55,7 @@ export const ListAbi = ({ entries }: Props) => {
 
       location.reload();
     },
-    []
+    [],
   );
 
   const modalRef = useRef<HTMLDialogElement>(null);
@@ -80,7 +87,10 @@ export const ListAbi = ({ entries }: Props) => {
             collapsible={
               <>
                 <div class="float-right">
-                  <button class="btn btn-warning" onClick={handleDelete(entry.hash)}>
+                  <button
+                    class="btn btn-warning"
+                    onClick={handleDelete(entry.hash)}
+                  >
                     X
                   </button>
                 </div>

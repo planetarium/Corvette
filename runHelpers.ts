@@ -51,7 +51,7 @@ export async function runAndCleanup(func: () => Awaitable<Runnable>) {
 
 export async function runWithPrisma(
   func: (prisma: PrismaClient) => Awaitable<Runnable>,
-  optionsArg?: Prisma.PrismaClientOptions
+  optionsArg?: Prisma.PrismaClientOptions,
 ) {
   optionsArg = optionsArg || {};
   const prisma = new PrismaClient({
@@ -70,27 +70,26 @@ export async function runWithPrisma(
 }
 
 export async function runWithAmqp(
-  func: (amqpConnection: AmqpConnection) => Awaitable<Runnable>
+  func: (amqpConnection: AmqpConnection) => Awaitable<Runnable>,
 ): Promise<void>;
 export async function runWithAmqp(
   func: (amqpConnection: AmqpConnection) => Awaitable<Runnable>,
-  options?: AmqpConnectOptions
+  options?: AmqpConnectOptions,
 ): Promise<void>;
 export async function runWithAmqp(
   func: (amqpConnection: AmqpConnection) => Awaitable<Runnable>,
-  uri?: string
+  uri?: string,
 ): Promise<void>;
 export async function runWithAmqp(
   func: (amqpConnection: AmqpConnection) => Awaitable<Runnable>,
-  optionsOrUrl?: AmqpConnectOptions | string
+  optionsOrUrl?: AmqpConnectOptions | string,
 ): Promise<void> {
   const defaultOptions = parseOptions(combinedEnv[AmqpBrokerUrlEnvKey]);
-  const options =
-    optionsOrUrl === undefined
-      ? defaultOptions
-      : typeof optionsOrUrl === "string"
-      ? parseOptions(optionsOrUrl)
-      : parseOptions({ ...defaultOptions, ...optionsOrUrl });
+  const options = optionsOrUrl === undefined
+    ? defaultOptions
+    : typeof optionsOrUrl === "string"
+    ? parseOptions(optionsOrUrl)
+    : parseOptions({ ...defaultOptions, ...optionsOrUrl });
   const amqpConnection = await connectAmqp(options);
   try {
     await runAndCleanup(() => func(amqpConnection));
@@ -99,7 +98,9 @@ export async function runWithAmqp(
   }
 }
 
-export async function runWithChainDefinition(func: (chain: Chain) => Awaitable<Runnable>) {
+export async function runWithChainDefinition(
+  func: (chain: Chain) => Awaitable<Runnable>,
+) {
   const chain = await importESOrJson(combinedEnv[ChainDefinitionUrlEnvKey]);
   await runAndCleanup(() => func(chain));
 }

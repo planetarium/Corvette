@@ -1,6 +1,9 @@
 import { useCallback, useRef } from "preact/hooks";
 
-import { CollapsibleTable, CollapsibleTableRow } from "~/components/CollapsibleTable.tsx";
+import {
+  CollapsibleTable,
+  CollapsibleTableRow,
+} from "~/components/CollapsibleTable.tsx";
 import { Modal } from "~/components/Modal.tsx";
 
 export interface SourceEntry {
@@ -38,7 +41,7 @@ export const ListSources = ({ entries }: ListSourcesProps) => {
 
       location.reload();
     },
-    []
+    [],
   );
 
   const handleWebhookTest = useCallback(
@@ -50,7 +53,7 @@ export const ListSources = ({ entries }: ListSourcesProps) => {
         body: JSON.stringify({ address, abiHash }),
       });
     },
-    []
+    [],
   );
 
   const modalRef = useRef<HTMLDialogElement>(null);

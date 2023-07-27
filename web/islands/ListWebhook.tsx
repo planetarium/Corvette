@@ -1,5 +1,8 @@
 import { useCallback, useRef } from "preact/hooks";
-import { CollapsibleTable, CollapsibleTableRow } from "~/components/CollapsibleTable.tsx";
+import {
+  CollapsibleTable,
+  CollapsibleTableRow,
+} from "~/components/CollapsibleTable.tsx";
 import { Modal } from "~/components/Modal.tsx";
 
 export interface WebhookEntry {
@@ -41,7 +44,7 @@ export const ListWebhook = ({ entries }: ListWebhookProps) => {
 
       location.reload();
     },
-    []
+    [],
   );
 
   const modalRef = useRef<HTMLDialogElement>(null);
@@ -86,13 +89,18 @@ export const ListWebhook = ({ entries }: ListWebhookProps) => {
         </Modal>
       </div>
 
-      <CollapsibleTable headers={["Contract Address", "ABI Hash", "Webhook URL"]}>
+      <CollapsibleTable
+        headers={["Contract Address", "ABI Hash", "Webhook URL"]}
+      >
         {entries.map((entry) => (
           <CollapsibleTableRow
             collapsible={
               <>
                 <div class="float-right">
-                  <button class="btn btn-warning" onClick={handleDelete(entry.id)}>
+                  <button
+                    class="btn btn-warning"
+                    onClick={handleDelete(entry.id)}
+                  >
                     X
                   </button>
                 </div>

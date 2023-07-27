@@ -16,9 +16,12 @@ import {
   WebUISessionAppKey,
   WebUIUrlEnvKey,
 } from "../constants.ts";
-import { combinedEnv, runWithPrisma, runWithAmqp } from "../runHelpers.ts";
+import { combinedEnv, runWithAmqp, runWithPrisma } from "../runHelpers.ts";
 import type { PrismaClient } from "../prisma-shim.ts";
-import type { AmqpChannel, AmqpConnection } from "https://deno.land/x/amqp@v0.23.1/mod.ts";
+import type {
+  AmqpChannel,
+  AmqpConnection,
+} from "https://deno.land/x/amqp@v0.23.1/mod.ts";
 
 // Used for fresh-session cookie store JWT encryption key
 Deno.env.set("APP_KEY", combinedEnv[WebUISessionAppKey] ?? crypto.randomUUID());

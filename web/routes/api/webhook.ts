@@ -27,12 +27,13 @@ export const handler: Handlers<WebhookEntry, WithSession> = {
   async POST(req, ctx) {
     const user = ctx.state.session.get("user") as User;
 
-    const { sourceAddress, abiHash, webhookUrl, topic1, topic2, topic3 } = await req.json();
+    const { sourceAddress, abiHash, webhookUrl, topic1, topic2, topic3 } =
+      await req.json();
 
     const topics = Object.fromEntries(
       [topic1, topic2, topic3].flatMap((val, idx) =>
         val ? [[`topic${idx + 1}`, Buffer.from(toBytes(val))]] : []
-      )
+      ),
     );
 
     const entries = await prisma.emitDestination
@@ -69,7 +70,12 @@ export const handler: Handlers<WebhookEntry, WithSession> = {
     const params = await req.json();
     const id = Number(params.id);
 
-    if (!(await checkPermission({ type: "EmitDestination", destinationId: id }, user))) {
+    if (
+      !(await checkPermission(
+        { type: "EmitDestination", destinationId: id },
+        user,
+      ))
+    ) {
       return new Response(null, { status: Status.Forbidden });
     }
 

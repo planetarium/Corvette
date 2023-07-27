@@ -22,7 +22,7 @@ export const handler: Handlers = {
         logIndex: -1n,
         blockNumber: -1n,
         blockHash: new Uint8Array(32),
-      })
+      }),
     );
 
     return new Response(null, { status: Status.NoContent });

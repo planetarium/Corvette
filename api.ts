@@ -8,9 +8,7 @@ import {
   Router,
 } from "https://deno.land/x/oak@v12.5.0/mod.ts";
 
-import { Buffer } from "node:buffer";
-import type { Abi } from "npm:abitype";
-import { getAddress, keccak256, toBytes, toHex } from "npm:viem";
+import { getAddress, toBytes, toHex } from "npm:viem";
 
 import type { PrismaClient } from "./prisma-shim.ts";
 
@@ -18,12 +16,9 @@ import { serializeEventMessage } from "./EventMessage.ts";
 import { formatAbiItemPrototype } from "./abitype.ts";
 import {
   ApiUrlEnvKey,
-  ControlEmitterRoutingKey,
   ControlExchangeName,
-  ControlObserverRoutingKey,
   EvmEventsQueueName,
 } from "./constants.ts";
-import { reload as reloadControl } from "./control.ts";
 import { combinedEnv, runWithAmqp, runWithPrisma } from "./runHelpers.ts";
 
 export async function api(
@@ -88,39 +83,6 @@ export async function api(
       abiHash: toHex(item.abiHash),
     }));
   });
-  router.put("/sources", async (ctx) => {
-    const { address, abiHash } = await ctx.request.body({ type: "json" }).value;
-
-    ctx.response.body = await prisma.eventSource.create({
-      data: {
-        address: Buffer.from(toBytes(address)),
-        abiHash: Buffer.from(toBytes(abiHash)),
-      },
-      include: { Abi: true },
-    }).then((item) => ({
-      address: getAddress(toHex(item.address)),
-      abi: formatAbiItemPrototype(JSON.parse(item.Abi.json)),
-      abiHash: toHex(item.abiHash),
-    }));
-
-    reloadControl(amqpChannel, ControlObserverRoutingKey);
-  });
-  router.delete("/sources", async (ctx) => {
-    const { address, abiHash } = await ctx.request.body({ type: "json" }).value;
-
-    await prisma.eventSource.delete({
-      where: {
-        address_abiHash: {
-          address: Buffer.from(toBytes(address)),
-          abiHash: Buffer.from(toBytes(abiHash)),
-        },
-      },
-    });
-
-    ctx.response.status = Status.NoContent;
-
-    reloadControl(amqpChannel, ControlObserverRoutingKey);
-  });
   router.post("/sources/testWebhook", async (ctx) => {
     const { address, abiHash } = await ctx.request.body({ type: "json" }).value;
 
@@ -163,54 +125,6 @@ export async function api(
       {},
     );
   });
-  router.put("/abi", async (ctx) => {
-    const abiJson: Abi = await ctx.request.body({ type: "json" }).value;
-
-    const abiHashMapping = abiJson.map((abiElement) =>
-      [
-        abiElement,
-        keccak256(
-          new TextEncoder().encode(formatAbiItemPrototype(abiElement)),
-          "bytes",
-        ),
-      ] as const
-    );
-
-    // Prisma with SQLite doesn't support createMany...
-    // TODO: replace Promise.allSettled with prisma.$transaction
-    const rows = await Promise.allSettled(
-      abiHashMapping.map(([abiElement, hash]) =>
-        prisma.eventAbi.create({
-          data: {
-            hash: Buffer.from(hash),
-            json: JSON.stringify(abiElement),
-          },
-        })
-      ),
-    );
-    ctx.response.body = rows.flatMap((res) =>
-      res.status === "fulfilled" ? [res.value] : []
-    ).reduce(
-      (acc, item) => {
-        const abi = JSON.parse(item.json);
-        Object.assign(acc, {
-          [toHex(item.hash)]: {
-            signature: formatAbiItemPrototype(abi),
-            abi: abi,
-          },
-        });
-        return acc;
-      },
-      {},
-    );
-  });
-  router.delete("/abi/:hash", async (ctx) => {
-    const hash = Buffer.from(toBytes(ctx.params.hash));
-
-    await prisma.eventAbi.delete({ where: { hash } });
-
-    ctx.response.status = Status.NoContent;
-  });
 
   router.post("/webhook", async (ctx) => {
     // TODO: parameters
@@ -224,44 +138,6 @@ export async function api(
         topic2: item.topic2 ? toHex(item.topic2) : undefined,
         topic3: item.topic3 ? toHex(item.topic3) : undefined,
       }));
-  });
-  router.put("/webhook", async (ctx) => {
-    const { sourceAddress, abiHash, webhookUrl, topic1, topic2, topic3 } =
-      await ctx.request.body({ type: "json" }).value;
-
-    const topics = Object.fromEntries(
-      [topic1, topic2, topic3].flatMap((val, idx) =>
-        val ? [[`topic${idx + 1}`, Buffer.from(toBytes(val))]] : []
-      ),
-    );
-
-    ctx.response.body = await prisma.emitDestination.create({
-      data: {
-        sourceAddress: Buffer.from(toBytes(sourceAddress)),
-        abiHash: Buffer.from(toBytes(abiHash)),
-        webhookUrl,
-        ...topics,
-      },
-    }).then((item) => ({
-      id: item.id,
-      sourceAddress: getAddress(toHex(item.sourceAddress)),
-      abiHash: toHex(item.abiHash),
-      webhookUrl: item.webhookUrl,
-      topic1: item.topic1 ? toHex(item.topic1) : undefined,
-      topic2: item.topic2 ? toHex(item.topic2) : undefined,
-      topic3: item.topic3 ? toHex(item.topic3) : undefined,
-    }));
-
-    reloadControl(amqpChannel, ControlEmitterRoutingKey);
-  });
-  router.delete("/webhook/:id", async (ctx) => {
-    const id = Number(ctx.params.id);
-
-    await prisma.emitDestination.delete({ where: { id } });
-
-    ctx.response.status = Status.NoContent;
-
-    reloadControl(amqpChannel, ControlEmitterRoutingKey);
   });
 
   const app = new OakApplication();

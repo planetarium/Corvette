@@ -1,0 +1,62 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: publish-docker
+permissions:
+  statuses: none
+on:
+  push:
+    branches:
+    - "main"
+    tags:
+      - "*"
+  pull_request: {}
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@main
+    - run: git fetch --tags
+    - name: Get latest tag on current branch
+      id: branchtag
+      run: echo "tag=$(git describe --tags --abbrev=0 2>/dev/null || echo '0.0.0')" >> "$GITHUB_OUTPUT"
+    - name: Get next minor version
+      id: semvers
+      uses: WyriHaximus/github-action-next-semvers@v1
+      with:
+        version: ${{ steps.branchtag.outputs.tag }}
+    - name: Generate docker image tag
+      id: docker-tag
+      run: ${{ github.event_name == 'push' && contains(github.ref, 'refs/tags/') }} && echo "version=${{ steps.branchtag.outputs.tag }}"  >> "$GITHUB_OUTPUT" || echo "version=${{ steps.semvers.outputs.minor }}-dev.$(date -u +%Y%m%d%H%M%S)" >> "$GITHUB_OUTPUT"
+    - run: docker compose build
+      env:
+        VERSION: ${{ steps.docker-tag.outputs.version }}
+    - name: Export built docker images
+      run: docker save -o docker-images.tar $(docker images 'ghcr.io/planetarium/*' --format '{{.Repository}}:{{.Tag}}' | tr '\n' ' ')
+    - uses: actions/upload-artifact@main
+      with:
+        name: docker-images
+        path: docker-images.tar
+  publish:
+    permissions:
+      packages: write
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: ${{ github.event_name == 'push' }}
+    steps:
+    - uses: actions/checkout@main
+    - run: git fetch --tags
+    - name: Get latest tag on the repository
+      id: repotag
+      run: echo "tag=$(git for-each-ref --sort=-creatordate --count 1 --format='%(refname:short)' refs/tags)" >> "$GITHUB_OUTPUT"
+    - uses: actions/download-artifact@main
+      with:
+        name: docker-images
+    - run: docker load -i docker-images.tar
+    - name: Tag docker images if not upstream
+      if: ${{ github.repository_owner != 'planetarium' }}
+      run: for tag in $(docker images 'ghcr.io/planetarium/*' --format '{{.Repository}}:{{.Tag}}'); do docker tag "$tag" "ghcr.io/${{ github.repository_owner }}${tag#ghcr.io/planetarium}"; done
+    - name: Tag docker images if git tag is latest
+      if: ${{ contains(github.ref, 'refs/tags/') && github.ref_name == steps.repotag.outputs.tag }}
+      run: for tag in $(docker images 'ghcr.io/${{ github.repository_owner }}/*' --format '{{.Repository}}:{{.Tag}}'); do docker tag "$tag" "${tag%:*}:latest"; done
+    - run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
+    - name: Push all images to ghcr
+      run: for tag in $(docker images 'ghcr.io/${{ github.repository_owner }}/*' --format '{{.Repository}}:{{.Tag}}'); do docker push "$tag"; done

@@ -8,4 +8,5 @@ node_modules
 /dev.key
 /dataproxy/schema.prisma
 /generated
+/docker-compose-data
 .DS_Store

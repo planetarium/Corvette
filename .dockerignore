@@ -20,6 +20,7 @@
 /dev.key
 /dataproxy/schema.prisma
 /generated
+/docker-compose-data
 .DS_Store
 
 # Adapted from /dataproxy/.gitignore

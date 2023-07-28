@@ -22,12 +22,12 @@ RUN deno cache emitter.ts
 ENTRYPOINT [ "deno", "run", "--allow-env", "--allow-read", "--allow-net", "--allow-ffi", "emitter.ts" ]
 
 FROM common as api
-ENV API_URL="http://0.0.0.0:8000"
-EXPOSE 8000
+ENV API_URL="http://0.0.0.0:80"
+EXPOSE 80
 # --unsafely-ignore-certificate-errors should be included to use data proxy
 ENTRYPOINT [ "deno", "run", "--allow-env", "--allow-read", "--allow-net", "--allow-ffi", "api.ts" ]
 
-FROM common as web-builder
+FROM common as web
 WORKDIR /Corvette/web
 ARG DENO_DEPLOYMENT_ID
 RUN apk add git && \
@@ -35,13 +35,9 @@ RUN apk add git && \
   [ ! -z "$DENO_DEPLOYMENT_ID" ] && echo "DENO_DEPLOYMENT_ID=$DENO_DEPLOYMENT_ID" > .env ; \
   deno cache main.ts && \
   deno cache ../scripts/run-with-env.ts
-
-FROM denoland/deno:distroless-1.35.2 as web
-WORKDIR /Corvette/web
-COPY --from=web-builder /Corvette /Corvette
-ENV WEBUI_URL="http://0.0.0.0:3000"
-EXPOSE 3000
-ENTRYPOINT [ "deno", "run", "--allow-read", "--allow-env", "--allow-sys", "--allow-run", "../scripts/run-with-env.ts", "deno", "run", "--allow-env", "--allow-read", "--allow-write", "--allow-net", "--allow-run", "main.ts" ]
+ENV WEBUI_URL="http://0.0.0.0:80"
+EXPOSE 80
+ENTRYPOINT [ "deno", "run", "--allow-read", "--allow-env", "--allow-sys", "--allow-run", "../scripts/run-with-env.ts", "deno", "run", "--allow-env", "--allow-read", "--allow-write", "--allow-net", "--allow-run", "--allow-ffi", "main.ts" ]
 
 FROM alpine:3.18.2 as dataproxy-builder
 WORKDIR /Corvette

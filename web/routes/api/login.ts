@@ -2,10 +2,8 @@ import { Handlers, Status } from "fresh/server.ts";
 import type { WithSession } from "fresh-session";
 import { decode } from "std/encoding/base64.ts";
 
-import argon2 from "https://esm.sh/argon2-browser@1.18.0/dist/argon2-bundled.min.js";
-
 import { prisma } from "~/main.ts";
-import { redirect } from "~/util.ts";
+import { argon2, redirect } from "~/util.ts";
 
 export const handler: Handlers<unknown, WithSession> = {
   async POST(req, ctx) {

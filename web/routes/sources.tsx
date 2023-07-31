@@ -1,11 +1,11 @@
 import { Handlers, PageProps } from "fresh/server.ts";
 import { Layout } from "~/components/Layout.tsx";
 import { ListSources, type SourceEntry } from "~/islands/ListSources.tsx";
-import { getCookieString, getOrigin } from "~/util.ts";
+import { getCookieString, getServerSideUrl } from "~/util.ts";
 
 export const handler: Handlers<SourceEntry[]> = {
   async GET(req, ctx) {
-    const res = await fetch(`${getOrigin(req)}/api/sources/`, {
+    const res = await fetch(getServerSideUrl("/api/sources/"), {
       credentials: "include",
       headers: { cookie: getCookieString(req) },
     });

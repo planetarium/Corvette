@@ -1,11 +1,11 @@
 import { Handlers, PageProps } from "fresh/server.ts";
 import { Layout } from "~/components/Layout.tsx";
 import { type AbiEntry, ListAbi } from "~/islands/ListAbi.tsx";
-import { getCookieString, getOrigin } from "~/util.ts";
+import { getCookieString, getServerSideUrl } from "~/util.ts";
 
 export const handler: Handlers<AbiEntry[]> = {
   async GET(req, ctx) {
-    const res = await fetch(`${getOrigin(req)}/api/abi/`, {
+    const res = await fetch(getServerSideUrl("/api/abi/"), {
       credentials: "include",
       headers: { cookie: getCookieString(req) },
     });

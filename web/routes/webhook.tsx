@@ -1,11 +1,11 @@
 import { Handlers, PageProps } from "fresh/server.ts";
 import { Layout } from "~/components/Layout.tsx";
 import { ListWebhook, type WebhookEntry } from "~/islands/ListWebhook.tsx";
-import { getCookieString, getOrigin } from "~/util.ts";
+import { getCookieString, getServerSideUrl } from "~/util.ts";
 
 export const handler: Handlers<WebhookEntry[]> = {
   async GET(req, ctx) {
-    const res = await fetch(`${getOrigin(req)}/api/webhook/`, {
+    const res = await fetch(getServerSideUrl("/api/webhook/"), {
       credentials: "include",
       headers: { cookie: getCookieString(req) },
     });

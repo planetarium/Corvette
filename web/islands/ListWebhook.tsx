@@ -1,9 +1,10 @@
-import { useCallback, useRef } from "preact/hooks";
+import { useCallback, useRef, useState } from "preact/hooks";
 import {
   CollapsibleTable,
   CollapsibleTableRow,
 } from "~/components/CollapsibleTable.tsx";
 import { Modal } from "~/components/Modal.tsx";
+import { Toast, ToastProps } from "~/components/Toast.tsx";
 
 export interface WebhookEntry {
   id: number;
@@ -20,15 +21,23 @@ interface ListWebhookProps {
 }
 
 export const ListWebhook = ({ entries }: ListWebhookProps) => {
+  const modalRef = useRef<HTMLDialogElement>(null);
+  const [toast, setToast] = useState<ToastProps | null>(null);
+
   const handleSubmit = useCallback(async (e: Event) => {
     e.preventDefault();
 
     const formData = new FormData(e.target as HTMLFormElement);
 
-    await fetch("/api/webhook", {
+    const res = await fetch("/api/webhook", {
       method: "POST",
       body: JSON.stringify(Object.fromEntries(formData.entries())),
     });
+
+    if (!res.ok) {
+      setToast({ type: "error", text: "Failed to register a webhook entry." });
+      return;
+    }
 
     location.reload();
   }, []);
@@ -37,17 +46,20 @@ export const ListWebhook = ({ entries }: ListWebhookProps) => {
     (id: number) => async (e: Event) => {
       e.preventDefault();
 
-      await fetch(`/api/webhook/`, {
+      const res = await fetch(`/api/webhook/`, {
         method: "DELETE",
         body: JSON.stringify({ id }),
       });
+
+      if (!res.ok) {
+        setToast({ type: "error", text: "Failed to delete a webhook entry." });
+        return;
+      }
 
       location.reload();
     },
     [],
   );
-
-  const modalRef = useRef<HTMLDialogElement>(null);
 
   return (
     <>
@@ -87,6 +99,7 @@ export const ListWebhook = ({ entries }: ListWebhookProps) => {
             <input type="submit" class="btn" />
           </form>
         </Modal>
+        {toast && <Toast {...toast} />}
       </div>
 
       <CollapsibleTable

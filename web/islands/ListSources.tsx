@@ -1,10 +1,11 @@
-import { useCallback, useRef } from "preact/hooks";
+import { useCallback, useRef, useState } from "preact/hooks";
 
 import {
   CollapsibleTable,
   CollapsibleTableRow,
 } from "~/components/CollapsibleTable.tsx";
 import { Modal } from "~/components/Modal.tsx";
+import { Toast, type ToastProps } from "~/components/Toast.tsx";
 
 export interface SourceEntry {
   address: string;
@@ -17,15 +18,26 @@ interface ListSourcesProps {
 }
 
 export const ListSources = ({ entries }: ListSourcesProps) => {
+  const modalRef = useRef<HTMLDialogElement>(null);
+  const [toast, setToast] = useState<ToastProps | null>(null);
+
   const handleSubmit = useCallback(async (e: Event) => {
     e.preventDefault();
 
     const formData = new FormData(e.target as HTMLFormElement);
 
-    await fetch("/api/sources", {
+    const res = await fetch("/api/sources", {
       method: "POST",
       body: JSON.stringify(Object.fromEntries(formData.entries())),
     });
+
+    if (!res.ok) {
+      setToast({
+        type: "error",
+        text: "Failed to register a event source entry.",
+      });
+      return;
+    }
 
     location.reload();
   }, []);
@@ -34,10 +46,18 @@ export const ListSources = ({ entries }: ListSourcesProps) => {
     (address: string, abiHash: string) => async (e: Event) => {
       e.preventDefault();
 
-      await fetch(`/api/sources`, {
+      const res = await fetch(`/api/sources`, {
         method: "DELETE",
         body: JSON.stringify({ address, abiHash }),
       });
+
+      if (!res.ok) {
+        setToast({
+          type: "error",
+          text: "Failed to delete an event source entry.",
+        });
+        return;
+      }
 
       location.reload();
     },
@@ -45,18 +65,22 @@ export const ListSources = ({ entries }: ListSourcesProps) => {
   );
 
   const handleWebhookTest = useCallback(
-    (address: string, abiHash: string) => (e: Event) => {
+    (address: string, abiHash: string) => async (e: Event) => {
       e.preventDefault();
 
-      fetch(`/api/sources/testWebhook`, {
+      const res = await fetch(`/api/sources/testWebhook`, {
         method: "POST",
         body: JSON.stringify({ address, abiHash }),
       });
+
+      if (!res.ok) {
+        setToast({ type: "error", text: "Failed to trigger test webhook." });
+      }
+
+      setToast({ type: "success", text: "Test webhook triggered." });
     },
     [],
   );
-
-  const modalRef = useRef<HTMLDialogElement>(null);
 
   return (
     <>
@@ -87,6 +111,7 @@ export const ListSources = ({ entries }: ListSourcesProps) => {
             <input type="submit" class="btn" />
           </form>
         </Modal>
+        {toast && <Toast {...toast} />}
       </div>
 
       <CollapsibleTable headers={["Contract Address", "ABI Hash"]}>

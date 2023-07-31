@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "preact/hooks";
+import { useCallback, useRef, useState } from "preact/hooks";
 
 import { AbiTable } from "~/components/AbiTable.tsx";
 import {
@@ -6,6 +6,7 @@ import {
   CollapsibleTableRow,
 } from "~/components/CollapsibleTable.tsx";
 import { Modal } from "~/components/Modal.tsx";
+import { Toast, type ToastProps } from "~/components/Toast.tsx";
 
 import type { AbiEvent } from "https://esm.sh/abitype@0.9.0";
 
@@ -30,16 +31,30 @@ interface Props {
 }
 
 export const ListAbi = ({ entries }: Props) => {
+  const modalRef = useRef<HTMLDialogElement>(null);
+  const [toast, setToast] = useState<ToastProps | null>(null);
+
   const handleSubmit = useCallback(async (e: Event) => {
     e.preventDefault();
 
     const formData = new FormData(e.target as HTMLFormElement);
     const abiJson = formData.get("abiJson");
 
-    await fetch(`/api/abi`, {
+    const res = await fetch(`/api/abi`, {
       method: "POST",
       body: abiJson,
     });
+
+    if (!res.ok) {
+      setToast({ type: "error", text: "Failed to register ABI entries." });
+      return;
+    }
+
+    if ((await res.json()).length === 0) {
+      setToast({ type: "info", text: "No new ABI entries to register." });
+      modalRef.current?.close();
+      return;
+    }
 
     location.reload();
   }, []);
@@ -48,17 +63,20 @@ export const ListAbi = ({ entries }: Props) => {
     (hash: string) => async (e: Event) => {
       e.preventDefault();
 
-      await fetch(`/api/abi`, {
+      const res = await fetch(`/api/abi`, {
         method: "DELETE",
         body: JSON.stringify({ hash }),
       });
+
+      if (!res.ok) {
+        setToast({ type: "error", text: "Failed to delete an ABI entry." });
+        return;
+      }
 
       location.reload();
     },
     [],
   );
-
-  const modalRef = useRef<HTMLDialogElement>(null);
 
   return (
     <>
@@ -80,6 +98,7 @@ export const ListAbi = ({ entries }: Props) => {
             <input type="submit" class="btn" />
           </form>
         </Modal>
+        {toast && <Toast {...toast} />}
       </div>
       <CollapsibleTable headers={["Hash", "Signature"]}>
         {entries.map((entry) => (

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "preact/hooks";
+import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 
 import {
   CollapsibleTable,
@@ -6,6 +6,8 @@ import {
 } from "~/components/CollapsibleTable.tsx";
 import { Modal } from "~/components/Modal.tsx";
 import { Toast, type ToastProps } from "~/components/Toast.tsx";
+import { SearchDropdown } from "~/islands/SearchDropdown.tsx";
+import { AbiEntry } from "~/islands/ListAbi.tsx";
 
 export interface SourceEntry {
   address: string;
@@ -20,6 +22,16 @@ interface ListSourcesProps {
 export const ListSources = ({ entries }: ListSourcesProps) => {
   const modalRef = useRef<HTMLDialogElement>(null);
   const [toast, setToast] = useState<ToastProps | null>(null);
+  const [abis, setAbis] = useState<AbiEntry[]>([]);
+
+  useEffect(() => {
+    const getAbis = async () => {
+      const res = await fetch("/api/abi");
+      setAbis(await res.json());
+    };
+
+    getAbis();
+  }, []);
 
   const handleSubmit = useCallback(async (e: Event) => {
     e.preventDefault();
@@ -102,11 +114,10 @@ export const ListSources = ({ entries }: ListSourcesProps) => {
             <label class="label">
               <span class="label-text">ABI Hash</span>
             </label>
-            <input
-              type="text"
+            <SearchDropdown
               name="abiHash"
-              required
-              class="input input-bordered w-full max-w-xs"
+              list={abis}
+              entrySelector={(e) => e.hash}
             />
             <input type="submit" class="btn" />
           </form>

@@ -60,11 +60,15 @@ export const handler: Handlers<AbiEntry, WithSession> = {
         })
       ),
     );
-    return new Response(
-      JSON.stringify(
-        rows.flatMap((res) => (res.status === "fulfilled" ? [res.value] : [])),
-      ),
-    );
+
+    const fulfilled = rows.flatMap((
+      res,
+    ) => (res.status === "fulfilled" ? [res.value] : []));
+    if (fulfilled.length === 0) {
+      return new Response(null, { status: Status.Forbidden });
+    }
+
+    return new Response(JSON.stringify(fulfilled));
   },
   async DELETE(req, ctx) {
     const user = ctx.state.session.get("user") as User;

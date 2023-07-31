@@ -1,10 +1,12 @@
-import { useCallback, useRef, useState } from "preact/hooks";
+import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import {
   CollapsibleTable,
   CollapsibleTableRow,
 } from "~/components/CollapsibleTable.tsx";
 import { Modal } from "~/components/Modal.tsx";
 import { Toast, ToastProps } from "~/components/Toast.tsx";
+import { SearchDropdown } from "~/islands/SearchDropdown.tsx";
+import { SourceEntry } from "~/islands/ListSources.tsx";
 
 export interface WebhookEntry {
   id: number;
@@ -23,11 +25,30 @@ interface ListWebhookProps {
 export const ListWebhook = ({ entries }: ListWebhookProps) => {
   const modalRef = useRef<HTMLDialogElement>(null);
   const [toast, setToast] = useState<ToastProps | null>(null);
+  const [sources, setSources] = useState<SourceEntry[]>([]);
+
+  useEffect(() => {
+    const getAbis = async () => {
+      const res = await fetch("/api/sources");
+      setSources(await res.json());
+    };
+
+    getAbis();
+  }, []);
 
   const handleSubmit = useCallback(async (e: Event) => {
     e.preventDefault();
 
     const formData = new FormData(e.target as HTMLFormElement);
+    const addressAbiHash = formData.get("address_abiHash");
+    if (!addressAbiHash) {
+      setToast({ type: "error", text: "Failed to register a webhook entry." });
+      return;
+    }
+
+    const [address, abiHash] = addressAbiHash.toString().split(":");
+    formData.set("sourceAddress", address);
+    formData.set("abiHash", abiHash);
 
     const res = await fetch("/api/webhook", {
       method: "POST",
@@ -70,22 +91,18 @@ export const ListWebhook = ({ entries }: ListWebhookProps) => {
         <Modal title="Register Webhook" ref={modalRef}>
           <form onSubmit={handleSubmit} class="form-control w-full">
             <label class="label">
-              <span class="label-text">Contract Address</span>
+              <span class="label-text">Event Source</span>
             </label>
-            <input
-              type="text"
-              name="sourceAddress"
-              required
-              class="input input-bordered w-full max-w-xs"
-            />
-            <label class="label">
-              <span class="label-text">ABI Hash</span>
-            </label>
-            <input
-              type="text"
-              name="abiHash"
-              required
-              class="input input-bordered w-full max-w-xs"
+            <SearchDropdown
+              name="address_abiHash"
+              list={sources}
+              entrySelector={(e) => `${e.address}:${e.abiHash}`}
+              entryTransform={(e) => (
+                <>
+                  <div>Address: {e.address}</div>
+                  <div>ABI: {e.abiHash}</div>
+                </>
+              )}
             />
             <label class="label">
               <span class="label-text">Webhook URL</span>

@@ -33,7 +33,7 @@ services:
         condition: service_healthy
     image: "ghcr.io/planetarium/corvette-api:${VERSION:-build-latest}"
     ports:
-      - "8000:8000/tcp"
+      - "8000:80/tcp"
     build:
       context: .
       target: api
@@ -41,7 +41,7 @@ services:
     environment:
       DATABASE_URL: postgres://postgres:V0uYcxk2dFixtPWfK4Nb@db/postgres
       AMQP_BROKER_URL: amqp://message-queue-broker
-      API_URL: http://api:8000
+      API_URL: http://api:80
   web:
     depends_on:
       message-queue-broker:
@@ -50,11 +50,11 @@ services:
         condition: service_started
     image: "ghcr.io/planetarium/corvette-web:${VERSION:-build-latest}"
     ports:
-      - "3000:3000/tcp"
+      - "3000:80/tcp"
     environment:
-      API_URL: http://api:8000
-      API_EXTERNAL_URL: http://localhost:8000
-      WEBUI_URL: http://web:3000
+      DATABASE_URL: postgres://postgres:V0uYcxk2dFixtPWfK4Nb@db/postgres
+      AMQP_BROKER_URL: amqp://message-queue-broker
+      WEBUI_URL: http://web:80
     build:
       context: .
       target: web
@@ -70,7 +70,7 @@ services:
       target: common
     environment:
       DATABASE_URL: postgres://postgres:V0uYcxk2dFixtPWfK4Nb@db/postgres
-    command: deno task prisma db push
+    command: deno task prisma db push --skip-generate
   # dataproxy:
   #   depends_on:
   #     db:
@@ -87,7 +87,7 @@ services:
     container_name: message-queue-broker
     hostname: message-queue-broker
     volumes:
-      - /var/lib/rabbitmq
+      - ./docker-compose-data/mq:/var/lib/rabbitmq
     healthcheck:
       timeout: 5s
       interval: 5s
@@ -103,7 +103,7 @@ services:
     environment:
       POSTGRES_PASSWORD: "V0uYcxk2dFixtPWfK4Nb"
     volumes:
-      - /var/lib/postgresql/data/
+      - ./docker-compose-data/db:/var/lib/postgresql/data/
     healthcheck:
       timeout: 5s
       interval: 5s

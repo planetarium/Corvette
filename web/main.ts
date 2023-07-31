@@ -26,8 +26,7 @@ import type {
 // Used for fresh-session cookie store JWT encryption key
 Deno.env.set("APP_KEY", combinedEnv[WebUISessionAppKey] ?? crypto.randomUUID());
 
-const listenUrl = new URL(combinedEnv[WebUIUrlEnvKey]);
-
+export const listenUrl = new URL(combinedEnv[WebUIUrlEnvKey]);
 export let prisma: PrismaClient;
 export let amqpChannel: AmqpChannel;
 

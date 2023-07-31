@@ -1,11 +1,13 @@
 import { getCookies } from "std/http/cookie.ts";
-import { resolve } from "std/path/mod.ts";
+import { join, resolve } from "std/path/mod.ts";
 
-import { prisma } from "~/main.ts";
+import { listenUrl, prisma } from "~/main.ts";
 import type { Prisma } from "~root/prisma-shim.ts";
 import type { User } from "~root/generated/client/index.d.ts";
 
 export const getOrigin = (req: Request) => new URL(req.url).origin;
+export const getServerSideUrl = (pathname: string) =>
+  new URL(join(listenUrl.pathname, pathname), listenUrl);
 
 export const redirect = (req: Request, url?: string) => {
   const origin = getOrigin(req);

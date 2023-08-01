@@ -2,7 +2,7 @@ import { parse } from "https://deno.land/std@0.194.0/flags/mod.ts";
 import * as path from "https://deno.land/std@0.194.0/path/mod.ts";
 
 import {
-  coerce as coerceSemver,
+  clean as cleanSemver,
   satisfies as satisfiesSemver,
 } from "https://deno.land/x/semver@v1.4.0/mod.ts";
 
@@ -15,7 +15,7 @@ const IncompatibleExportRegex =
   /(export\s[\s\S]+\sfrom\s+)(?:(')(.+)(?<!\.ts)(')|(")(.+)(?<!\.ts)("))([\s\S]*?(?:;|\n))/g;
 const ConvertCompatibleImportExportPattern = "$1$2$5$3$6.d.ts$4$7$8";
 
-const PrismaVersionSpecifier = coerceSemver("4.16.2")!.version;
+const PrismaVersionSpecifier = cleanSemver("4.16.2")!;
 
 async function patch(sourcePath: string, pattern: RegExp) {
   let sourceCode: string;
@@ -68,20 +68,19 @@ let packageJson: {
   devDependencies: { prisma: string };
   dependencies: { "@prisma/client": string };
 };
-let coercedCurrentPrismaVersion: string | undefined;
-let coercedCurrentPrismaClientVersion: string | undefined;
+let currentPrismaVersion: string | null;
+let currentPrismaClientVersion: string | null;
 let clearCache: boolean;
 try {
   packageJson = JSON.parse(await Deno.readTextFile(packageJsonPath));
-  coercedCurrentPrismaVersion = coerceSemver(packageJson.devDependencies.prisma)
-    ?.version;
-  coercedCurrentPrismaClientVersion = coerceSemver(
+  currentPrismaVersion = cleanSemver(packageJson.devDependencies.prisma);
+  currentPrismaClientVersion = cleanSemver(
     packageJson.dependencies["@prisma/client"],
-  )?.version;
-  clearCache = coercedCurrentPrismaVersion === undefined ||
-    coercedCurrentPrismaClientVersion === undefined ||
-    !satisfiesSemver(coercedCurrentPrismaVersion, PrismaVersionSpecifier) ||
-    !satisfiesSemver(coercedCurrentPrismaClientVersion, PrismaVersionSpecifier);
+  );
+  clearCache = currentPrismaVersion === null ||
+    currentPrismaClientVersion === null ||
+    !satisfiesSemver(currentPrismaVersion, PrismaVersionSpecifier) ||
+    !satisfiesSemver(currentPrismaClientVersion, PrismaVersionSpecifier);
   if (clearCache) {
     packageJson.devDependencies.prisma = PrismaVersionSpecifier;
     packageJson.dependencies["@prisma/client"] = PrismaVersionSpecifier;
@@ -124,15 +123,14 @@ if (clearCache) {
 }
 
 if (
-  coercedCurrentPrismaVersion !==
+  currentPrismaVersion !==
     packageJson.devDependencies.prisma ||
-  coercedCurrentPrismaClientVersion !==
+  currentPrismaClientVersion !==
     packageJson.dependencies["@prisma/client"]
 ) {
   if (!clearCache) {
-    packageJson.devDependencies.prisma = coercedCurrentPrismaVersion!;
-    packageJson.dependencies["@prisma/client"] =
-      coercedCurrentPrismaClientVersion!;
+    packageJson.devDependencies.prisma = currentPrismaVersion!;
+    packageJson.dependencies["@prisma/client"] = currentPrismaClientVersion!;
   }
   try {
     await Deno.writeTextFile(

@@ -10,7 +10,8 @@ import { parseOptions } from "https://deno.land/x/amqp@v0.23.1/src/amqp_connect_
 
 import { Chain } from "npm:viem";
 
-import { type Prisma, PrismaClient } from "./prisma-shim.ts";
+import type Prisma from "./prisma-shim.ts";
+import { PrismaClient } from "./prisma-shim.ts";
 
 import {
   AmqpBrokerUrlEnvKey,

@@ -11,7 +11,7 @@ import {
   toHex,
 } from "npm:viem";
 
-import type { PrismaClient } from "./prisma-shim.ts";
+import Prisma, { type PrismaClient } from "./prisma-shim.ts";
 
 import {
   deserializeControlMessage,
@@ -127,37 +127,49 @@ export async function observer(
     const topicsBytes = log.topics.map(toBytes).map(Buffer.from);
     const [abiHash, topic1, topic2, topic3] = topicsBytes;
 
-    await prisma.event.create({
-      data: {
-        blockTimestamp: new Date(Number(timestamp) * 1000),
-        txIndex: log.transactionIndex,
-        logIndex: log.logIndex,
-        blockNumber: Number(log.blockNumber),
-        blockHash: Buffer.from(blockHashBytes),
-        txHash: Buffer.from(toBytes(log.transactionHash)),
-        sourceAddress: Buffer.from(addressBytes),
-        abiHash,
-        topic1,
-        topic2,
-        topic3,
-        data: Buffer.from(toBytes(log.data)),
-      },
-    });
+    try {
+      await prisma.event.create({
+        data: {
+          blockTimestamp: new Date(Number(timestamp) * 1000),
+          txIndex: log.transactionIndex,
+          logIndex: log.logIndex,
+          blockNumber: Number(log.blockNumber),
+          blockHash: Buffer.from(blockHashBytes),
+          txHash: Buffer.from(toBytes(log.transactionHash)),
+          sourceAddress: Buffer.from(addressBytes),
+          abiHash,
+          topic1,
+          topic2,
+          topic3,
+          data: Buffer.from(toBytes(log.data)),
+        },
+      });
 
-    amqpChannel.publish(
-      { routingKey: EvmEventsQueueName },
-      { contentType: "application/octet-stream" },
-      serializeEventMessage({
-        address: addressBytes,
-        sigHash: abiHash,
-        topics: topicsBytes,
-        blockTimestamp: timestamp,
-        txIndex: BigInt(log.transactionIndex),
-        logIndex: BigInt(log.logIndex),
-        blockNumber: log.blockNumber,
-        blockHash: blockHashBytes,
-      }),
-    );
+      amqpChannel.publish(
+        { routingKey: EvmEventsQueueName },
+        { contentType: "application/octet-stream" },
+        serializeEventMessage({
+          address: addressBytes,
+          sigHash: abiHash,
+          topics: topicsBytes,
+          blockTimestamp: timestamp,
+          txIndex: BigInt(log.transactionIndex),
+          logIndex: BigInt(log.logIndex),
+          blockNumber: log.blockNumber,
+          blockHash: blockHashBytes,
+        }),
+      );
+    } catch (e) {
+      // ignore if the entry for the observed event exists in db (other observer already inserted)
+      if (
+        (e instanceof Prisma.PrismaClientKnownRequestError &&
+          e.code === "P2002")
+      ) {
+        // log
+        return;
+      }
+      throw e; // throw unexpected errors
+    }
   }
 }
 

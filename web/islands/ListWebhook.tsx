@@ -1,9 +1,18 @@
-import { useCallback, useRef } from "preact/hooks";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "preact/hooks";
 import {
   CollapsibleTable,
   CollapsibleTableRow,
 } from "~/components/CollapsibleTable.tsx";
 import { Modal } from "~/components/Modal.tsx";
+import { Toast, ToastProps } from "~/components/Toast.tsx";
+import { SearchDropdown } from "~/islands/SearchDropdown.tsx";
+import { SourceEntry } from "~/islands/ListSources.tsx";
 
 export interface WebhookEntry {
   id: number;
@@ -20,15 +29,45 @@ interface ListWebhookProps {
 }
 
 export const ListWebhook = ({ entries }: ListWebhookProps) => {
+  const modalRef = useRef<HTMLDialogElement>(null);
+  const [toast, setToast] = useState<ToastProps | null>(null);
+  const [sources, setSources] = useState<SourceEntry[]>([]);
+  const [selectedAddress, setSelectedAddress] = useState<string>();
+  const addresses = useMemo(
+    () => [...new Set(sources.map((source) => source.address))],
+    [sources],
+  );
+  const abiHashes = useMemo(
+    () =>
+      sources
+        .filter((source) => source.address === selectedAddress)
+        .map((source) => source.abiHash),
+    [sources, selectedAddress],
+  );
+
+  useEffect(() => {
+    const getSources = async () => {
+      const res = await fetch("/api/sources");
+      setSources(await res.json());
+    };
+
+    getSources();
+  }, []);
+
   const handleSubmit = useCallback(async (e: Event) => {
     e.preventDefault();
 
     const formData = new FormData(e.target as HTMLFormElement);
 
-    await fetch("/api/webhook", {
+    const res = await fetch("/api/webhook", {
       method: "POST",
       body: JSON.stringify(Object.fromEntries(formData.entries())),
     });
+
+    if (!res.ok) {
+      setToast({ type: "error", text: "Failed to register a webhook entry." });
+      return;
+    }
 
     location.reload();
   }, []);
@@ -37,22 +76,25 @@ export const ListWebhook = ({ entries }: ListWebhookProps) => {
     (id: number) => async (e: Event) => {
       e.preventDefault();
 
-      await fetch(`/api/webhook/`, {
+      const res = await fetch(`/api/webhook/`, {
         method: "DELETE",
         body: JSON.stringify({ id }),
       });
+
+      if (!res.ok) {
+        setToast({ type: "error", text: "Failed to delete a webhook entry." });
+        return;
+      }
 
       location.reload();
     },
     [],
   );
 
-  const modalRef = useRef<HTMLDialogElement>(null);
-
   return (
     <>
       <div class="float-right pb-4">
-        <button class="btn" onClick={() => modalRef.current?.showModal()}>
+        <button class="btn" onClick={() => modalRef.current?.show()}>
           +
         </button>
         <Modal title="Register Webhook" ref={modalRef}>
@@ -60,21 +102,15 @@ export const ListWebhook = ({ entries }: ListWebhookProps) => {
             <label class="label">
               <span class="label-text">Contract Address</span>
             </label>
-            <input
-              type="text"
+            <SearchDropdown
               name="sourceAddress"
-              required
-              class="input input-bordered w-full max-w-xs"
+              list={addresses}
+              onSelect={setSelectedAddress}
             />
             <label class="label">
               <span class="label-text">ABI Hash</span>
             </label>
-            <input
-              type="text"
-              name="abiHash"
-              required
-              class="input input-bordered w-full max-w-xs"
-            />
+            <SearchDropdown name="abiHash" list={abiHashes} />
             <label class="label">
               <span class="label-text">Webhook URL</span>
             </label>
@@ -87,6 +123,7 @@ export const ListWebhook = ({ entries }: ListWebhookProps) => {
             <input type="submit" class="btn" />
           </form>
         </Modal>
+        {toast && <Toast {...toast} />}
       </div>
 
       <CollapsibleTable

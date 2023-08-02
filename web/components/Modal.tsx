@@ -15,8 +15,8 @@ export const Modal = forwardRef(
           <h3 class="font-bold text-lg">{title}</h3>
           {children}
         </form>
-        <form method="dialog" class="modal-backdrop">
-          <button>close</button>
+        <form method="dialog" class="modal-backdrop bg-black opacity-30">
+          <button aria-label="close" />
         </form>
       </dialog>
     );

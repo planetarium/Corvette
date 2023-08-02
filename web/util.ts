@@ -2,7 +2,7 @@ import { getCookies } from "std/http/cookie.ts";
 import { join, resolve } from "std/path/mod.ts";
 
 import { listenUrl, prisma } from "~/main.ts";
-import type { Prisma } from "~root/prisma-shim.ts";
+import type Prisma from "~root/prisma-shim.ts";
 import type { User } from "~root/generated/client/index.d.ts";
 
 export const getOrigin = (req: Request) => new URL(req.url).origin;

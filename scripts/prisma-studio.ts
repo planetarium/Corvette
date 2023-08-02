@@ -1,5 +1,4 @@
-import { DirectDatabaseUrlEnvKey } from "../constants.ts";
-import { combinedEnv } from "../runHelpers.ts";
+import { combinedEnv, DirectDatabaseUrlEnvKey } from "../envUtils.ts";
 
 new Deno.Command("npx", {
   args: [

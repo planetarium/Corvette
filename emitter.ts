@@ -18,14 +18,13 @@ import {
 } from "./ControlMessage.ts";
 import { deserializeEventMessage, EventMessage } from "./EventMessage.ts";
 import {
-  BlockFinalityEnvKey,
   ControlEmitterRoutingKey,
   ControlExchangeName,
   EvmEventsQueueName,
 } from "./constants.ts";
+import { BlockFinalityEnvKey, combinedEnv } from "./envUtils.ts";
 import {
   block,
-  combinedEnv,
   runWithAmqp,
   runWithChainDefinition,
   runWithPrisma,

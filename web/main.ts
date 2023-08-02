@@ -10,13 +10,13 @@ import manifest from "./fresh.gen.ts";
 import twindPlugin from "fresh/plugins/twind.ts";
 import twindConfig from "./twind.config.ts";
 
+import { ControlExchangeName, EvmEventsQueueName } from "../constants.ts";
 import {
-  ControlExchangeName,
-  EvmEventsQueueName,
-  WebUISessionAppKey,
+  combinedEnv,
+  WebUISessionAppKeyEnvKey,
   WebUIUrlEnvKey,
-} from "../constants.ts";
-import { combinedEnv, runWithAmqp, runWithPrisma } from "../runHelpers.ts";
+} from "../envUtils.ts";
+import { runWithAmqp, runWithPrisma } from "../runHelpers.ts";
 import type { PrismaClient } from "../prisma-shim.ts";
 import type {
   AmqpChannel,
@@ -24,7 +24,10 @@ import type {
 } from "https://deno.land/x/amqp@v0.23.1/mod.ts";
 
 // Used for fresh-session cookie store JWT encryption key
-Deno.env.set("APP_KEY", combinedEnv[WebUISessionAppKey] ?? crypto.randomUUID());
+Deno.env.set(
+  "APP_KEY",
+  combinedEnv[WebUISessionAppKeyEnvKey] ?? crypto.randomUUID(),
+);
 
 export const listenUrl = new URL(combinedEnv[WebUIUrlEnvKey]);
 export let prisma: PrismaClient;

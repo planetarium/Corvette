@@ -1,16 +1,20 @@
 import * as path from "https://deno.land/std@0.193.0/path/mod.ts";
 import { exists as fileExists } from "https://deno.land/std@0.195.0/fs/mod.ts";
 
+import { getFreePort } from "https://deno.land/x/free_port@v1.2.0/mod.ts";
 import {
   Application as OakApplication,
   isHttpError,
   proxy,
 } from "https://deno.land/x/oak@v12.5.0/mod.ts";
-import { getFreePort } from "https://deno.land/x/free_port@v1.2.0/mod.ts";
 
-import { DatabaseUrlEnvKey, DataproxyInternalPortEnvKey } from "./constants.ts";
+import {
+  combinedEnv,
+  DatabaseUrlEnvKey,
+  DataproxyInternalPortEnvKey,
+} from "./envUtils.ts";
 import { baseDir, getRelativeScriptPath } from "./moduleUtils.ts";
-import { combinedEnv, runAndCleanup } from "./runHelpers.ts";
+import { runAndCleanup } from "./runHelpers.ts";
 
 const dataProxyPath = path.join(baseDir, "dataproxy");
 const schemaPath = path.join(dataProxyPath, "schema.prisma");

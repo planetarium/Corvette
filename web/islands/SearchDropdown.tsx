@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from "preact/hooks";
-import type { ComponentChild, VNode } from "preact";
+import type { ComponentChild } from "preact";
 
 export interface SearchDropdownProps<T> {
   list: T[];
@@ -11,9 +11,10 @@ export interface SearchDropdownProps<T> {
 }
 
 export const SearchDropdown = <T,>(props: SearchDropdownProps<T>) => {
-  if (props.list.length === 0) return null;
-
-  if (!props.entrySelector && typeof props.list[0] !== "string") {
+  if (
+    props.list.length > 0 && typeof props.list[0] !== "string" &&
+    !props.entrySelector
+  ) {
     throw new Error(
       "entrySelector should be provided if list is not string array.",
     );
@@ -58,10 +59,15 @@ export const SearchDropdown = <T,>(props: SearchDropdownProps<T>) => {
 
   return (
     <>
-      <details class="dropdown w-full max-w-xs" ref={detailsRef}>
+      <details
+        class="dropdown w-full max-w-xs"
+        ref={detailsRef}
+        onBlur={() => setDetailsOpen(false)}
+      >
         <summary class="list-none">
           <input
             type="text"
+            name={props.name}
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.currentTarget.value)}
@@ -69,19 +75,20 @@ export const SearchDropdown = <T,>(props: SearchDropdownProps<T>) => {
             class="input input-bordered w-full max-w-xs"
           />
         </summary>
-        <ul class="shadow menu dropdown-content bg-base-100 rounded-box">
-          {filteredList.map(([k, v]) => (
-            <div
-              class="btn"
-              value={k}
-              onClick={() => onSelect(v)}
-            >
-              <div class="text-left truncate">{entryTransform(v)}</div>
-            </div>
-          ))}
-        </ul>
+        {filteredList.length > 0 && (
+          <ul class="shadow menu bg-base-100 rounded-xl rounded-tl fixed z-[2]">
+            {filteredList.map(([k, v]) => (
+              <div
+                class="btn"
+                value={k}
+                onMouseDown={() => onSelect(v)}
+              >
+                <div class="text-left truncate">{entryTransform(v)}</div>
+              </div>
+            ))}
+          </ul>
+        )}
       </details>
-      {props.name && <input type="hidden" name={props.name} value={input} />}
     </>
   );
 };

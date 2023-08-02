@@ -97,7 +97,7 @@ export const ListSources = ({ entries }: ListSourcesProps) => {
   return (
     <>
       <div class="float-right pb-4">
-        <button class="btn" onClick={() => modalRef.current?.showModal()}>
+        <button class="btn" onClick={() => modalRef.current?.show()}>
           +
         </button>
         <Modal title="Register Event Source" ref={modalRef}>

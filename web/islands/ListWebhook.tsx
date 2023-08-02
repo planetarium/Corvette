@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "preact/hooks";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "preact/hooks";
 import {
   CollapsibleTable,
   CollapsibleTableRow,
@@ -26,29 +32,32 @@ export const ListWebhook = ({ entries }: ListWebhookProps) => {
   const modalRef = useRef<HTMLDialogElement>(null);
   const [toast, setToast] = useState<ToastProps | null>(null);
   const [sources, setSources] = useState<SourceEntry[]>([]);
+  const [selectedAddress, setSelectedAddress] = useState<string>();
+  const addresses = useMemo(
+    () => [...new Set(sources.map((source) => source.address))],
+    [sources],
+  );
+  const abiHashes = useMemo(
+    () =>
+      sources
+        .filter((source) => source.address === selectedAddress)
+        .map((source) => source.abiHash),
+    [sources, selectedAddress],
+  );
 
   useEffect(() => {
-    const getAbis = async () => {
+    const getSources = async () => {
       const res = await fetch("/api/sources");
       setSources(await res.json());
     };
 
-    getAbis();
+    getSources();
   }, []);
 
   const handleSubmit = useCallback(async (e: Event) => {
     e.preventDefault();
 
     const formData = new FormData(e.target as HTMLFormElement);
-    const addressAbiHash = formData.get("address_abiHash");
-    if (!addressAbiHash) {
-      setToast({ type: "error", text: "Failed to register a webhook entry." });
-      return;
-    }
-
-    const [address, abiHash] = addressAbiHash.toString().split(":");
-    formData.set("sourceAddress", address);
-    formData.set("abiHash", abiHash);
 
     const res = await fetch("/api/webhook", {
       method: "POST",
@@ -85,25 +94,23 @@ export const ListWebhook = ({ entries }: ListWebhookProps) => {
   return (
     <>
       <div class="float-right pb-4">
-        <button class="btn" onClick={() => modalRef.current?.showModal()}>
+        <button class="btn" onClick={() => modalRef.current?.show()}>
           +
         </button>
         <Modal title="Register Webhook" ref={modalRef}>
           <form onSubmit={handleSubmit} class="form-control w-full">
             <label class="label">
-              <span class="label-text">Event Source</span>
+              <span class="label-text">Contract Address</span>
             </label>
             <SearchDropdown
-              name="address_abiHash"
-              list={sources}
-              entrySelector={(e) => `${e.address}:${e.abiHash}`}
-              entryTransform={(e) => (
-                <>
-                  <div>Address: {e.address}</div>
-                  <div>ABI: {e.abiHash}</div>
-                </>
-              )}
+              name="sourceAddress"
+              list={addresses}
+              onSelect={setSelectedAddress}
             />
+            <label class="label">
+              <span class="label-text">ABI Hash</span>
+            </label>
+            <SearchDropdown name="abiHash" list={abiHashes} />
             <label class="label">
               <span class="label-text">Webhook URL</span>
             </label>

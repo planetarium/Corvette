@@ -15,7 +15,11 @@ import { getAddress, keccak256, toBytes, toHex } from "npm:viem";
 import type { PrismaClient } from "./prisma-shim.ts";
 
 import { formatAbiItemPrototype } from "./abitype.ts";
-import { ApiUrlEnvKey, combinedEnv } from "./envUtils.ts";
+import {
+  ApiBehindReverseProxyEnvKey,
+  ApiUrlEnvKey,
+  combinedEnv,
+} from "./envUtils.ts";
 import { runWithPrisma } from "./runHelpers.ts";
 import { serializeEventResponse } from "./EventResponse.ts";
 import { validateEventRequest } from "./apiSchema.ts";
@@ -119,6 +123,7 @@ export function api(prisma: PrismaClient) {
   });
 
   const app = new OakApplication();
+  app.proxy = combinedEnv[ApiBehindReverseProxyEnvKey] === "true";
   app.use(async (context, next) => {
     try {
       await next();

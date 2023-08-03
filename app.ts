@@ -15,6 +15,7 @@ import { dataproxy, generateDataproxy } from "./dataproxy.ts";
 import { emitter } from "./emitter.ts";
 import { AmqpBrokerUrlEnvKey, combinedEnv } from "./envUtils.ts";
 import {
+  ApiLoggerName,
   defaultLogFormatter,
   DevLoggerName,
   EmitterLoggerName,
@@ -83,6 +84,10 @@ async function main() {
         handlers: ["console"],
       },
       [EmitterLoggerName]: {
+        level: "DEBUG",
+        handlers: ["console"],
+      },
+      [ApiLoggerName]: {
         level: "DEBUG",
         handlers: ["console"],
       },

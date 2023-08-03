@@ -17,6 +17,7 @@ import { AmqpBrokerUrlEnvKey, combinedEnv } from "./envUtils.ts";
 import {
   defaultLogFormatter,
   DevLoggerName,
+  EmitterLoggerName,
   getInternalLoggers,
   ObserverLoggerName,
 } from "./logUtils.ts";
@@ -78,6 +79,10 @@ async function main() {
         handlers: ["console"],
       },
       [ObserverLoggerName]: {
+        level: "DEBUG",
+        handlers: ["console"],
+      },
+      [EmitterLoggerName]: {
         level: "DEBUG",
         handlers: ["console"],
       },

@@ -12,6 +12,7 @@ import { combinedEnv, LogLevelEnvKey } from "./envUtils.ts";
 
 // outside facing component logger names
 export const ObserverLoggerName = "observer";
+export const EmitterLoggerName = "emitter";
 
 // dev utility logger names
 export const DevLoggerName = "dev";

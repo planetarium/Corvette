@@ -1,8 +1,8 @@
 import { getCookies } from "std/http/cookie.ts";
 import { join, resolve } from "std/path/mod.ts";
 
-import { ServeHandlerInfo } from "fresh/server.ts";
-import { listenUrl, prisma } from "~/main.ts";
+import { ServeHandlerInfo, Status } from "fresh/server.ts";
+import { listenUrl, logger, prisma } from "~/main.ts";
 import type Prisma from "~root/prisma-shim.ts";
 import type { User } from "~root/generated/client/index.d.ts";
 
@@ -14,6 +14,7 @@ export const redirect = (req: Request, ctx: ServeHandlerInfo, url?: string) => {
   const origin = getOrigin(req);
   if (!url) url = `${origin}/abi`;
   if (!url.startsWith(origin)) url = resolve(origin, url);
+  logRequest(logger.debug, req, ctx, 302, `Redirect -> ${url}`);
   return new Response(null, { status: 302, headers: { location: url } });
 };
 
@@ -31,4 +32,23 @@ export const checkPermission = async (
   if (entries.length === 0) return true;
   if (entries.find((e) => e.userId === user.id)) return true;
   return false;
+};
+
+export const logRequest = (
+  loggingMethod: (msgFunc: () => unknown) => unknown,
+  req: Request,
+  ctx: ServeHandlerInfo,
+  status: Status,
+  message?: string,
+) => {
+  const clonedReq = req.clone();
+  clonedReq.text().then((reqText) => {
+    loggingMethod(() =>
+      `${status} ${
+        new URL(clonedReq.url).pathname
+      } ${clonedReq.method} ${ctx.remoteAddr.hostname} ${reqText}${
+        message !== undefined ? `: ${message}` : ""
+      }.`
+    );
+  });
 };

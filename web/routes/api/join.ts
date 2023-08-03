@@ -1,8 +1,8 @@
 import { Handlers, Status } from "fresh/server.ts";
 import type { WithSession } from "fresh-session";
 
-import { prisma } from "~/main.ts";
-import { redirect } from "~/util.ts";
+import { logger, prisma } from "~/main.ts";
+import { logRequest, redirect } from "~/util.ts";
 import { hash } from "~/argon2.ts";
 
 export const handler: Handlers<unknown, WithSession> = {
@@ -12,11 +12,12 @@ export const handler: Handlers<unknown, WithSession> = {
     const password = form.get("password") as string;
 
     if (!email || !password) {
-      return new Response("Empty email/password", {
-        status: Status.BadRequest,
-      });
+      const message = "Empty email/password";
+      logRequest(logger.debug, req, ctx, Status.BadRequest, message);
+      return new Response(message, { status: Status.BadRequest });
     }
 
+    logRequest(logger.info, req, ctx, Status.OK, `Creating user: ${email}`);
     const user = await prisma.user.create({
       data: {
         email,

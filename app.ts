@@ -21,6 +21,7 @@ import {
   EmitterLoggerName,
   getInternalLoggers,
   ObserverLoggerName,
+  WebLoggerName,
 } from "./logUtils.ts";
 import { observer } from "./observer.ts";
 import { getSchemaPath, shouldUseDataproxy } from "./prismaSchemaUtils.ts";
@@ -88,6 +89,10 @@ async function main() {
         handlers: ["console"],
       },
       [ApiLoggerName]: {
+        level: "DEBUG",
+        handlers: ["console"],
+      },
+      [WebLoggerName]: {
         level: "DEBUG",
         handlers: ["console"],
       },

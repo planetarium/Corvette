@@ -7,12 +7,12 @@ import { getAddress, toBytes, toHex } from "npm:viem";
 import { reload as reloadControl } from "~root/control.ts";
 import { ControlEmitterRoutingKey } from "~root/constants.ts";
 import type { User } from "~root/generated/client/index.d.ts";
-import { amqpChannel, prisma } from "~/main.ts";
-import { checkPermission } from "~/util.ts";
+import { amqpChannel, logger, prisma } from "~/main.ts";
+import { checkPermission, logRequest } from "~/util.ts";
 import type { WebhookEntry } from "~/islands/ListWebhook.tsx";
 
 export const handler: Handlers<WebhookEntry, WithSession> = {
-  async GET() {
+  async GET(req, ctx) {
     const entries = (await prisma.emitDestination.findMany()).map((item) => ({
       id: item.id,
       sourceAddress: getAddress(toHex(item.sourceAddress)),
@@ -22,7 +22,9 @@ export const handler: Handlers<WebhookEntry, WithSession> = {
       topic2: item.topic2 ? toHex(item.topic2) : undefined,
       topic3: item.topic3 ? toHex(item.topic3) : undefined,
     }));
-    return new Response(JSON.stringify(entries));
+    const body = JSON.stringify(entries);
+    logRequest(logger.debug, req, ctx, 200, `Get webhook entries: ${body}`);
+    return new Response(body);
   },
   async POST(req, ctx) {
     const user = ctx.state.session.get("user") as User;
@@ -36,6 +38,17 @@ export const handler: Handlers<WebhookEntry, WithSession> = {
       ),
     );
 
+    logRequest(
+      logger.info,
+      req,
+      ctx,
+      Status.OK,
+      `Creating webhook entry, address: ${sourceAddress}  abiHash: ${abiHash}  url: ${webhookUrl}  topics: ${
+        [topic1, topic2, topic3].map((topic, i) => [i, topic]).filter((x) =>
+          x[1]
+        ).map((x) => `[${x[0]}] ${x[1]}`).join(" ")
+      }`,
+    );
     const entries = await prisma.emitDestination
       .create({
         data: {
@@ -76,9 +89,23 @@ export const handler: Handlers<WebhookEntry, WithSession> = {
         user,
       ))
     ) {
+      logRequest(
+        logger.warning,
+        req,
+        ctx,
+        Status.Forbidden,
+        `Failed to remove webhook entry, no permission  id: ${id}`,
+      );
       return new Response(null, { status: Status.Forbidden });
     }
 
+    logRequest(
+      logger.warning,
+      req,
+      ctx,
+      Status.OK,
+      `Removing webhook entry, id: ${id}`,
+    );
     await prisma.emitDestination.delete({ where: { id } });
 
     reloadControl(amqpChannel, ControlEmitterRoutingKey);

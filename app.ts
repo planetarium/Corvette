@@ -18,6 +18,7 @@ import {
   defaultLogFormatter,
   DevLoggerName,
   getInternalLoggers,
+  ObserverLoggerName,
 } from "./logUtils.ts";
 import { observer } from "./observer.ts";
 import { getSchemaPath, shouldUseDataproxy } from "./prismaSchemaUtils.ts";
@@ -76,6 +77,10 @@ async function main() {
         level: "DEBUG",
         handlers: ["console"],
       },
+      [ObserverLoggerName]: {
+        level: "DEBUG",
+        handlers: ["console"],
+      },
       lop: {
         level: "INFO",
         handlers: ["console"],
@@ -127,7 +132,7 @@ async function main() {
             prisma,
             amqpConnection,
           );
-          const { cleanup: cleanupApi } = await api(prisma, amqpConnection);
+          const { cleanup: cleanupApi } = await api(prisma);
           return {
             runningPromise: block(),
             cleanup: async () => {

@@ -1,3 +1,9 @@
+import { ConsoleHandler } from "https://deno.land/std@0.196.0/log/handlers.ts";
+import {
+  getLogger,
+  setup as setupLog,
+} from "https://deno.land/std@0.196.0/log/mod.ts";
+
 import { AmqpConnection } from "https://deno.land/x/amqp@v0.23.1/mod.ts";
 
 import { Buffer } from "node:buffer";
@@ -6,7 +12,7 @@ import {
   Chain,
   createPublicClient,
   http as httpViemTransport,
-  Log,
+  Log as LogGeneric,
   toBytes,
   toHex,
 } from "npm:viem";
@@ -24,38 +30,79 @@ import {
   EvmEventsQueueName,
 } from "./constants.ts";
 import {
+  defaultLogFormatter,
+  getInternalLoggers,
+  getLoggingLevel,
+  ObserverLoggerName,
+} from "./logUtils.ts";
+import {
   block,
   runWithAmqp,
   runWithChainDefinition,
   runWithPrisma,
 } from "./runHelpers.ts";
 
+type Log = LogGeneric<
+  bigint,
+  number,
+  AbiEvent | undefined,
+  undefined,
+  [AbiEvent | undefined],
+  string
+>;
+
 export async function observer(
   chain: Chain,
   prisma: PrismaClient,
   amqpConnection: AmqpConnection,
 ) {
+  const logger = getLogger(ObserverLoggerName);
+  logger.info(
+    `Observer starting, chain name: ${chain.name}  id: ${chain.id}  url: ${
+      chain.rpcUrls.default.http[0]
+    }.`,
+  );
   const client = createPublicClient({
     chain,
     transport: httpViemTransport(),
   });
 
+  logger.debug(`Opening AMQP channel.`);
   const amqpChannel = await amqpConnection.openChannel();
+  logger.debug(`Declaring AMQP control exchange: ${ControlExchangeName}.`);
   await amqpChannel.declareExchange({ exchange: ControlExchangeName });
   const controlQueue = await amqpChannel.declareQueue({});
+  logger.debug(
+    `Declared AMQP control queue: ${controlQueue.queue}  consumers: ${controlQueue.consumerCount}  message count: ${controlQueue.messageCount}.`,
+  );
+  logger.debug(
+    `Binding AMQP control queue with exchange: ${ControlExchangeName}  routing key: ${ControlObserverRoutingKey}.`,
+  );
   await amqpChannel.bindQueue({
     queue: controlQueue.queue,
     exchange: ControlExchangeName,
     routingKey: ControlObserverRoutingKey,
   });
-  await amqpChannel.declareQueue({ queue: EvmEventsQueueName });
+  const eventsQueue = await amqpChannel.declareQueue({
+    queue: EvmEventsQueueName,
+  });
+  logger.debug(
+    `Declared AMQP events queue: ${eventsQueue.queue}  consumers: ${eventsQueue.consumerCount}  message count: ${eventsQueue.messageCount}.`,
+  );
   let unwatch = await createWatch();
   await amqpChannel.consume(
     { queue: controlQueue.queue },
     async (_args, _props, data) => {
+      const message = deserializeControlMessage(data);
+      logger.debug(
+        `Received message from control queue, action: ${message.action}.`,
+      );
       if (
-        deserializeControlMessage(data).action === ReloadControlMessage.action
+        message.action === ReloadControlMessage.action
       ) {
+        logger.info(
+          "Received reload control message, reloading configuration.",
+        );
         unwatch();
         unwatch = await createWatch();
       }
@@ -66,6 +113,7 @@ export async function observer(
   const runningPromise = block(abortController.signal);
 
   async function cleanup() {
+    logger.warning("Stopping observer.");
     abortController.abort();
     unwatch();
     await runningPromise;
@@ -84,6 +132,17 @@ export async function observer(
       else acc[address].push(entry);
       return acc;
     }, {} as Record<string, string[]>);
+    logger.info(() =>
+      Object.keys(sources).length > 0
+        ? `Watching ${
+          Object.entries(sources).map((entry) =>
+            `address: ${entry[0]}  event signature hashes: ${
+              entry[1].join(", ")
+            }`
+          ).join(",  ")
+        }.`
+        : "No event sources to watch."
+    );
     return client.watchEvent({
       address: Object.keys(sources) as `0x${string}`[],
       onLogs: (logs) =>
@@ -102,23 +161,39 @@ export async function observer(
     });
   }
 
-  async function processLog(
-    log: Log<
-      bigint,
-      number,
-      AbiEvent | undefined,
-      undefined,
-      [AbiEvent | undefined],
-      string
-    >,
-  ) {
-    if (log.blockNumber == null) throw new Error("blockNumber is null");
-    if (log.transactionIndex == null) {
-      throw new Error("txIndex is null");
+  function logProcessError(message: string, log: Log) {
+    logger.error(
+      `Error encountered while processing log: ${message}, address: ${log.address}  topics: ${
+        topicsToString(log.topics)
+      }  data: ${log.data}.`,
+    );
+  }
+
+  function topicsToString(topics: [`0x${string}`, ...`0x${string}`[]] | []) {
+    return topics.map((topic, i) => `[${i}] ${topic}`).join(" ");
+  }
+
+  async function processLog(log: Log) {
+    if (log.blockNumber == null) {
+      logProcessError("blockNumber is null", log);
+      return;
     }
-    if (log.logIndex == null) throw new Error("logIndex is null");
-    if (log.blockHash == null) throw new Error("blockHash is null");
-    if (log.transactionHash == null) throw new Error("txHash is null");
+    if (log.transactionIndex == null) {
+      logProcessError("txIndex is null", log);
+      return;
+    }
+    if (log.logIndex == null) {
+      logProcessError("logIndex is null", log);
+      return;
+    }
+    if (log.blockHash == null) {
+      logProcessError("blockHash is null", log);
+      return;
+    }
+    if (log.transactionHash == null) {
+      logProcessError("txHash is null", log);
+      return;
+    }
 
     const timestamp =
       (await client.getBlock({ blockHash: log.blockHash! })).timestamp;
@@ -144,7 +219,13 @@ export async function observer(
           data: Buffer.from(toBytes(log.data)),
         },
       });
+      logger.debug(
+        `Wrote event to DB, blockNumber-txIndex-logIndex: ${log.blockNumber}-${log.transactionIndex}-${log.logIndex}.`,
+      );
 
+      logger.info(
+        `Publishing event, blockNumber-txIndex-logIndex: ${log.blockNumber}-${log.transactionIndex}-${log.logIndex}.`,
+      );
       amqpChannel.publish(
         { routingKey: EvmEventsQueueName },
         { contentType: "application/octet-stream" },
@@ -165,24 +246,42 @@ export async function observer(
         (e instanceof Prisma.PrismaClientKnownRequestError &&
           e.code === "P2002")
       ) {
-        // log
+        logger.debug(() =>
+          `Ignoring event already present in DB, blockNumber-txIndex-logIndex: ${log.blockNumber}-${log.transactionIndex}-${log.logIndex}  topics: ${
+            topicsToString(log.topics)
+          }  data: ${log.data}`
+        );
         return;
       }
-      throw e; // throw unexpected errors
+      logger.error(`Unexpected error: ${e}`);
     }
   }
 }
 
 if (import.meta.main) {
-  await runWithChainDefinition((chain) =>
-    Promise.resolve({
-      runningPromise: runWithPrisma((prisma) =>
-        Promise.resolve({
-          runningPromise: runWithAmqp((amqpConnection) =>
-            observer(chain, prisma, amqpConnection)
-          ),
-        })
+  setupLog({
+    handlers: {
+      console: new ConsoleHandler(getLoggingLevel(), {
+        formatter: defaultLogFormatter,
+      }),
+    },
+
+    loggers: {
+      ...getInternalLoggers({
+        level: getLoggingLevel(),
+        handlers: ["console"],
+      }),
+      [ObserverLoggerName]: {
+        level: getLoggingLevel(),
+        handlers: ["console"],
+      },
+    },
+  });
+  await runWithChainDefinition((chain) => ({
+    runningPromise: runWithPrisma((prisma) => ({
+      runningPromise: runWithAmqp((amqpConnection) =>
+        observer(chain, prisma, amqpConnection)
       ),
-    })
-  );
+    })),
+  }));
 }

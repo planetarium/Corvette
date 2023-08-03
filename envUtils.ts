@@ -12,3 +12,4 @@ export const ApiBehindReverseProxyEnvKey = "API_BEHIND_REVERSE_PROXY";
 export const WebUIUrlEnvKey = "WEBUI_URL";
 export const WebUISessionAppKeyEnvKey = "WEBUI_SESSION_APP_KEY";
 export const BlockFinalityEnvKey = "BLOCK_FINALITY";
+export const LogLevelEnvKey = "LOG_LEVEL";

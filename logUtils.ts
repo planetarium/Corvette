@@ -4,6 +4,14 @@ import {
   LogLevels,
   LogRecord,
 } from "https://deno.land/std@0.196.0/log/mod.ts";
+import {
+  LevelName,
+  LogLevelNames,
+} from "https://deno.land/std@0.196.0/log/levels.ts";
+import { combinedEnv, LogLevelEnvKey } from "./envUtils.ts";
+
+// outside facing component logger names
+export const ObserverLoggerName = "observer";
 
 // dev utility logger names
 export const DevLoggerName = "dev";
@@ -33,6 +41,18 @@ export function defaultLogFormatter(rec: LogRecord) {
   return `[${
     formatDate(new Date(), "yyyy-MM-dd HH:mm:ss")
   } ${level}][${rec.loggerName}] ${rec.msg}`;
+}
+
+export function getLoggingLevel() {
+  const level = combinedEnv[LogLevelEnvKey] || "NOTSET";
+  if (!LogLevelNames.includes(level)) {
+    throw new Error(
+      `${LogLevelEnvKey} must be set to one of '${
+        LogLevelNames.join("', '")
+      }'.`,
+    );
+  }
+  return level as LevelName;
 }
 
 export function getInternalLoggers(config: LoggerConfig) {

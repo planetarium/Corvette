@@ -19,6 +19,7 @@ export const WebLoggerName = "web";
 // dev utility logger names
 export const DevLoggerName = "dev";
 export const DataproxyLoggerName = "dataproxy";
+export const TestWebhookReceiverLoggerName = "testWebhookReceiver";
 
 // internal logger names
 export const ControlLoggerName = "control";

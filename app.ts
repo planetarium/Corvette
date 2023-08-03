@@ -22,6 +22,7 @@ import {
   EmitterLoggerName,
   getInternalLoggers,
   ObserverLoggerName,
+  TestWebhookReceiverLoggerName,
   WebLoggerName,
 } from "./logUtils.ts";
 import { observer } from "./observer.ts";
@@ -99,6 +100,10 @@ async function main() {
       },
       [DataproxyLoggerName]: {
         level: "DEBUG",
+        handlers: ["console"],
+      },
+      [TestWebhookReceiverLoggerName]: {
+        level: "INFO",
         handlers: ["console"],
       },
       lop: {

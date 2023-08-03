@@ -1,5 +1,10 @@
 import * as path from "https://deno.land/std@0.193.0/path/mod.ts";
 import { exists as fileExists } from "https://deno.land/std@0.195.0/fs/mod.ts";
+import { ConsoleHandler } from "https://deno.land/std@0.196.0/log/handlers.ts";
+import {
+  getLogger,
+  setup as setupLog,
+} from "https://deno.land/std@0.196.0/log/mod.ts";
 
 import { getFreePort } from "https://deno.land/x/free_port@v1.2.0/mod.ts";
 import {
@@ -13,6 +18,7 @@ import {
   DatabaseUrlEnvKey,
   DataproxyInternalPortEnvKey,
 } from "./envUtils.ts";
+import { DataproxyLoggerName, defaultLogFormatter } from "./logUtils.ts";
 import { baseDir, getRelativeScriptPath } from "./moduleUtils.ts";
 import { runAndCleanup } from "./runHelpers.ts";
 
@@ -60,18 +66,25 @@ export async function generateDataproxy() {
 }
 
 export async function dataproxy() {
+  const logger = getLogger(DataproxyLoggerName);
   const listenUrl = new URL(combinedEnv.DATABASE_URL);
   if (listenUrl.protocol !== "prisma:") {
-    throw new Error(
-      `${DatabaseUrlEnvKey} should be a data proxy URL starting with 'prisma://' to work with data proxy.`,
-    );
+    const message =
+      `${DatabaseUrlEnvKey} should be a data proxy URL starting with 'prisma://' to work with data proxy.`;
+    logger.critical(`Irrecoverable error: ${message}`);
+    throw new Error(message);
   }
   const apiKey = new URLSearchParams(listenUrl.search).get("api_key");
-  if (!apiKey) throw new Error(`Missing api_key in ${DatabaseUrlEnvKey}`);
+  if (!apiKey) {
+    const message = `Missing api_key in ${DatabaseUrlEnvKey}`;
+    logger.critical(`Irrecoverable error: ${message}`);
+    throw new Error(message);
+  }
   if (!await fileExists(schemaPath)) {
-    throw new Error(
-      `Prisma schema does not exist at ${schemaPath}. Generate with \`${scriptString} generate\`.`,
-    );
+    const message =
+      `Prisma schema does not exist at ${schemaPath}. Generate with \`${scriptString} generate\`.`;
+    logger.critical(`Irrecoverable error: ${message}`);
+    throw new Error(message);
   }
   const port = Number(listenUrl.port) || 443;
   const parsedInternalPort = Number(combinedEnv[DataproxyInternalPortEnvKey]);
@@ -81,7 +94,9 @@ export async function dataproxy() {
     ? undefined
     : parsedInternalPort;
   if (!internalPort) {
-    throw new Error("DATAPROXY_INTERNAL_PORT is given, but is not a number.");
+    const message = "DATAPROXY_INTERNAL_PORT is given, but is not a number.";
+    logger.critical(`Irrecoverable error: ${message}`);
+    throw new Error(message);
   }
 
   const controller = new AbortController();
@@ -95,13 +110,15 @@ export async function dataproxy() {
       if (!isHttpError(e)) {
         ctx.response.status = 500;
         ctx.response.body = e.message;
-        return;
       }
     }
   });
 
   app.use(proxy("http://localhost:" + internalPort.toString()));
 
+  logger.info(
+    `Data proxy listening on ${listenUrl}, internal port: ${internalPort}.`,
+  );
   const runningPromise = Promise.all([
     new Deno.Command("yarn", {
       cwd: dataProxyPath,
@@ -129,8 +146,30 @@ export async function dataproxy() {
   ]);
 
   async function cleanup() {
+    logger.warning("Stopping data proxy.");
     controller.abort();
     await runningPromise;
+  }
+
+  async function waitUntilReady(url: string, cleanup: () => unknown) {
+    while (true) {
+      try {
+        if (
+          !((await (await fetch(url, { method: "OPTION" })).text())
+            .includes("Connection refused"))
+        ) {
+          logger.info(`Port ready: ${new URL(url).port}.`);
+          break;
+        }
+      } catch (e) {
+        if (!e.message.includes("Connection refused")) {
+          logger.critical(`Irrecoverable error: ${e}`);
+          cleanup();
+          throw e;
+        }
+      }
+      await new Promise((r) => setTimeout(r, 100));
+    }
   }
 
   await Promise.all([
@@ -144,29 +183,27 @@ export async function dataproxy() {
   return { runningPromise, cleanup };
 }
 
-async function waitUntilReady(url: string, cleanup: () => unknown) {
-  while (true) {
-    try {
-      if (
-        !((await (await fetch(url, { method: "OPTION" })).text())
-          .includes("Connection refused"))
-      ) break;
-    } catch (e) {
-      if (!e.message.includes("Connection refused")) {
-        cleanup();
-        throw e;
-      }
-    }
-    await new Promise((r) => setTimeout(r, 100));
-  }
-}
-
 const filename = getRelativeScriptPath(import.meta.url);
 const scriptString = (filename.endsWith(".ts") ? "deno run " : "") + filename;
 
 async function main() {
-  if (Deno.args.length == 0) await runAndCleanup(dataproxy);
-  else if (Deno.args.length == 1 && Deno.args[0] == "generate") {
+  if (Deno.args.length == 0) {
+    setupLog({
+      handlers: {
+        console: new ConsoleHandler("DEBUG", {
+          formatter: defaultLogFormatter,
+        }),
+      },
+
+      loggers: {
+        [DataproxyLoggerName]: {
+          level: "DEBUG",
+          handlers: ["console"],
+        },
+      },
+    });
+    await runAndCleanup(dataproxy);
+  } else if (Deno.args.length == 1 && Deno.args[0] == "generate") {
     await generateDataproxy();
   } else console.log("usage: " + scriptString + " [generate]");
 }

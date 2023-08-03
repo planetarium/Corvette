@@ -21,7 +21,7 @@ import { importESOrJson } from "./moduleUtils.ts";
 
 type Awaitable<T> = T | PromiseLike<T>;
 
-type CleanupFunction = () => Awaitable<void>;
+export type CleanupFunction = () => Awaitable<void>;
 
 type Runnable = {
   runningPromise: Awaitable<unknown>;

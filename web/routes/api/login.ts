@@ -26,6 +26,6 @@ export const handler: Handlers<unknown, WithSession> = {
 
     ctx.state.session.set("user", user);
 
-    return redirect(req);
+    return redirect(req, ctx);
   },
 };

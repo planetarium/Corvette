@@ -20,21 +20,21 @@ const redirectionHandler = (
   if (pathname === "/logout") {
     ctx.state.session.set("user", undefined);
     ctx.state.session.destroy();
-    return redirect(req, "/login");
+    return redirect(req, ctx, "/login");
   }
 
   if (["/login", "/api/login", "/api/join"].includes(pathname)) {
     if (!ctx.state.session.get("user")) {
       return ctx.next();
     }
-    return redirect(req);
+    return redirect(req, ctx);
   }
 
   if (ctx.destination !== "route" || ctx.state.session.get("user")) {
     return ctx.next();
   }
 
-  return redirect(req, "/login");
+  return redirect(req, ctx, "/login");
 };
 
 export const handler = [sessionHandler, redirectionHandler];

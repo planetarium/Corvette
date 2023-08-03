@@ -1,6 +1,7 @@
 import { getCookies } from "std/http/cookie.ts";
 import { join, resolve } from "std/path/mod.ts";
 
+import { ServeHandlerInfo } from "fresh/server.ts";
 import { listenUrl, prisma } from "~/main.ts";
 import type Prisma from "~root/prisma-shim.ts";
 import type { User } from "~root/generated/client/index.d.ts";
@@ -9,7 +10,7 @@ export const getOrigin = (req: Request) => new URL(req.url).origin;
 export const getServerSideUrl = (pathname: string) =>
   new URL(join(listenUrl.pathname, pathname), listenUrl);
 
-export const redirect = (req: Request, url?: string) => {
+export const redirect = (req: Request, ctx: ServeHandlerInfo, url?: string) => {
   const origin = getOrigin(req);
   if (!url) url = `${origin}/abi`;
   if (!url.startsWith(origin)) url = resolve(origin, url);

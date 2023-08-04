@@ -1,5 +1,3 @@
-import { load } from "https://deno.land/std@0.194.0/dotenv/mod.ts";
-
 import {
   AmqpConnection,
   AmqpConnectOptions,
@@ -16,20 +14,19 @@ import { PrismaClient } from "./prisma-shim.ts";
 import {
   AmqpBrokerUrlEnvKey,
   ChainDefinitionUrlEnvKey,
+  combinedEnv,
   DatabaseUrlEnvKey,
-} from "./constants.ts";
+} from "./envUtils.ts";
 import { importESOrJson } from "./moduleUtils.ts";
 
 type Awaitable<T> = T | PromiseLike<T>;
 
-type CleanupFunction = () => Awaitable<void>;
+export type CleanupFunction = () => Awaitable<void>;
 
 type Runnable = {
   runningPromise: Awaitable<unknown>;
   cleanup?: CleanupFunction;
 };
-
-export const combinedEnv = { ...(await load()), ...Deno.env.toObject() };
 
 export async function block(signal?: AbortSignal) {
   let intervalHandle: number;

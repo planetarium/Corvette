@@ -1,21 +1,43 @@
 import { Status } from "https://deno.land/std@0.188.0/http/mod.ts";
+import { ConsoleHandler } from "https://deno.land/std@0.196.0/log/handlers.ts";
+import {
+  getLogger,
+  setup as setupLog,
+} from "https://deno.land/std@0.196.0/log/mod.ts";
+
 import { oakCors } from "https://deno.land/x/cors@v1.2.2/mod.ts";
 import {
   Application as OakApplication,
+  Context,
   isHttpError,
   Router,
 } from "https://deno.land/x/oak@v12.5.0/mod.ts";
+
 import { Buffer } from "node:buffer";
+
 import { stringify as losslessJsonStringify } from "npm:lossless-json";
 import { getAddress, keccak256, toBytes, toHex } from "npm:viem";
+
 import type { PrismaClient } from "./prisma-shim.ts";
-import { formatAbiItemPrototype } from "./abitype.ts";
-import { ApiUrlEnvKey } from "./constants.ts";
-import { combinedEnv, runWithPrisma } from "./runHelpers.ts";
+
 import { serializeEventResponse } from "./EventResponse.ts";
+import { formatAbiItemPrototype } from "./abitype.ts";
 import { validateEventRequest } from "./apiSchema.ts";
+import {
+  ApiBehindReverseProxyEnvKey,
+  ApiUrlEnvKey,
+  combinedEnv,
+} from "./envUtils.ts";
+import {
+  ApiLoggerName,
+  defaultLogFormatter,
+  getInternalLoggers,
+  getLoggingLevel,
+} from "./logUtils.ts";
+import { runWithPrisma } from "./runHelpers.ts";
 
 export function api(prisma: PrismaClient) {
+  const logger = getLogger(ApiLoggerName);
   const abortController = new AbortController();
 
   const router = new Router();
@@ -114,11 +136,27 @@ export function api(prisma: PrismaClient) {
   });
 
   const app = new OakApplication();
+  app.proxy = combinedEnv[ApiBehindReverseProxyEnvKey] === "true";
   app.use(async (context, next) => {
+    function formatResponse(
+      ctx: Context<Record<string, unknown>, Record<string, unknown>>,
+    ) {
+      return `${ctx.response.status} ${ctx.request.method} ${ctx.request.url.pathname} ${ctx.request.ip} ${
+        JSON.stringify(ctx.state["requestBody"])
+      }: ${
+        typeof ctx.response.body === "function"
+          ? ctx.response.body()
+          : ctx.response.body
+      }`;
+    }
+
     try {
+      context.state["requestBody"] = await context.request.body({
+        type: "json",
+      }).value;
       await next();
+      logger.info(formatResponse(context));
     } catch (err) {
-      console.error(err);
       if (isHttpError(err)) {
         context.response.status = err.status;
       } else {
@@ -126,6 +164,9 @@ export function api(prisma: PrismaClient) {
       }
       context.response.body = { error: err.message };
       context.response.type = "json";
+      logger.error(formatResponse(context));
+    } finally {
+      delete context.state["requestBody"];
     }
   });
   app.use(oakCors());
@@ -133,6 +174,7 @@ export function api(prisma: PrismaClient) {
   app.use(router.allowedMethods());
 
   const listenUrl = new URL(combinedEnv[ApiUrlEnvKey]);
+  logger.info(`API server listening on ${listenUrl}.`);
   const runningPromise = app.listen({
     port: Number(listenUrl.port) || 80,
     hostname: listenUrl.hostname,
@@ -140,6 +182,7 @@ export function api(prisma: PrismaClient) {
   });
 
   async function cleanup() {
+    logger.warning("Stopping API server.");
     abortController.abort();
     return await runningPromise;
   }
@@ -148,5 +191,23 @@ export function api(prisma: PrismaClient) {
 }
 
 if (import.meta.main) {
-  runWithPrisma(api);
+  setupLog({
+    handlers: {
+      console: new ConsoleHandler(getLoggingLevel(), {
+        formatter: defaultLogFormatter,
+      }),
+    },
+
+    loggers: {
+      ...getInternalLoggers({
+        level: getLoggingLevel(),
+        handlers: ["console"],
+      }),
+      [ApiLoggerName]: {
+        level: getLoggingLevel(),
+        handlers: ["console"],
+      },
+    },
+  });
+  await runWithPrisma(api);
 }

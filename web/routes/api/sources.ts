@@ -8,12 +8,12 @@ import { formatAbiItemPrototype } from "~root/abitype.ts";
 import { reload as reloadControl } from "~root/control.ts";
 import { ControlObserverRoutingKey } from "~root/constants.ts";
 import type { User } from "~root/generated/client/index.d.ts";
-import { amqpChannel, prisma } from "~/main.ts";
-import { checkPermission } from "~/util.ts";
+import { amqpChannel, logger, prisma } from "~/main.ts";
+import { checkPermission, logRequest } from "~/util.ts";
 import type { SourceEntry } from "~/islands/ListSources.tsx";
 
 export const handler: Handlers<SourceEntry, WithSession> = {
-  async GET() {
+  async GET(req, ctx) {
     const entries = (
       await prisma.eventSource.findMany({
         include: { Abi: true },
@@ -24,13 +24,28 @@ export const handler: Handlers<SourceEntry, WithSession> = {
       abiHash: toHex(item.abiHash),
     }));
 
-    return new Response(JSON.stringify(entries));
+    const body = JSON.stringify(entries);
+    logRequest(
+      logger.debug,
+      req,
+      ctx,
+      Status.OK,
+      `Get source entries: ${body}`,
+    );
+    return new Response(body);
   },
   async POST(req, ctx) {
     const user = ctx.state.session.get("user") as User;
 
     const { address, abiHash } = await req.json();
 
+    logRequest(
+      logger.info,
+      req,
+      ctx,
+      Status.OK,
+      `Creating source entry, address: ${address}  abiHash: ${abiHash}`,
+    );
     const entries = await prisma.eventSource
       .create({
         data: {
@@ -72,9 +87,23 @@ export const handler: Handlers<SourceEntry, WithSession> = {
         user,
       ))
     ) {
+      logRequest(
+        logger.warning,
+        req,
+        ctx,
+        Status.Forbidden,
+        `Failed to remove source entry, no permission  address: ${address}  abiHash: ${abiHash}`,
+      );
       return new Response(null, { status: Status.Forbidden });
     }
 
+    logRequest(
+      logger.warning,
+      req,
+      ctx,
+      Status.OK,
+      `Removing source entry, address: ${address}  abiHash: ${abiHash}`,
+    );
     await prisma.eventSource.delete({
       where: {
         address_abiHash: {

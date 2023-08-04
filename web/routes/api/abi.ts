@@ -8,12 +8,12 @@ import type { Abi, AbiEvent } from "https://esm.sh/abitype@0.9.0";
 
 import { formatAbiItemPrototype } from "~root/abitype.ts";
 import type { User } from "~root/generated/client/index.d.ts";
-import { prisma } from "~/main.ts";
-import { checkPermission } from "~/util.ts";
+import { logger, prisma } from "~/main.ts";
+import { checkPermission, logRequest } from "~/util.ts";
 import type { AbiEntry } from "~/islands/ListAbi.tsx";
 
 export const handler: Handlers<AbiEntry, WithSession> = {
-  async GET() {
+  async GET(req, ctx) {
     const entries = (await prisma.eventAbi.findMany()).map((entry) => {
       const abi = JSON.parse(entry.json) as AbiEvent;
       return {
@@ -22,8 +22,11 @@ export const handler: Handlers<AbiEntry, WithSession> = {
         signature: formatAbiItemPrototype(abi),
       };
     });
-    return new Response(JSON.stringify(entries));
+    const body = JSON.stringify(entries);
+    logRequest(logger.debug, req, ctx, Status.OK, `Get abi entries: ${body}`);
+    return new Response(body);
   },
+
   async POST(req, ctx) {
     const user = ctx.state.session.get("user") as User;
 
@@ -65,20 +68,50 @@ export const handler: Handlers<AbiEntry, WithSession> = {
       res,
     ) => (res.status === "fulfilled" ? [res.value] : []));
     if (fulfilled.length === 0) {
+      logRequest(
+        logger.debug,
+        req,
+        ctx,
+        Status.Forbidden,
+        "Failed to create abi entries, none fulfilled",
+      );
       return new Response(null, { status: Status.Forbidden });
     }
 
-    return new Response(JSON.stringify(fulfilled));
+    const body = JSON.stringify(fulfilled);
+    logRequest(
+      logger.info,
+      req,
+      ctx,
+      Status.OK,
+      `Created abi entries: ${body}`,
+    );
+    return new Response(body);
   },
+
   async DELETE(req, ctx) {
     const user = ctx.state.session.get("user") as User;
     const params = await req.json();
     const hash = Buffer.from(toBytes(params.hash));
 
     if (!(await checkPermission({ type: "EventAbi", abiHash: hash }, user))) {
+      logRequest(
+        logger.warning,
+        req,
+        ctx,
+        Status.Forbidden,
+        `Failed to remove abi entry, no permission  abiHash: ${hash}`,
+      );
       return new Response(null, { status: Status.Forbidden });
     }
 
+    logRequest(
+      logger.warning,
+      req,
+      ctx,
+      Status.OK,
+      `Removing abi entry, abiHash: ${hash}`,
+    );
     await prisma.eventAbi.delete({ where: { hash } });
 
     return new Response(null, { status: Status.NoContent });

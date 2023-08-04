@@ -2,14 +2,22 @@ import { Handlers, Status } from "fresh/server.ts";
 
 import { toBytes } from "npm:viem";
 
-import { EvmEventsQueueName } from "~root/constants.ts";
+import { amqpChannel, logger } from "~/main.ts";
 import { serializeEventMessage } from "~root/EventMessage.ts";
-import { amqpChannel } from "~/main.ts";
+import { EvmEventsQueueName } from "~root/constants.ts";
+import { logRequest } from "~root/web/util.ts";
 
 export const handler: Handlers = {
-  async POST(req) {
+  async POST(req, ctx) {
     const { address, abiHash } = await req.json();
 
+    logRequest(
+      logger.info,
+      req,
+      ctx,
+      Status.Accepted,
+      `Publishing event message: address ${address}  abiHash ${abiHash}`,
+    );
     amqpChannel.publish(
       { routingKey: EvmEventsQueueName },
       { contentType: "application/octet-stream" },

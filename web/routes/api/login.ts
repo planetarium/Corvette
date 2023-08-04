@@ -1,9 +1,9 @@
 import { Handlers, Status } from "fresh/server.ts";
 import type { WithSession } from "fresh-session";
-import { decode } from "std/encoding/base64.ts";
 
 import { prisma } from "~/main.ts";
-import { argon2, redirect } from "~/util.ts";
+import { redirect } from "~/util.ts";
+import { verify } from "~/argon2.ts";
 
 export const handler: Handlers<unknown, WithSession> = {
   async POST(req, ctx) {
@@ -18,17 +18,7 @@ export const handler: Handlers<unknown, WithSession> = {
     }
 
     const user = await prisma.user.findUnique({ where: { email } });
-    if (
-      !user ||
-      user.password !==
-        (
-          await argon2.hash({
-            pass: password,
-            salt: decode(user.password.split("$")[4]),
-            type: argon2.ArgonType.Argon2id,
-          })
-        ).encoded
-    ) {
+    if (!user || (await verify(password, user.password))) {
       return new Response("Invalid email/password", {
         status: Status.Unauthorized,
       });

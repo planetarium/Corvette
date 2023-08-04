@@ -31,32 +31,3 @@ export const checkPermission = async (
   if (entries.find((e) => e.userId === user.id)) return true;
   return false;
 };
-
-const globalThisShim = globalThis as {
-  process?: { versions?: { node?: unknown } };
-};
-const needPatch = globalThisShim.process !== undefined &&
-  globalThisShim.process.versions !== undefined &&
-  globalThisShim.process.versions.node !== undefined;
-if (needPatch) {
-  Object.assign(globalThis, {
-    process: {
-      ...globalThisShim.process,
-      versions: { ...globalThisShim.process!.versions, node: undefined },
-    },
-  });
-}
-import _argon2 from "https://esm.sh/argon2-browser@1.18.0/dist/argon2-bundled.min.js";
-export import argon2 = _argon2;
-await argon2.hash({ pass: new Uint8Array(0), salt: new Uint8Array(8) });
-if (needPatch) {
-  Object.assign(globalThis, {
-    process: {
-      ...globalThisShim.process,
-      versions: {
-        ...globalThisShim.process!.versions,
-        node: globalThisShim.process!.versions!.node,
-      },
-    },
-  });
-}

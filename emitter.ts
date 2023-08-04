@@ -17,14 +17,12 @@ import {
   ReloadControlMessage,
 } from "./ControlMessage.ts";
 import { deserializeEventMessage, EventMessage } from "./EventMessage.ts";
-import { formatAbiItemPrototype } from "./abitype.ts";
 import {
   BlockFinalityEnvKey,
   ControlEmitterRoutingKey,
   ControlExchangeName,
   EvmEventsQueueName,
 } from "./constants.ts";
-import { decodeEventLog } from "./decodeEventLog.ts";
 import {
   block,
   combinedEnv,
@@ -33,6 +31,7 @@ import {
   runWithPrisma,
 } from "./runHelpers.ts";
 import { uint8ArrayEquals } from "./uint8ArrayUtils.ts";
+import { serializeEventResponse } from "./EventResponse.ts";
 
 export async function emitter(
   chain: Chain,
@@ -180,19 +179,7 @@ export async function emitter(
               logIndex: Number(x.logIndex),
             },
           },
-          select: {
-            txHash: true,
-            sourceAddress: true,
-            topic1: true,
-            topic2: true,
-            topic3: true,
-            data: true,
-            Abi: {
-              select: {
-                json: true,
-              },
-            },
-          },
+          include: { Abi: true },
         });
 
         if (event == null) {
@@ -202,53 +189,10 @@ export async function emitter(
           return;
         }
 
-        const { args } = decodeEventLog({
-          abi: [JSON.parse(event.Abi.json)],
-          data: toHex(event.data as unknown as Uint8Array),
-          topics: [toHex(x.sigHash)].concat(
-            event.topic1 !== null
-              ? [toHex(event.topic1 as unknown as Uint8Array)].concat(
-                event.topic2 !== null
-                  ? [toHex(event.topic2 as unknown as Uint8Array)].concat(
-                    event.topic3 !== null
-                      ? [toHex(event.topic3 as unknown as Uint8Array)]
-                      : [],
-                  )
-                  : [],
-              )
-              : [],
-          ) as [signature: `0x${string}`, ...args: `0x${string}`[]],
-        });
         return fetch(x.url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: losslessJsonStringify({
-            timestamp: x.blockTimestamp,
-            blockIndex: x.blockNumber,
-            transactionIndex: x.txIndex,
-            logIndex: x.logIndex,
-            blockHash: toHex(x.blockHash),
-            transactionHash: toHex(event.txHash as unknown as Uint8Array),
-            sourceAddress: getAddress(
-              toHex(event.sourceAddress as unknown as Uint8Array),
-            ),
-            abiHash: toHex(x.sigHash),
-            abiSignature: formatAbiItemPrototype(
-              JSON.parse(event.Abi.json),
-            ),
-            args: {
-              named: Object.keys(args).filter((x) =>
-                !Object.keys([...(args as unknown[])]).includes(x)
-              ).reduce(
-                (acc, x) => ({
-                  ...acc,
-                  [x]: (args as Record<string, unknown>)[x],
-                }),
-                {},
-              ),
-              ordered: [...(args as unknown[])],
-            },
-          }),
+          body: losslessJsonStringify(serializeEventResponse(event)),
         });
       }),
     );

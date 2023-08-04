@@ -1,34 +1,22 @@
-import { Status } from "https://deno.land/std@0.188.0/http/http_status.ts";
-
-import { AmqpConnection } from "https://deno.land/x/amqp@v0.23.1/mod.ts";
+import { Status } from "https://deno.land/std@0.188.0/http/mod.ts";
 import { oakCors } from "https://deno.land/x/cors@v1.2.2/mod.ts";
 import {
   Application as OakApplication,
   isHttpError,
   Router,
 } from "https://deno.land/x/oak@v12.5.0/mod.ts";
-
-import { getAddress, toBytes, toHex } from "npm:viem";
-
+import { Buffer } from "node:buffer";
+import { stringify as losslessJsonStringify } from "npm:lossless-json";
+import { getAddress, toBytes, toHex, keccak256 } from "npm:viem";
 import type { PrismaClient } from "./prisma-shim.ts";
-
-import { serializeEventMessage } from "./EventMessage.ts";
 import { formatAbiItemPrototype } from "./abitype.ts";
-import {
-  ApiUrlEnvKey,
-  ControlExchangeName,
-  EvmEventsQueueName,
-} from "./constants.ts";
-import { combinedEnv, runWithAmqp, runWithPrisma } from "./runHelpers.ts";
+import { ApiUrlEnvKey } from "./constants.ts";
+import { combinedEnv, runWithPrisma } from "./runHelpers.ts";
+import { serializeEventResponse } from "./responseUtil.ts";
+import { validateEventRequest } from "./apiSchema.ts";
 
-export async function api(
-  prisma: PrismaClient,
-  amqpConnection: AmqpConnection,
-) {
+export function api(prisma: PrismaClient) {
   const abortController = new AbortController();
-  const amqpChannel = await amqpConnection.openChannel();
-  await amqpChannel.declareQueue({ queue: EvmEventsQueueName });
-  await amqpChannel.declareExchange({ exchange: ControlExchangeName });
 
   const router = new Router();
 
@@ -38,34 +26,36 @@ export async function api(
     ctx.response.status = Status.NotImplemented;
   });
   router.post("/", async (ctx) => {
-    // TODO: validation with Ajv
     const request = await ctx.request.body({ type: "json" }).value;
-    if (request["before"] == null) {
-      ctx.response.body = `{"error": "missing required field: 'before'."}`;
+
+    if (!validateEventRequest(request)) {
       ctx.response.status = Status.BadRequest;
+      ctx.response.body = validateEventRequest.errors;
       return;
     }
-    if (request["after"] == null) {
-      ctx.response.body = `{"error": "missing required field: 'after'."}`;
-      ctx.response.status = Status.BadRequest;
-      return;
-    }
-    if (request["prototype"] != null && request["abiId"] != null) {
-      ctx.response.body =
-        `{"error": "both mutually exclusive fields exist: 'prototype' and 'abiId'."}`;
-      ctx.response.status = Status.BadRequest;
-      return;
-    }
-    if (
-      request["args"] != null && request["prototype"] == null &&
-      request["abiId"] == null
-    ) {
-      ctx.response.body =
-        `{"error": "'args' field requires either 'prototype' or 'abiId'."}`;
-      ctx.response.status = Status.BadRequest;
-      return;
-    }
-    // TODO
+
+    ctx.response.body = losslessJsonStringify((await prisma.event.findMany({
+      where: {
+        blockHash: request.blockHash && Buffer.from(toBytes(request.blockHash)),
+        blockNumber: request.blockIndex ?? { gte: request.blockFrom, lte: request.blockTo },
+        logIndex: request.logIndex,
+        txIndex: request.transactionIndex,
+        txHash: request.transactionHash &&
+          Buffer.from(toBytes(request.transactionHash)),
+        sourceAddress: request.sourceAddress &&
+          Buffer.from(toBytes(request.sourceAddress)),
+        abiHash: (request.abiHash && Buffer.from(toBytes(request.abiHash))) ||
+          (request.abiSignature &&
+            Buffer.from(
+              keccak256(
+                new TextEncoder().encode(request.abiSignature),
+                "bytes",
+              ),
+            )),
+        blockTimestamp: { gte: request.after, lte: request.before },
+      },
+      include: { Abi: true },
+    })).map((event) => serializeEventResponse(event)));
   });
 
   router.get("/sources", (ctx) => {
@@ -157,11 +147,5 @@ export async function api(
 }
 
 if (import.meta.main) {
-  runWithPrisma((prisma) =>
-    Promise.resolve({
-      runningPromise: runWithAmqp((amqpConnection) =>
-        api(prisma, amqpConnection)
-      ),
-    })
-  );
+  runWithPrisma((prisma) => api(prisma));
 }

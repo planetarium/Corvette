@@ -31,7 +31,7 @@ import {
   runWithPrisma,
 } from "./runHelpers.ts";
 import { uint8ArrayEquals } from "./uint8ArrayUtils.ts";
-import { serializeEventResponse } from "./responseUtil.ts";
+import { serializeEventResponse } from "./EventResponse.ts";
 
 export async function emitter(
   chain: Chain,

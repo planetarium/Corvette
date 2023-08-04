@@ -7,12 +7,12 @@ import {
 } from "https://deno.land/x/oak@v12.5.0/mod.ts";
 import { Buffer } from "node:buffer";
 import { stringify as losslessJsonStringify } from "npm:lossless-json";
-import { getAddress, toBytes, toHex, keccak256 } from "npm:viem";
+import { getAddress, keccak256, toBytes, toHex } from "npm:viem";
 import type { PrismaClient } from "./prisma-shim.ts";
 import { formatAbiItemPrototype } from "./abitype.ts";
 import { ApiUrlEnvKey } from "./constants.ts";
 import { combinedEnv, runWithPrisma } from "./runHelpers.ts";
-import { serializeEventResponse } from "./responseUtil.ts";
+import { serializeEventResponse } from "./EventResponse.ts";
 import { validateEventRequest } from "./apiSchema.ts";
 
 export function api(prisma: PrismaClient) {
@@ -37,7 +37,8 @@ export function api(prisma: PrismaClient) {
     ctx.response.body = losslessJsonStringify((await prisma.event.findMany({
       where: {
         blockHash: request.blockHash && Buffer.from(toBytes(request.blockHash)),
-        blockNumber: request.blockIndex ?? { gte: request.blockFrom, lte: request.blockTo },
+        blockNumber: request.blockIndex ??
+          { gte: request.blockFrom, lte: request.blockTo },
         logIndex: request.logIndex,
         txIndex: request.transactionIndex,
         txHash: request.transactionHash &&
@@ -147,5 +148,5 @@ export function api(prisma: PrismaClient) {
 }
 
 if (import.meta.main) {
-  runWithPrisma((prisma) => api(prisma));
+  runWithPrisma(api);
 }

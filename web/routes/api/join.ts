@@ -2,7 +2,8 @@ import { Handlers, Status } from "fresh/server.ts";
 import type { WithSession } from "fresh-session";
 
 import { prisma } from "~/main.ts";
-import { argon2, redirect } from "~/util.ts";
+import { redirect } from "~/util.ts";
+import { hash } from "~/argon2.ts";
 
 export const handler: Handlers<unknown, WithSession> = {
   async POST(req, ctx) {
@@ -19,13 +20,7 @@ export const handler: Handlers<unknown, WithSession> = {
     const user = await prisma.user.create({
       data: {
         email,
-        password: (
-          await argon2.hash({
-            pass: password,
-            salt: crypto.getRandomValues(new Uint8Array(16)),
-            type: argon2.ArgonType.Argon2id,
-          })
-        ).encoded,
+        password: await hash(password),
       },
     });
 

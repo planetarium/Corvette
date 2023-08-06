@@ -2,8 +2,8 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider        = "prisma-client-js"
-  output          = "../generated/client"
+  provider = "prisma-client-js"
+  output   = "../generated/client"
 }
 
 datasource db {
@@ -63,33 +63,33 @@ model EmitDestination {
   topic2        Bytes?
   topic3        Bytes?
 
-  Source EventSource @relation(fields: [sourceAddress, abiHash], references: [address, abiHash])
+  Source     EventSource  @relation(fields: [sourceAddress, abiHash], references: [address, abiHash])
   Permission Permission[]
 
   @@unique([sourceAddress, abiHash, webhookUrl, topic1, topic2, topic3])
 }
 
 model User {
-  id            Int     @id @default(autoincrement())
-  email         String  @unique
-  password      String
+  id       Int    @id @default(autoincrement())
+  email    String @unique
+  password String
 
   Permission Permission[]
 }
 
 model Permission {
-  id            Int     @id @default(autoincrement())
-  userId        Int
+  id     Int @id @default(autoincrement())
+  userId Int
 
   // SQLite doesn't support ENUM
-  type          String // EventAbi, EventSource, EmitDestination
+  type String // EventAbi, EventSource, EmitDestination
 
   abiHash       Bytes?
   sourceAddress Bytes?
   destinationId Int?
 
-  User User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  Abi EventAbi? @relation(fields: [abiHash], references: [hash], onDelete: Cascade)
-  Source EventSource? @relation(fields: [abiHash, sourceAddress], references: [abiHash, address], onDelete: Cascade)
+  User        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  Abi         EventAbi?        @relation(fields: [abiHash], references: [hash], onDelete: Cascade)
+  Source      EventSource?     @relation(fields: [abiHash, sourceAddress], references: [abiHash, address], onDelete: Cascade)
   Destination EmitDestination? @relation(fields: [destinationId], references: [id], onDelete: Cascade)
 }

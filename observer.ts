@@ -19,10 +19,7 @@ import {
 
 import Prisma, { type PrismaClient } from "./prisma-shim.ts";
 
-import {
-  deserializeControlMessage,
-  ReloadControlMessage,
-} from "./ControlMessage.ts";
+import { deserializeControlMessage } from "./ControlMessage.ts";
 import { serializeEventMessage } from "./EventMessage.ts";
 import {
   ControlExchangeName,
@@ -98,7 +95,7 @@ export async function observer(
         `Received message from control queue, action: ${message.action}.`,
       );
       if (
-        message.action === ReloadControlMessage.action
+        message.action === "reload"
       ) {
         logger.info(
           "Received reload control message, reloading configuration.",

@@ -93,3 +93,8 @@ model Permission {
   Source      EventSource?     @relation(fields: [abiHash, sourceAddress], references: [abiHash, address], onDelete: Cascade)
   Destination EmitDestination? @relation(fields: [destinationId], references: [id], onDelete: Cascade)
 }
+
+model SharedState {
+  key   String @id
+  value String
+}

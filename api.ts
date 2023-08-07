@@ -62,7 +62,6 @@ export function api(prisma: PrismaClient) {
         blockNumber: request.blockIndex ??
           { gte: request.blockFrom, lte: request.blockTo },
         logIndex: request.logIndex,
-        txIndex: request.transactionIndex,
         txHash: request.transactionHash &&
           Buffer.from(toBytes(request.transactionHash)),
         sourceAddress: request.sourceAddress &&

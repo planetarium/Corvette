@@ -11,7 +11,6 @@ interface EventRequest {
   blockTo?: number;
   logIndex?: number;
   transactionHash?: string;
-  transactionIndex?: number;
   sourceAddress?: string;
   abiHash?: string;
   abiSignature?: string;
@@ -28,7 +27,6 @@ const eventRequestSchema: JSONSchemaType<EventRequest> = {
     blockTo: { type: "number", nullable: true },
     logIndex: { type: "number", nullable: true },
     transactionHash: { type: "string", nullable: true },
-    transactionIndex: { type: "number", nullable: true },
     sourceAddress: { type: "string", nullable: true },
     abiHash: { type: "string", nullable: true },
     abiSignature: { type: "string", nullable: true },
@@ -56,14 +54,8 @@ const eventRequestSchema: JSONSchemaType<EventRequest> = {
     },
     {
       oneOf: [
-        {
-          allOf: [
-            { not: { required: ["transactionHash"] } },
-            { not: { required: ["transactionIndex"] } },
-          ],
-        },
+        { not: { required: ["transactionHash"] } },
         { required: ["transactionHash"] },
-        { required: ["transactionIndex"] },
       ],
     },
     {

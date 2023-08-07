@@ -1,3 +1,4 @@
+import { format as formatDate } from "https://deno.land/std@0.196.0/datetime/mod.ts";
 import { ConsoleHandler } from "https://deno.land/std@0.196.0/log/handlers.ts";
 import {
   getLogger,
@@ -175,10 +176,6 @@ export async function observer(
       logProcessError("blockNumber is null", log);
       return;
     }
-    if (log.transactionIndex == null) {
-      logProcessError("txIndex is null", log);
-      return;
-    }
     if (log.logIndex == null) {
       logProcessError("logIndex is null", log);
       return;
@@ -194,6 +191,7 @@ export async function observer(
 
     const timestamp =
       (await client.getBlock({ blockHash: log.blockHash! })).timestamp;
+    const timestampDate = new Date(Number(timestamp) * 1000);
     const blockHashBytes = toBytes(log.blockHash);
     const addressBytes = toBytes(log.address);
     const topicsBytes = log.topics.map(toBytes).map(Buffer.from);
@@ -202,8 +200,7 @@ export async function observer(
     try {
       await prisma.event.create({
         data: {
-          blockTimestamp: new Date(Number(timestamp) * 1000),
-          txIndex: log.transactionIndex,
+          blockTimestamp: timestampDate,
           logIndex: log.logIndex,
           blockNumber: Number(log.blockNumber),
           blockHash: Buffer.from(blockHashBytes),
@@ -217,11 +214,15 @@ export async function observer(
         },
       });
       logger.debug(
-        `Wrote event to DB, blockNumber-txIndex-logIndex: ${log.blockNumber}-${log.transactionIndex}-${log.logIndex}.`,
+        `Wrote event to DB, blockNumber: ${log.blockNumber}  logIndex: ${log.logIndex}  blockTimestamp: ${
+          formatDate(timestampDate, "yyyy-MM-dd HH:mm:ss")
+        }.`,
       );
 
       logger.info(
-        `Publishing event, blockNumber-txIndex-logIndex: ${log.blockNumber}-${log.transactionIndex}-${log.logIndex}.`,
+        `Publishing event, blockNumber: ${log.blockNumber}  logIndex: ${log.logIndex}  blockTimestamp: ${
+          formatDate(timestampDate, "yyyy-MM-dd HH:mm:ss")
+        }.`,
       );
       amqpChannel.publish(
         { routingKey: EvmEventsQueueName },
@@ -231,7 +232,6 @@ export async function observer(
           sigHash: abiHash,
           topics: topicsBytes,
           blockTimestamp: timestamp,
-          txIndex: BigInt(log.transactionIndex),
           logIndex: BigInt(log.logIndex),
           blockNumber: log.blockNumber,
           blockHash: blockHashBytes,
@@ -244,7 +244,7 @@ export async function observer(
           e.code === "P2002")
       ) {
         logger.debug(() =>
-          `Ignoring event already present in DB, blockNumber-txIndex-logIndex: ${log.blockNumber}-${log.transactionIndex}-${log.logIndex}  topics: ${
+          `Ignoring event already present in DB, blockNumber: ${log.blockNumber}  logIndex: ${log.logIndex}  blockHash: ${log.blockHash}  topics: ${
             topicsToString(log.topics)
           }  data: ${log.data}`
         );

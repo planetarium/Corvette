@@ -15,7 +15,6 @@ datasource db {
 model Event {
   blockTimestamp DateTime
   observedAt     DateTime    @default(now())
-  txIndex        Int
   logIndex       Int
   blockNumber    Int
   blockHash      Bytes
@@ -30,7 +29,7 @@ model Event {
   abiHash       Bytes
   sourceAddress Bytes
 
-  @@id([blockTimestamp, txIndex, logIndex])
+  @@id([blockTimestamp, logIndex])
 }
 
 model EventAbi {

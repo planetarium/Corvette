@@ -87,7 +87,16 @@ export async function emitter(
       emitDestinations.length > 0
         ? `Loaded emit destinations, ${
           emitDestinations.map((dest) =>
-            `address: ${dest.sourceAddress}  event signature hash: ${dest.abiHash}  topic filters: [1] ${dest.topic1} [2] ${dest.topic2} [3] ${dest.topic3}  destination: ${dest.webhookUrl}`
+            `address: ${toHex(dest.sourceAddress)}  event signature hash: ${
+              toHex(dest.abiHash)
+            }  topic filters: ${
+              [dest.topic1, dest.topic2, dest.topic3]
+                .map((topic, i) => [topic, i + 1])
+                .filter(([topic, _]) => topic != null)
+                .map(([topic, i]) =>
+                  `[${i}] ${toHex(topic)}`
+                ).join(" ")
+            }  destination: ${dest.webhookUrl}`
           ).join(",  ")
         }.`
         : "No emit destinations to push events."
@@ -219,7 +228,7 @@ export async function emitter(
     );
   } else {
     logger.info(
-      "Block finality is a blockTag, using eth_getBlockByNumber to watch latest Block finality is a blockTag, using eth_getBlockByNumber to watch latest blocks.",
+      "Block finality is a blockTag, using eth_getBlockByNumber to watch latest blocks.",
     );
   }
   const unwatch = typeof (blockFinality) === "bigint"
@@ -288,8 +297,15 @@ export async function emitter(
 
         if (event == null) {
           logger.error(() =>
-            `Event does not exist in DB, blockNumber-txIndex-logIndex: ${x.blockTimestamp}-${x.txIndex}-${x.logIndex}  blockHash: ${x.blockHash}  address: ${x.address}  event signature hash: ${x.sigHash}  topics: ${
-              x.topics.map((topic, i) => `[${i}] ${toHex(topic)}`).join(" ")
+            `Event does not exist in DB, blockNumber-txIndex-logIndex: ${x.blockTimestamp}-${x.txIndex}-${x.logIndex}  blockHash: ${
+              toHex(x.blockHash)
+            }  address: ${toHex(x.address)}  event signature hash: ${
+              toHex(x.sigHash)
+            }  topics: ${
+              x.topics.map((topic, i) => [topic, i + 1])
+                .filter(([topic, _]) => topic != null)
+                .map(([topic, i]) => `[${i}] ${toHex(topic)}`)
+                .join(" ")
             }.`
           );
           return;
@@ -314,7 +330,9 @@ export async function emitter(
       ommer.length > 0
         ? `Removing ommered events from DB at block ${blockNumber}  ${
           ommer.map((evt) =>
-            `blockNumber-txIndex-logIndex: ${evt.blockNumber}-${evt.txIndex}-${evt.logIndex}  blockHash: ${evt.blockHash}`
+            `blockNumber-txIndex-logIndex: ${evt.blockNumber}-${evt.txIndex}-${evt.logIndex}  blockHash: ${
+              toHex(evt.blockHash)
+            }`
           )
             .join(",  ")
         }.`

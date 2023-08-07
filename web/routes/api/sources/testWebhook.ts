@@ -1,8 +1,10 @@
+import { LogLevels } from "std/log/levels.ts";
+
 import { Handlers, Status } from "fresh/server.ts";
 
 import { toBytes } from "npm:viem";
 
-import { amqpChannel, logger } from "~/main.ts";
+import { amqpChannel } from "~/main.ts";
 import { serializeEventMessage } from "~root/EventMessage.ts";
 import { EvmEventsQueueName } from "~root/constants.ts";
 import { logRequest } from "~root/web/util.ts";
@@ -12,7 +14,7 @@ export const handler: Handlers = {
     const { address, abiHash } = await req.json();
 
     logRequest(
-      logger.info,
+      LogLevels.INFO,
       req,
       ctx,
       Status.Accepted,

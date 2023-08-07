@@ -1,7 +1,9 @@
+import { LogLevels } from "std/log/levels.ts";
+
 import { Handlers, Status } from "fresh/server.ts";
 import type { WithSession } from "fresh-session";
 
-import { logger, prisma } from "~/main.ts";
+import { prisma } from "~/main.ts";
 import { logRequest, redirect } from "~/util.ts";
 import { hash } from "~/argon2.ts";
 
@@ -13,11 +15,11 @@ export const handler: Handlers<unknown, WithSession> = {
 
     if (!email || !password) {
       const message = "Empty email/password";
-      logRequest(logger.debug, req, ctx, Status.BadRequest, message);
+      logRequest(LogLevels.DEBUG, req, ctx, Status.BadRequest, message);
       return new Response(message, { status: Status.BadRequest });
     }
 
-    logRequest(logger.info, req, ctx, Status.OK, `Creating user: ${email}`);
+    logRequest(LogLevels.INFO, req, ctx, Status.OK, `Creating user: ${email}`);
     const user = await prisma.user.create({
       data: {
         email,

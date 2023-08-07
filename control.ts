@@ -5,7 +5,6 @@ import type { AmqpChannel } from "https://deno.land/x/amqp@v0.23.1/mod.ts";
 import {
   EmitterControlMessages,
   ObserverControlMessages,
-  ReloadControlMessage,
   serializeControlMessage,
 } from "./ControlMessage.ts";
 import {
@@ -29,7 +28,7 @@ export function reload(
   } | {
     routingKey: typeof ControlObserverRoutingKey;
     reloadMessage: ObserverControlMessages;
-  } = { routingKey: destination, reloadMessage: ReloadControlMessage };
+  } = { routingKey: destination, reloadMessage: { action: "reload" } };
   amqpChannel.publish(
     {
       exchange: ControlExchangeName,

@@ -1,17 +1,17 @@
 import { decode, encode } from "https://deno.land/x/bencodex@0.2.2/mod.ts";
 
-export type ControlMessage = { action: "reload" };
-export type MarshaledControlMessage = ["reload"];
-
-export const ReloadControlMessage: ControlMessage = { action: "reload" };
+export type ReloadControlMessage = { action: "reload" };
 
 export type EmitterControlMessages =
-  | typeof ReloadControlMessage
+  | ReloadControlMessage
   | never;
 
 export type ObserverControlMessages =
-  | typeof ReloadControlMessage
+  | ReloadControlMessage
   | never;
+
+export type ControlMessage = EmitterControlMessages | ObserverControlMessages;
+export type MarshaledControlMessage = [ReloadControlMessage["action"]];
 
 export function serializeControlMessage(msg: ControlMessage): Uint8Array {
   return encode([msg.action] satisfies MarshaledControlMessage);

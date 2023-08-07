@@ -1,8 +1,9 @@
+import { LogLevels } from "std/log/levels.ts";
+
 import { cookieSession, WithSession } from "fresh-session";
 import { MiddlewareHandlerContext, Status } from "fresh/server.ts";
 
 import { User } from "~root/generated/client/index.d.ts";
-import { logger } from "~root/web/main.ts";
 
 import { logRequest, redirect } from "~/util.ts";
 
@@ -26,8 +27,8 @@ const redirectionHandler = (
     ctx.state.session.set("user", undefined);
     ctx.state.session.destroy();
     if (email) {
-      logRequest(logger.info, req, ctx, Status.OK, `User ${email} logged out`);
-    } else logRequest(logger.info, req, ctx, Status.NotModified);
+      logRequest(LogLevels.INFO, req, ctx, Status.OK, `User ${email} logged out`);
+    } else logRequest(LogLevels.INFO, req, ctx, Status.NotModified);
     return redirect(req, ctx, "/login");
   }
 
@@ -42,7 +43,7 @@ const redirectionHandler = (
     return ctx.next();
   }
 
-  logRequest(logger.warning, req, ctx, Status.Unauthorized);
+  logRequest(LogLevels.WARNING, req, ctx, Status.Unauthorized);
   return redirect(req, ctx, "/login");
 };
 

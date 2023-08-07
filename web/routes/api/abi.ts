@@ -1,3 +1,5 @@
+import { LogLevels } from "std/log/levels.ts";
+
 import { type Handlers, Status } from "fresh/server.ts";
 import type { WithSession } from "fresh-session";
 
@@ -8,7 +10,7 @@ import type { Abi, AbiEvent } from "https://esm.sh/abitype@0.9.0";
 
 import { formatAbiItemPrototype } from "~root/abitype.ts";
 import type { User } from "~root/generated/client/index.d.ts";
-import { logger, prisma } from "~/main.ts";
+import { prisma } from "~/main.ts";
 import { checkPermission, logRequest } from "~/util.ts";
 import type { AbiEntry } from "~/islands/ListAbi.tsx";
 
@@ -23,7 +25,7 @@ export const handler: Handlers<AbiEntry, WithSession> = {
       };
     });
     const body = JSON.stringify(entries);
-    logRequest(logger.debug, req, ctx, Status.OK, `Get abi entries: ${body}`);
+    logRequest(LogLevels.DEBUG, req, ctx, Status.OK, `Get abi entries: ${body}`);
     return new Response(body);
   },
 
@@ -69,7 +71,7 @@ export const handler: Handlers<AbiEntry, WithSession> = {
     ) => (res.status === "fulfilled" ? [res.value] : []));
     if (fulfilled.length === 0) {
       logRequest(
-        logger.debug,
+        LogLevels.DEBUG,
         req,
         ctx,
         Status.Forbidden,
@@ -80,7 +82,7 @@ export const handler: Handlers<AbiEntry, WithSession> = {
 
     const body = JSON.stringify(fulfilled);
     logRequest(
-      logger.info,
+      LogLevels.INFO,
       req,
       ctx,
       Status.OK,
@@ -96,7 +98,7 @@ export const handler: Handlers<AbiEntry, WithSession> = {
 
     if (!(await checkPermission({ type: "EventAbi", abiHash: hash }, user))) {
       logRequest(
-        logger.warning,
+        LogLevels.WARNING,
         req,
         ctx,
         Status.Forbidden,
@@ -106,7 +108,7 @@ export const handler: Handlers<AbiEntry, WithSession> = {
     }
 
     logRequest(
-      logger.warning,
+      LogLevels.WARNING,
       req,
       ctx,
       Status.OK,

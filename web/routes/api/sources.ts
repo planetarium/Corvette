@@ -1,3 +1,5 @@
+import { LogLevels } from "std/log/levels.ts";
+
 import { type Handlers, Status } from "fresh/server.ts";
 import type { WithSession } from "fresh-session";
 
@@ -8,7 +10,7 @@ import { formatAbiItemPrototype } from "~root/abitype.ts";
 import { reload as reloadControl } from "~root/control.ts";
 import { ControlObserverRoutingKey } from "~root/constants.ts";
 import type { User } from "~root/generated/client/index.d.ts";
-import { amqpChannel, logger, prisma } from "~/main.ts";
+import { amqpChannel, prisma } from "~/main.ts";
 import { checkPermission, logRequest } from "~/util.ts";
 import type { SourceEntry } from "~/islands/ListSources.tsx";
 
@@ -26,7 +28,7 @@ export const handler: Handlers<SourceEntry, WithSession> = {
 
     const body = JSON.stringify(entries);
     logRequest(
-      logger.debug,
+      LogLevels.DEBUG,
       req,
       ctx,
       Status.OK,
@@ -40,7 +42,7 @@ export const handler: Handlers<SourceEntry, WithSession> = {
     const { address, abiHash } = await req.json();
 
     logRequest(
-      logger.info,
+      LogLevels.INFO,
       req,
       ctx,
       Status.OK,
@@ -88,7 +90,7 @@ export const handler: Handlers<SourceEntry, WithSession> = {
       ))
     ) {
       logRequest(
-        logger.warning,
+        LogLevels.WARNING,
         req,
         ctx,
         Status.Forbidden,
@@ -98,7 +100,7 @@ export const handler: Handlers<SourceEntry, WithSession> = {
     }
 
     logRequest(
-      logger.warning,
+      LogLevels.WARNING,
       req,
       ctx,
       Status.OK,

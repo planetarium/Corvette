@@ -1,3 +1,5 @@
+import { LogLevels } from "std/log/mod.ts";
+
 import { type Handlers, Status } from "fresh/server.ts";
 import type { WithSession } from "fresh-session";
 
@@ -7,7 +9,7 @@ import { getAddress, toBytes, toHex } from "npm:viem";
 import { reload as reloadControl } from "~root/control.ts";
 import { ControlEmitterRoutingKey } from "~root/constants.ts";
 import type { User } from "~root/generated/client/index.d.ts";
-import { amqpChannel, logger, prisma } from "~/main.ts";
+import { amqpChannel, prisma } from "~/main.ts";
 import { checkPermission, logRequest } from "~/util.ts";
 import type { WebhookEntry } from "~/islands/ListWebhook.tsx";
 
@@ -23,7 +25,7 @@ export const handler: Handlers<WebhookEntry, WithSession> = {
       topic3: item.topic3 ? toHex(item.topic3) : undefined,
     }));
     const body = JSON.stringify(entries);
-    logRequest(logger.debug, req, ctx, 200, `Get webhook entries: ${body}`);
+    logRequest(LogLevels.DEBUG, req, ctx, 200, `Get webhook entries: ${body}`);
     return new Response(body);
   },
   async POST(req, ctx) {
@@ -39,7 +41,7 @@ export const handler: Handlers<WebhookEntry, WithSession> = {
     );
 
     logRequest(
-      logger.info,
+      LogLevels.INFO,
       req,
       ctx,
       Status.OK,
@@ -90,7 +92,7 @@ export const handler: Handlers<WebhookEntry, WithSession> = {
       ))
     ) {
       logRequest(
-        logger.warning,
+        LogLevels.WARNING,
         req,
         ctx,
         Status.Forbidden,
@@ -100,7 +102,7 @@ export const handler: Handlers<WebhookEntry, WithSession> = {
     }
 
     logRequest(
-      logger.warning,
+      LogLevels.WARNING,
       req,
       ctx,
       Status.OK,

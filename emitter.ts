@@ -1,3 +1,4 @@
+import { format as formatDate } from "https://deno.land/std@0.196.0/datetime/mod.ts";
 import { ConsoleHandler } from "https://deno.land/std@0.196.0/log/handlers.ts";
 import {
   getLogger,
@@ -131,15 +132,17 @@ export async function emitter(
         sigHash,
         topics,
         blockTimestamp,
-        txIndex,
         logIndex,
         blockNumber,
         blockHash,
       } = message;
+      const timestampDate = new Date(Number(blockTimestamp) * 1000);
       if (blockNumber !== -1n) {
         // not webhook test request
         logger.debug(
-          `Received event message, blockNumber-txIndex-logIndex: ${blockNumber}-${txIndex}-${logIndex}  delivery tag: ${args.deliveryTag}.`,
+          `Received event message, blockNumber: ${blockNumber}  logIndex: ${logIndex}  blockTimestamp: ${
+            formatDate(timestampDate, "yyyy-MM-dd HH:mm:ss")
+          }  delivery tag: ${args.deliveryTag}.`,
         );
       }
       emitDestinations.filter((x) =>
@@ -168,7 +171,6 @@ export async function emitter(
             body: losslessJsonStringify({
               timestamp: blockTimestamp,
               blockIndex: blockNumber,
-              transactionIndex: txIndex,
               logIndex: logIndex,
               blockHash: toHex(blockHash),
               sourceAddress,
@@ -178,12 +180,14 @@ export async function emitter(
         }
 
         logger.info(
-          `Queueing event for finalization, blockNumber-txIndex-logIndex: ${blockNumber}-${txIndex}-${logIndex}.`,
+          `Queueing event for finalization, blockNumber: ${blockNumber}  logIndex: ${logIndex}  blockTimestamp: ${
+            formatDate(timestampDate, "yyyy-MM-dd HH:mm:ss")
+          }.`,
         );
         finalizationQueue.push({ ...message, url: x.webhookUrl });
       });
       logger.debug(
-        `Acknowledging AMQP message for event, blockNumber-txIndex-logIndex: ${blockNumber}-${txIndex}-${logIndex}  delivery tag: ${args.deliveryTag}.`,
+        `Acknowledging AMQP message for event, blockNumber: ${blockNumber}  logIndex: ${logIndex}  delivery tag: ${args.deliveryTag}.`,
       );
       await amqpChannel.ack({ deliveryTag: args.deliveryTag });
     },
@@ -249,9 +253,14 @@ export async function emitter(
       return;
     }
     logger.debug(() =>
-      `Events to be finalized at ${blockNumber}  blockNumber-txIndex-logIndex: ${
+      `Events to be finalized at ${blockNumber}  blockNumber-logIndex: ${
         observed.map((evt) =>
-          `${evt.blockNumber}-${evt.txIndex}-${evt.logIndex}`
+          `${evt.blockNumber}-${evt.logIndex} (${
+            formatDate(
+              new Date(Number(evt.blockTimestamp) * 1000),
+              "yyyy-MM-dd HH:mm:ss",
+            )
+          })`
         ).join(", ")
       }.`
     );
@@ -266,10 +275,9 @@ export async function emitter(
     }, Promise.resolve([] as typeof observed));
     logger.debug(() =>
       finalized.length > 0
-        ? `Finalized events at ${blockNumber}  blockNumber-txIndex-logIndex: ${
-          finalized.map((evt) =>
-            `${evt.blockNumber}-${evt.txIndex}-${evt.logIndex}`
-          ).join(", ")
+        ? `Finalized events at ${blockNumber}  blockNumber-logIndex: ${
+          finalized.map((evt) => `${evt.blockNumber}-${evt.logIndex}`)
+            .join(", ")
         }.`
         : `No finalized block at ${blockNumber}`
     );
@@ -277,15 +285,14 @@ export async function emitter(
     await Promise.all(
       finalized.map(async (x) => {
         logger.debug(
-          `Retrieving event from DB, blockNumber-txIndex-logIndex: ${x.blockTimestamp}-${x.txIndex}-${x.logIndex}.`,
+          `Retrieving event from DB, blockNumber: ${x.blockNumber}  logIndex: ${x.logIndex}.`,
         );
         const event = await prisma.event.findUnique({
           where: {
-            blockTimestamp_txIndex_logIndex: {
+            blockTimestamp_logIndex: {
               blockTimestamp: new Date(
                 Number(x.blockTimestamp) * 1000,
               ),
-              txIndex: Number(x.txIndex),
               logIndex: Number(x.logIndex),
             },
           },
@@ -294,7 +301,7 @@ export async function emitter(
 
         if (event == null) {
           logger.error(() =>
-            `Event does not exist in DB, blockNumber-txIndex-logIndex: ${x.blockTimestamp}-${x.txIndex}-${x.logIndex}  blockHash: ${
+            `Event does not exist in DB, blockNumber: ${x.blockNumber}  logIndex: ${x.logIndex}  blockHash: ${
               toHex(x.blockHash)
             }  address: ${toHex(x.address)}  event signature hash: ${
               toHex(x.sigHash)
@@ -309,7 +316,7 @@ export async function emitter(
         }
 
         logger.info(
-          `Posting event finalized at ${blockNumber}  destination: ${x.url}  blockNumber-txIndex-logIndex: ${x.blockTimestamp}-${x.txIndex}-${x.logIndex}.`,
+          `Posting event finalized at ${blockNumber}  destination: ${x.url}  blockNumber: ${x.blockNumber}  logIndex: ${x.logIndex}.`,
         );
         return fetch(x.url, {
           method: "POST",
@@ -327,7 +334,7 @@ export async function emitter(
       ommer.length > 0
         ? `Removing ommered events from DB at block ${blockNumber}  ${
           ommer.map((evt) =>
-            `blockNumber-txIndex-logIndex: ${evt.blockNumber}-${evt.txIndex}-${evt.logIndex}  blockHash: ${
+            `blockNumber: ${evt.blockNumber}  logIndex: ${evt.logIndex}  blockHash: ${
               toHex(evt.blockHash)
             }`
           )
@@ -338,11 +345,10 @@ export async function emitter(
     ommer.forEach(async (x) =>
       await prisma.event.delete({
         where: {
-          blockTimestamp_txIndex_logIndex: {
+          blockTimestamp_logIndex: {
             blockTimestamp: new Date(
               Number(x.blockTimestamp) * 1000,
             ),
-            txIndex: Number(x.txIndex),
             logIndex: Number(x.logIndex),
           },
         },
@@ -354,9 +360,14 @@ export async function emitter(
     );
     logger.debug(() =>
       finalizationQueue.length > 0
-        ? `Yet to be finalized, blockNumber-txIndex-logIndex: ${
+        ? `Yet to be finalized, blockNumber-logIndex: ${
           finalizationQueue.map((evt) =>
-            `${evt.blockNumber}-${evt.txIndex}-${evt.logIndex}`
+            `${evt.blockNumber}-${evt.logIndex} (${
+              formatDate(
+                new Date(Number(evt.blockTimestamp) * 1000),
+                "yyyy-MM-dd HH:mm:ss",
+              )
+            })`
           )
             .join(", ")
         }.`

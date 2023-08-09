@@ -25,7 +25,6 @@ export const serializeEventResponse = (event: Event & { Abi: EventAbi }) => {
   return {
     timestamp: event.blockTimestamp,
     blockIndex: event.blockNumber,
-    transactionIndex: event.txIndex,
     logIndex: event.logIndex,
     blockHash: toHex(event.blockHash),
     transactionHash: toHex(event.txHash),

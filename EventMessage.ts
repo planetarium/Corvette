@@ -5,21 +5,19 @@ export type EventMessage = {
   sigHash: Uint8Array;
   topics: Uint8Array[];
   blockTimestamp: bigint;
-  txIndex: bigint;
   logIndex: bigint;
   blockNumber: bigint;
   blockHash: Uint8Array;
 };
 
 export type MarshaledEventMessage = [
-  Uint8Array,
-  Uint8Array,
-  Uint8Array[],
-  bigint,
-  bigint,
-  bigint,
-  bigint,
-  Uint8Array,
+  EventMessage["address"],
+  EventMessage["sigHash"],
+  EventMessage["topics"],
+  EventMessage["blockTimestamp"],
+  EventMessage["logIndex"],
+  EventMessage["blockNumber"],
+  EventMessage["blockHash"],
 ];
 
 export function serializeEventMessage(msg: EventMessage): Uint8Array {
@@ -29,7 +27,6 @@ export function serializeEventMessage(msg: EventMessage): Uint8Array {
       msg.sigHash,
       msg.topics,
       msg.blockTimestamp,
-      msg.txIndex,
       msg.logIndex,
       msg.blockNumber,
       msg.blockHash,
@@ -43,7 +40,6 @@ export function deserializeEventMessage(data: Uint8Array): EventMessage {
     sigHash,
     topics,
     blockTimestamp,
-    txIndex,
     logIndex,
     blockNumber,
     blockHash,
@@ -53,7 +49,6 @@ export function deserializeEventMessage(data: Uint8Array): EventMessage {
     sigHash,
     topics,
     blockTimestamp,
-    txIndex,
     logIndex,
     blockNumber,
     blockHash,

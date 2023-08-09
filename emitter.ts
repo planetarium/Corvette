@@ -280,45 +280,14 @@ export async function emitter(
     );
 
     await Promise.all(
-      finalized.map(async (x) => {
-        logger.debug(
-          `Retrieving event from DB, blockNumber: ${x.blockNumber}  logIndex: ${x.logIndex}.`,
-        );
-        const event = await prisma.event.findUnique({
-          where: {
-            blockTimestamp_logIndex: {
-              blockTimestamp: new Date(
-                Number(x.blockTimestamp) * 1000,
-              ),
-              logIndex: Number(x.logIndex),
-            },
-          },
-          include: { Abi: true },
-        });
-
-        if (event == null) {
-          logger.error(() =>
-            `Event does not exist in DB, blockNumber: ${x.blockNumber}  logIndex: ${x.logIndex}  blockHash: ${
-              toHex(x.blockHash)
-            }  address: ${toHex(x.address)}  event signature hash: ${
-              toHex(x.sigHash)
-            }  topics: ${
-              x.topics.map((topic, i) => [topic, i + 1])
-                .filter(([topic, _]) => topic != null)
-                .map(([topic, i]) => `[${i}] ${toHex(topic)}`)
-                .join(" ")
-            }.`
-          );
-          return;
-        }
-
+      finalized.map((x) => {
         logger.info(
           `Posting event finalized at ${blockNumber}  destination: ${x.url}  blockNumber: ${x.blockNumber}  logIndex: ${x.logIndex}.`,
         );
         return fetch(x.url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: losslessJsonStringify(serializeEventResponse(event)),
+          body: losslessJsonStringify(serializeEventResponse(x)),
         });
       }),
     );

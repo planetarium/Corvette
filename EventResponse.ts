@@ -2,37 +2,31 @@ import { getAddress, toHex } from "npm:viem";
 
 import { formatAbiItemPrototype } from "./abitype.ts";
 import { decodeEventLog } from "./decodeEventLog.ts";
-import type { Event, EventAbi } from "./generated/client/index.d.ts";
+import { EventMessage } from "./EventMessage.ts";
 
-export const serializeEventResponse = (event: Event & { Abi: EventAbi }) => {
+export const serializeEventResponse = (evtMsg: EventMessage) => {
   const { args } = decodeEventLog({
-    abi: [JSON.parse(event.Abi.json)],
-    data: toHex(event.data as unknown as Uint8Array),
-    topics: [toHex(event.abiHash)].concat(
-      event.topic1 !== null
-        ? [toHex(event.topic1 as unknown as Uint8Array)].concat(
-          event.topic2 !== null
-            ? [toHex(event.topic2 as unknown as Uint8Array)].concat(
-              event.topic3 !== null
-                ? [toHex(event.topic3 as unknown as Uint8Array)]
-                : [],
-            )
-            : [],
-        )
-        : [],
-    ) as [signature: `0x${string}`, ...args: `0x${string}`[]],
+    abi: [JSON.parse(evtMsg.abi)],
+    data: toHex(evtMsg.data),
+    topics: [...evtMsg.topics.toReversed(), evtMsg.sigHash].reduce(
+      (acc, x) => x != undefined ? [toHex(x), ...acc] : [],
+      [] as unknown as [] | [
+        signature: `0x${string}`,
+        ...args: `0x${string}`[],
+      ],
+    ),
   });
 
   return {
-    timestamp: event.blockTimestamp,
-    blockIndex: event.blockNumber,
-    logIndex: event.logIndex,
-    blockHash: toHex(event.blockHash),
-    transactionHash: toHex(event.txHash),
-    sourceAddress: getAddress(toHex(event.sourceAddress)),
-    abiHash: toHex(event.abiHash),
+    timestamp: new Date(Number(evtMsg.blockTimestamp) * 1000),
+    blockIndex: evtMsg.blockNumber,
+    logIndex: evtMsg.logIndex,
+    blockHash: toHex(evtMsg.blockHash),
+    transactionHash: toHex(evtMsg.txHash),
+    sourceAddress: getAddress(toHex(evtMsg.address)),
+    abiHash: toHex(evtMsg.sigHash),
     abiSignature: formatAbiItemPrototype(
-      JSON.parse(event.Abi.json),
+      JSON.parse(evtMsg.abi),
     ),
     args: {
       named: Object.keys(args).filter((x) =>

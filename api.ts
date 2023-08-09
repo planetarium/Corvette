@@ -88,7 +88,20 @@ export function api(prisma: PrismaClient) {
         blockTimestamp: { gte: request.after, lte: request.before },
       },
       include: { Abi: true },
-    })).map((event) => serializeEventResponse(event)));
+    })).map((evt) =>
+      serializeEventResponse({
+        address: evt.sourceAddress,
+        sigHash: evt.abiHash,
+        abi: evt.Abi.json,
+        topics: [evt.topic1, evt.topic2, evt.topic3],
+        data: evt.data,
+        blockTimestamp: BigInt(evt.blockTimestamp.getTime()) / 1000n,
+        logIndex: BigInt(evt.logIndex),
+        blockNumber: BigInt(evt.blockNumber),
+        blockHash: evt.blockHash,
+        txHash: evt.txHash,
+      })
+    ));
   });
 
   router.get("/sources", (ctx) => {

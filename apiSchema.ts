@@ -1,14 +1,14 @@
 import Ajv, { type JSONSchemaType } from "https://esm.sh/ajv@8.12.0";
-import ajvFormats from "https://esm.sh/ajv-formats@3.0.0-rc.0";
+import ajvFormats from "https://esm.sh/ajv-formats@2.1.1";
 
-const ajv = new Ajv();
+const ajv = new Ajv({ allowUnionTypes: true });
 ajvFormats(ajv);
 
 interface EventRequest {
-  blockHash?: string;
   blockIndex?: number;
-  blockFrom?: number;
-  blockTo?: number;
+  blockHash?: string;
+  blockFrom?: number | string;
+  blockTo?: number | string;
   logIndex?: number;
   transactionHash?: string;
   sourceAddress?: string;
@@ -21,17 +21,47 @@ interface EventRequest {
 const eventRequestSchema: JSONSchemaType<EventRequest> = {
   type: "object",
   properties: {
-    blockHash: { type: "string", nullable: true },
     blockIndex: { type: "number", nullable: true },
-    blockFrom: { type: "number", nullable: true },
-    blockTo: { type: "number", nullable: true },
+    blockHash: {
+      type: "string",
+      nullable: true,
+      pattern: "^(0x)?[a-fA-F0-9]{64}$",
+    },
+    blockFrom: {
+      type: ["number", "string"],
+      nullable: true,
+      anyOf: [
+        { type: "number" },
+        { type: "string", pattern: "^(0x)?[a-fA-F0-9]{64}$" },
+      ],
+    },
+    blockTo: {
+      type: ["number", "string"],
+      nullable: true,
+      anyOf: [
+        { type: "number" },
+        { type: "string", pattern: "^(0x)?[a-fA-F0-9]{64}$" },
+      ],
+    },
     logIndex: { type: "number", nullable: true },
-    transactionHash: { type: "string", nullable: true },
-    sourceAddress: { type: "string", nullable: true },
-    abiHash: { type: "string", nullable: true },
+    transactionHash: {
+      type: "string",
+      nullable: true,
+      pattern: "^(0x)?[a-fA-F0-9]{64}$",
+    },
+    sourceAddress: {
+      type: "string",
+      nullable: true,
+      pattern: "^(0x)?[a-fA-F0-9]{40}$",
+    },
+    abiHash: {
+      type: "string",
+      nullable: true,
+      pattern: "^(0x)?[a-fA-F0-9]{64}$",
+    },
     abiSignature: { type: "string", nullable: true },
-    after: { type: "string", nullable: true, format: "iso-date-time" },
-    before: { type: "string", nullable: true, format: "iso-date-time" },
+    after: { type: "string", nullable: true, format: "date-time" },
+    before: { type: "string", nullable: true, format: "date-time" },
   },
   allOf: [
     {
@@ -40,22 +70,13 @@ const eventRequestSchema: JSONSchemaType<EventRequest> = {
           allOf: [
             { not: { required: ["blockHash"] } },
             { not: { required: ["blockIndex"] } },
-            {
-              not: {
-                anyOf: [{ required: ["blockFrom"] }, { required: ["blockTo"] }],
-              },
-            },
+            { not: { required: ["blockFrom"] } },
+            { not: { required: ["blockTo"] } },
           ],
         },
         { required: ["blockHash"] },
         { required: ["blockIndex"] },
         { anyOf: [{ required: ["blockFrom"] }, { required: ["blockTo"] }] },
-      ],
-    },
-    {
-      oneOf: [
-        { not: { required: ["transactionHash"] } },
-        { required: ["transactionHash"] },
       ],
     },
     {

@@ -115,7 +115,6 @@ export async function emitter(
         address,
         sigHash,
         topics,
-        blockTimestamp,
         logIndex,
         blockNumber,
         blockHash,
@@ -150,7 +149,6 @@ export async function emitter(
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: losslessJsonStringify({
-              timestamp: blockTimestamp,
               blockIndex: blockNumber,
               logIndex: logIndex,
               blockHash: toHex(blockHash),

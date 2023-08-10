@@ -6,7 +6,6 @@ export type EventMessage = {
   abi: string;
   topics: Uint8Array[];
   data: Uint8Array;
-  blockTimestamp: bigint;
   logIndex: bigint;
   blockNumber: bigint;
   blockHash: Uint8Array;
@@ -19,7 +18,6 @@ export type MarshaledEventMessage = [
   EventMessage["abi"],
   EventMessage["topics"],
   EventMessage["data"],
-  EventMessage["blockTimestamp"],
   EventMessage["logIndex"],
   EventMessage["blockNumber"],
   EventMessage["blockHash"],
@@ -34,7 +32,6 @@ export function serializeEventMessage(msg: EventMessage): Uint8Array {
       msg.abi,
       msg.topics,
       msg.data,
-      msg.blockTimestamp,
       msg.logIndex,
       msg.blockNumber,
       msg.blockHash,
@@ -50,7 +47,6 @@ export function deserializeEventMessage(msgData: Uint8Array): EventMessage {
     abi,
     topics,
     data,
-    blockTimestamp,
     logIndex,
     blockNumber,
     blockHash,
@@ -62,7 +58,6 @@ export function deserializeEventMessage(msgData: Uint8Array): EventMessage {
     abi,
     topics,
     data,
-    blockTimestamp,
     logIndex,
     blockNumber,
     blockHash,

@@ -13,23 +13,22 @@ datasource db {
 }
 
 model Event {
-  blockTimestamp DateTime
-  observedAt     DateTime    @default(now())
-  logIndex       Int
-  blockNumber    Int
-  blockHash      Bytes
-  txHash         Bytes
-  Source         EventSource @relation(fields: [sourceAddress, abiHash], references: [address, abiHash])
-  Abi            EventAbi    @relation(fields: [abiHash], references: [hash])
-  topic1         Bytes?
-  topic2         Bytes?
-  topic3         Bytes?
-  data           Bytes
+  observedTimestamp DateTime    @default(now())
+  blockNumber       Int
+  logIndex          Int
+  blockHash         Bytes
+  txHash            Bytes
+  Source            EventSource @relation(fields: [sourceAddress, abiHash], references: [address, abiHash])
+  Abi               EventAbi    @relation(fields: [abiHash], references: [hash])
+  topic1            Bytes?
+  topic2            Bytes?
+  topic3            Bytes?
+  data              Bytes
 
   abiHash       Bytes
   sourceAddress Bytes
 
-  @@id([blockTimestamp, logIndex])
+  @@id([blockNumber, logIndex])
 }
 
 model EventAbi {

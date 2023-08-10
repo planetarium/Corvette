@@ -27,7 +27,6 @@ export const handler: Handlers = {
         address: toBytes(address),
         sigHash: toBytes(abiHash),
         topics: [],
-        blockTimestamp: BigInt(Math.floor(Date.now() / 1000)),
         logIndex: -1n,
         blockNumber: -1n,
         blockHash: new Uint8Array(32),

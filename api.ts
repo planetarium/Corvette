@@ -85,7 +85,6 @@ export function api(prisma: PrismaClient) {
                 "bytes",
               ),
             )),
-        blockTimestamp: { gte: request.after, lte: request.before },
       },
       include: { Abi: true },
     })).map((evt) =>
@@ -95,7 +94,6 @@ export function api(prisma: PrismaClient) {
         abi: evt.Abi.json,
         topics: [evt.topic1, evt.topic2, evt.topic3],
         data: evt.data,
-        blockTimestamp: BigInt(evt.blockTimestamp.getTime()) / 1000n,
         logIndex: BigInt(evt.logIndex),
         blockNumber: BigInt(evt.blockNumber),
         blockHash: evt.blockHash,

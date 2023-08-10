@@ -259,9 +259,6 @@ export async function observer(
           const topicsBytes = log.topics.map(toBytes).map(Buffer.from);
           const [abiHash, topic1, topic2, topic3] = topicsBytes;
           const dataBytes = toBytes(log.data);
-          const timestamp =
-            (await client.getBlock({ blockHash: log.blockHash! })).timestamp;
-          const timestampDate = new Date(Number(timestamp) * 1000);
           const blockHashBytes = toBytes(log.blockHash);
           const txHashBytes = toBytes(log.transactionHash);
 
@@ -274,7 +271,6 @@ export async function observer(
                 topic2,
                 topic3,
                 data: Buffer.from(dataBytes),
-                blockTimestamp: timestampDate,
                 logIndex: log.logIndex,
                 blockNumber: Number(log.blockNumber),
                 blockHash: Buffer.from(blockHashBytes),
@@ -297,7 +293,6 @@ export async function observer(
                 abi: abis[toHex(abiHash)],
                 topics: topicsBytes,
                 data: dataBytes,
-                blockTimestamp: timestamp,
                 logIndex: BigInt(log.logIndex),
                 blockNumber: log.blockNumber,
                 blockHash: blockHashBytes,

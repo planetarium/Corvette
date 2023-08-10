@@ -18,7 +18,6 @@ export const serializeEventResponse = (evtMsg: EventMessage) => {
   });
 
   return {
-    timestamp: new Date(Number(evtMsg.blockTimestamp) * 1000),
     blockIndex: evtMsg.blockNumber,
     logIndex: evtMsg.logIndex,
     blockHash: toHex(evtMsg.blockHash),

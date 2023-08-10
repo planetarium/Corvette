@@ -16,7 +16,7 @@ import {
 import { Buffer } from "node:buffer";
 
 import { stringify as losslessJsonStringify } from "npm:lossless-json";
-import { getAddress, keccak256, toBytes, toHex } from "npm:viem";
+import { getAddress, keccak256, toHex } from "npm:viem";
 
 import type { PrismaClient } from "./prisma-shim.ts";
 
@@ -37,6 +37,18 @@ import {
 import { runWithPrisma } from "./runHelpers.ts";
 
 export function api(prisma: PrismaClient) {
+  const hexToBuffer = (hex: string): Buffer => {
+    return Buffer.from(hex.replace("0x", ""), "hex");
+  };
+
+  const getBlockNumberFromHash = async (blockHash?: string | number) => {
+    if (typeof blockHash !== "string") return blockHash;
+    return (await prisma.event.findFirst({
+      where: { blockHash: hexToBuffer(blockHash) },
+    }))
+      ?.blockNumber;
+  };
+
   const logger = getLogger(ApiLoggerName);
   const abortController = new AbortController();
 
@@ -56,17 +68,18 @@ export function api(prisma: PrismaClient) {
       return;
     }
 
+    const blockFrom = await getBlockNumberFromHash(request.blockFrom);
+    const blockTo = await getBlockNumberFromHash(request.blockTo);
+
     ctx.response.body = losslessJsonStringify((await prisma.event.findMany({
       where: {
-        blockHash: request.blockHash && Buffer.from(toBytes(request.blockHash)),
-        blockNumber: request.blockIndex ??
-          { gte: request.blockFrom, lte: request.blockTo },
+        blockHash: request.blockHash && hexToBuffer(request.blockHash),
+        blockNumber: request.blockIndex ?? { gte: blockFrom, lte: blockTo },
         logIndex: request.logIndex,
-        txHash: request.transactionHash &&
-          Buffer.from(toBytes(request.transactionHash)),
+        txHash: request.transactionHash && hexToBuffer(request.transactionHash),
         sourceAddress: request.sourceAddress &&
-          Buffer.from(toBytes(request.sourceAddress)),
-        abiHash: (request.abiHash && Buffer.from(toBytes(request.abiHash))) ||
+          hexToBuffer(request.sourceAddress),
+        abiHash: (request.abiHash && hexToBuffer(request.abiHash)) ??
           (request.abiSignature &&
             Buffer.from(
               keccak256(

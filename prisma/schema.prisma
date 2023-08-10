@@ -24,6 +24,8 @@ model Event {
   topic2            Bytes?
   topic3            Bytes?
   data              Bytes
+  emittedTimestamp  DateTime?
+  lockedOn          DateTime?
 
   abiHash       Bytes
   sourceAddress Bytes

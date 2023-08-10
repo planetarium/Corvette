@@ -242,6 +242,16 @@ export async function emitter(
               logger.info(
                 `Event post success for all webhook URLs, blockNumber: ${x.blockNumber}  logIndex: ${x.logIndex}.`,
               );
+
+              await prisma.event.update({
+                where: {
+                  blockNumber_logIndex: {
+                    blockNumber: Number(x.blockNumber),
+                    logIndex: Number(x.logIndex),
+                  },
+                },
+                data: { emittedTimestamp: new Date() },
+              });
               return undefined;
             } else {
               logger.info(

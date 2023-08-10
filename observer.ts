@@ -1,4 +1,3 @@
-import { format as formatDate } from "std/datetime/mod.ts";
 import { ConsoleHandler } from "std/log/handlers.ts";
 import { getLogger, setup as setupLog } from "std/log/mod.ts";
 
@@ -19,7 +18,7 @@ import {
 import Prisma, { type PrismaClient } from "./prisma-shim.ts";
 
 import { deserializeControlMessage } from "./ControlMessage.ts";
-import { EventMessage, serializeEventMessage } from "./EventMessage.ts";
+import { serializeEventMessage } from "./EventMessage.ts";
 import {
   ControlExchangeName,
   ControlObserverRoutingKey,
@@ -86,8 +85,7 @@ export async function observer(
   logger.debug(
     `Declared AMQP events queue: ${eventsQueue.queue}  consumers: ${eventsQueue.consumerCount}  message count: ${eventsQueue.messageCount}.`,
   );
-  const finalizationQueue: EventMessage[] = [];
-  let unwatchEvent = await createWatchEvent();
+  let { sources, addresses, abis } = await getSources();
   await amqpChannel.consume(
     { queue: controlQueue.queue },
     async (_args, _props, data) => {
@@ -101,8 +99,7 @@ export async function observer(
         logger.info(
           "Received reload control message, reloading configuration.",
         );
-        unwatchEvent();
-        unwatchEvent = await createWatchEvent();
+        ({ sources, addresses, abis } = await getSources());
       }
     },
   );
@@ -148,10 +145,12 @@ export async function observer(
   }
   const unwatchBlockNumber = typeof (blockFinality) === "bigint"
     ? client.watchBlockNumber({
+      emitMissed: true,
       onBlockNumber: (blockNumber) =>
         blockFinalized(blockNumber - blockFinality),
     })
     : client.watchBlocks({
+      emitMissed: true,
       blockTag: blockFinality,
       onBlock: (block) => blockFinalized(block.number!),
     });
@@ -162,28 +161,37 @@ export async function observer(
   async function cleanup() {
     logger.warning("Stopping observer.");
     abortController.abort();
-    unwatchEvent();
     unwatchBlockNumber();
     await runningPromise;
   }
 
   return { runningPromise, cleanup };
 
-  // TODO: customizable poll interval and transport
-  async function createWatchEvent() {
-    const { sources, abis } = (await prisma.eventSource.findMany({
-      select: { abiHash: true, address: true, Abi: { select: { json: true } } },
+  async function getSources() {
+    const { sources, addresses, abis } = (await prisma.eventSource.findMany({
+      select: {
+        abiHash: true,
+        address: true,
+        Abi: { select: { json: true } },
+      },
     })).reduce(
-      ({ sources, abis }, item) => {
+      ({ sources, addresses, abis }, item) => {
         const address = toHex(item.address as unknown as Uint8Array);
         const entry = toHex(item.abiHash);
-        if (sources[address] === undefined) {
-          sources = { ...sources, [address]: [entry] };
-        } else sources[address].push(entry);
-        return { sources, abis: { ...abis, [entry]: item.Abi.json } };
+        return {
+          sources: {
+            ...sources,
+            [address]: [...(sources[address] ?? []), entry],
+          },
+          addresses: addresses.includes(address)
+            ? addresses
+            : [...addresses, address],
+          abis: { ...abis, [entry]: item.Abi.json },
+        };
       },
-      { sources: {}, abis: {} } as {
+      { sources: {}, addresses: [], abis: {} } as {
         sources: Record<string, string[]>;
+        addresses: `0x${string}`[];
         abis: Record<string, string>;
       },
     );
@@ -198,22 +206,114 @@ export async function observer(
         }.`
         : "No event sources to watch."
     );
-    return client.watchEvent({
-      address: Object.keys(sources) as `0x${string}`[],
-      onLogs: (logs) =>
-        Promise.all(
-          logs.map((log) => {
-            if (
-              sources[log.address] !== undefined &&
-              log.topics[0] !== undefined &&
-              sources[log.address].includes(log.topics[0])
-            ) return processLog(log);
-            return undefined;
-          }).filter((onLog) => onLog !== undefined) as Promise<
-            void
-          >[] satisfies Promise<void>[],
-        ),
-    });
+    return { sources, addresses, abis };
+  }
+
+  async function blockFinalized(blockNumber: bigint) {
+    if (addresses.length <= 0) return;
+    const events = (await client.getLogs({
+      address: addresses,
+      fromBlock: blockNumber,
+      toBlock: blockNumber,
+    })).filter((log) =>
+      log.topics[0] !== undefined &&
+      sources[log.address].includes(log.topics[0])
+    );
+    logger.debug(() =>
+      events.length > 0
+        ? `Finalized events, blockNumber-logIndex: ${
+          events.map((evt) => `${blockNumber}-${evt.logIndex}`)
+            .join(", ")
+        }.`
+        : `New finalized block at ${blockNumber}, but no finalized events are present in the block.`
+    );
+    await Promise.all(
+      events.sort(() =>
+        crypto.getRandomValues(new Uint8Array(1))[0] > 127 ? 1 : -1
+      ).map(async (log) => {
+        if (log.blockNumber == null) {
+          logProcessError("blockNumber is null", log);
+          return;
+        }
+        if (log.logIndex == null) {
+          logProcessError("logIndex is null", log);
+          return;
+        }
+        if (log.blockHash == null) {
+          logProcessError("blockHash is null", log);
+          return;
+        }
+        if (log.transactionHash == null) {
+          logProcessError("txHash is null", log);
+          return;
+        }
+
+        const addressBytes = toBytes(log.address);
+        const topicsBytes = log.topics.map(toBytes).map(Buffer.from);
+        const [abiHash, topic1, topic2, topic3] = topicsBytes;
+        const dataBytes = toBytes(log.data);
+        const timestamp =
+          (await client.getBlock({ blockHash: log.blockHash! })).timestamp;
+        const timestampDate = new Date(Number(timestamp) * 1000);
+        const blockHashBytes = toBytes(log.blockHash);
+        const txHashBytes = toBytes(log.transactionHash);
+
+        try {
+          await prisma.event.create({
+            data: {
+              sourceAddress: Buffer.from(addressBytes),
+              abiHash,
+              topic1,
+              topic2,
+              topic3,
+              data: Buffer.from(dataBytes),
+              blockTimestamp: timestampDate,
+              logIndex: log.logIndex,
+              blockNumber: Number(log.blockNumber),
+              blockHash: Buffer.from(blockHashBytes),
+              txHash: Buffer.from(txHashBytes),
+            },
+          });
+          logger.debug(
+            `Wrote event to DB, blockNumber: ${log.blockNumber}  logIndex: ${log.logIndex}.`,
+          );
+
+          logger.info(
+            `Publishing finalized event to emitter queue,  blockNumber: ${blockNumber}  logIndex: ${log.logIndex}.`,
+          );
+          await amqpChannel.publish(
+            { routingKey: EvmEventsQueueName },
+            { contentType: "application/octet-stream" },
+            serializeEventMessage({
+              address: addressBytes,
+              sigHash: abiHash,
+              abi: abis[toHex(abiHash)],
+              topics: topicsBytes,
+              data: dataBytes,
+              blockTimestamp: timestamp,
+              logIndex: BigInt(log.logIndex),
+              blockNumber: log.blockNumber,
+              blockHash: blockHashBytes,
+              txHash: txHashBytes,
+            }),
+          );
+        } catch (e) {
+          // ignore if the entry for the observed event exists in db (other observer already inserted)
+          if (
+            (e instanceof Prisma.PrismaClientKnownRequestError &&
+              e.code === "P2002")
+          ) {
+            logger.debug(() =>
+              `Ignoring event already present in DB, blockNumber: ${log.blockNumber}  logIndex: ${log.logIndex}  blockHash: ${log.blockHash}  topics: ${
+                topicsToString(log.topics)
+              }  data: ${log.data}`
+            );
+            return;
+          }
+          logger.error(`Unexpected error: ${e}`);
+        }
+      }),
+    );
 
     function logProcessError(message: string, log: Log) {
       logger.error(
@@ -226,209 +326,6 @@ export async function observer(
     function topicsToString(topics: [`0x${string}`, ...`0x${string}`[]] | []) {
       return topics.map((topic, i) => `[${i}] ${topic}`).join(" ");
     }
-
-    async function processLog(log: Log) {
-      if (log.blockNumber == null) {
-        logProcessError("blockNumber is null", log);
-        return;
-      }
-      if (log.logIndex == null) {
-        logProcessError("logIndex is null", log);
-        return;
-      }
-      if (log.blockHash == null) {
-        logProcessError("blockHash is null", log);
-        return;
-      }
-      if (log.transactionHash == null) {
-        logProcessError("txHash is null", log);
-        return;
-      }
-
-      const addressBytes = toBytes(log.address);
-      const topicsBytes = log.topics.map(toBytes).map(Buffer.from);
-      const [abiHash, topic1, topic2, topic3] = topicsBytes;
-      const dataBytes = toBytes(log.data);
-      const timestamp =
-        (await client.getBlock({ blockHash: log.blockHash! })).timestamp;
-      const timestampDate = new Date(Number(timestamp) * 1000);
-      const blockHashBytes = toBytes(log.blockHash);
-      const txHashBytes = toBytes(log.transactionHash);
-
-      try {
-        await prisma.event.create({
-          data: {
-            sourceAddress: Buffer.from(addressBytes),
-            abiHash,
-            topic1,
-            topic2,
-            topic3,
-            data: Buffer.from(dataBytes),
-            blockTimestamp: timestampDate,
-            logIndex: log.logIndex,
-            blockNumber: Number(log.blockNumber),
-            blockHash: Buffer.from(blockHashBytes),
-            txHash: Buffer.from(txHashBytes),
-          },
-        });
-        logger.debug(
-          `Wrote event to DB, blockNumber: ${log.blockNumber}  logIndex: ${log.logIndex}  blockTimestamp: ${
-            formatDate(timestampDate, "yyyy-MM-dd HH:mm:ss")
-          }.`,
-        );
-
-        logger.info(
-          `Queueing event for finalization, blockNumber: ${log.blockNumber}  logIndex: ${log.logIndex}  blockTimestamp: ${
-            formatDate(timestampDate, "yyyy-MM-dd HH:mm:ss")
-          }.`,
-        );
-        finalizationQueue.push({
-          address: addressBytes,
-          sigHash: abiHash,
-          abi: abis[toHex(abiHash)],
-          topics: topicsBytes,
-          data: dataBytes,
-          blockTimestamp: timestamp,
-          logIndex: BigInt(log.logIndex),
-          blockNumber: log.blockNumber,
-          blockHash: blockHashBytes,
-          txHash: txHashBytes,
-        });
-      } catch (e) {
-        // ignore if the entry for the observed event exists in db (other observer already inserted)
-        if (
-          (e instanceof Prisma.PrismaClientKnownRequestError &&
-            e.code === "P2002")
-        ) {
-          logger.debug(() =>
-            `Ignoring event already present in DB, blockNumber: ${log.blockNumber}  logIndex: ${log.logIndex}  blockHash: ${log.blockHash}  topics: ${
-              topicsToString(log.topics)
-            }  data: ${log.data}`
-          );
-          return;
-        }
-        logger.error(`Unexpected error: ${e}`);
-      }
-    }
-  }
-
-  async function blockFinalized(blockNumber: bigint) {
-    const consumeQueue = [];
-    while (finalizationQueue.length > 0) {
-      consumeQueue.push(finalizationQueue.shift()!);
-    }
-    const { observed, returnToQueue } = consumeQueue.reduce(
-      ({ observed, returnToQueue }, x) =>
-        x.blockNumber <= blockNumber
-          ? { observed: [...observed, x], returnToQueue }
-          : { observed, returnToQueue: [...returnToQueue, x] },
-      { observed: [], returnToQueue: [] } as {
-        observed: typeof finalizationQueue;
-        returnToQueue: typeof finalizationQueue;
-      },
-    );
-    while (returnToQueue.length > 0) {
-      finalizationQueue.push(returnToQueue.shift()!);
-    }
-    if (observed.length <= 0) {
-      logger.debug(
-        `New finalized block at ${blockNumber}, but no events waiting in queue to be finalized.`,
-      );
-      return;
-    }
-    logger.debug(() =>
-      `Events to be finalized at ${blockNumber}  blockNumber-logIndex: ${
-        observed.map((evt) =>
-          `${evt.blockNumber}-${evt.logIndex} (${
-            formatDate(
-              new Date(Number(evt.blockTimestamp) * 1000),
-              "yyyy-MM-dd HH:mm:ss",
-            )
-          })`
-        ).join(", ")
-      }.`
-    );
-    const { finalized, ommer } = await observed.reduce(
-      async (acc, x) => {
-        const { finalized, ommer, finalizedBlock } = await acc;
-
-        return finalizedBlock[String(x.blockNumber)] ??
-            (finalizedBlock[String(x.blockNumber)] =
-                (await client.getBlock({ blockNumber: x.blockNumber }))
-                  .hash!) ===
-              toHex(x.blockHash)
-          ? { finalized: [...finalized, x], ommer, finalizedBlock }
-          : { finalized, ommer: [...ommer, x], finalizedBlock };
-      },
-      Promise.resolve(
-        { finalized: [], ommer: [], finalizedBlock: {} } as {
-          finalized: typeof observed;
-          ommer: typeof observed;
-          finalizedBlock: Record<string, string>;
-        },
-      ),
-    );
-    logger.debug(() =>
-      finalized.length > 0
-        ? `Finalized events at ${blockNumber}  blockNumber-logIndex: ${
-          finalized.map((evt) => `${evt.blockNumber}-${evt.logIndex}`)
-            .join(", ")
-        }.`
-        : `No finalized block at ${blockNumber}`
-    );
-
-    await Promise.all(
-      finalized.map((x) => {
-        logger.info(
-          `Publishing event finalized at ${blockNumber} to emitter queue:  blockNumber: ${x.blockNumber}  logIndex: ${x.logIndex}.`,
-        );
-        amqpChannel.publish(
-          { routingKey: EvmEventsQueueName },
-          { contentType: "application/octet-stream" },
-          serializeEventMessage(x),
-        );
-      }),
-    );
-
-    logger.info(() =>
-      ommer.length > 0
-        ? `Removing ommered events from DB at block ${blockNumber}  ${
-          ommer.map((evt) =>
-            `blockNumber: ${evt.blockNumber}  logIndex: ${evt.logIndex}  blockHash: ${
-              toHex(evt.blockHash)
-            }`
-          )
-            .join(",  ")
-        }.`
-        : `No ommered block at ${blockNumber}.`
-    );
-    await Promise.all(ommer.map((x) =>
-      prisma.event.delete({
-        where: {
-          blockTimestamp_logIndex: {
-            blockTimestamp: new Date(
-              Number(x.blockTimestamp) * 1000,
-            ),
-            logIndex: Number(x.logIndex),
-          },
-        },
-      })
-    ));
-    logger.debug(() =>
-      finalizationQueue.length > 0
-        ? `Yet to be finalized, blockNumber-logIndex: ${
-          finalizationQueue.map((evt) =>
-            `${evt.blockNumber}-${evt.logIndex} (${
-              formatDate(
-                new Date(Number(evt.blockTimestamp) * 1000),
-                "yyyy-MM-dd HH:mm:ss",
-              )
-            })`
-          )
-            .join(", ")
-        }.`
-        : "No events left in finalization queue."
-    );
   }
 }
 

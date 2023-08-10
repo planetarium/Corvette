@@ -7,7 +7,7 @@ import {
 import { Modal } from "~/components/Modal.tsx";
 import { Toast, type ToastProps } from "~/components/Toast.tsx";
 import { SearchDropdown } from "~/islands/SearchDropdown.tsx";
-import { AbiEntry } from "~/islands/ListAbi.tsx";
+import type { AbiEntry } from "~/islands/ListAbi.tsx";
 
 export interface SourceEntry {
   address: string;

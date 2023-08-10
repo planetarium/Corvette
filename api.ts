@@ -1,17 +1,15 @@
-import { Status } from "https://deno.land/std@0.188.0/http/mod.ts";
-import { ConsoleHandler } from "https://deno.land/std@0.196.0/log/handlers.ts";
-import {
-  getLogger,
-  setup as setupLog,
-} from "https://deno.land/std@0.196.0/log/mod.ts";
+import { Status } from "std/http/mod.ts";
+import { ConsoleHandler } from "std/log/handlers.ts";
+import { getLogger, setup as setupLog } from "std/log/mod.ts";
 
-import { oakCors } from "https://deno.land/x/cors@v1.2.2/mod.ts";
 import {
   Application as OakApplication,
-  Context,
+  type Context,
   isHttpError,
   Router,
-} from "https://deno.land/x/oak@v12.5.0/mod.ts";
+} from "oak";
+
+import { oakCors } from "https://deno.land/x/cors@v1.2.2/mod.ts";
 
 import { Buffer } from "node:buffer";
 
@@ -19,7 +17,6 @@ import { stringify as losslessJsonStringify } from "npm:lossless-json";
 import { getAddress, keccak256, toHex } from "npm:viem";
 
 import type { PrismaClient } from "./prisma-shim.ts";
-
 import { serializeEventResponse } from "./EventResponse.ts";
 import { formatAbiItemPrototype } from "./abitype.ts";
 import { validateEventRequest } from "./apiSchema.ts";

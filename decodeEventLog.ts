@@ -4,7 +4,6 @@ import type {
   ExtractAbiEventNames,
   Narrow,
 } from "https://esm.sh/abitype";
-
 import {
   AbiDecodingDataSizeTooSmallError,
   AbiEventSignatureEmptyTopicsError,
@@ -20,9 +19,8 @@ import type {
 import type { Hex } from "https://esm.sh/viem/dist/types/types/misc.d.ts";
 import type { Prettify } from "https://esm.sh/viem/dist/types/types/utils.d.ts";
 import { getEventSelector } from "https://esm.sh/viem/dist/esm/utils/hash/getEventSelector.js";
-
 import { decodeAbiParameters } from "https://esm.sh/viem/dist/esm/utils/abi/decodeAbiParameters.js";
-import { DecodeAbiParametersReturnType } from "https://esm.sh/viem/dist/types/utils/abi/decodeAbiParameters.d.ts";
+import type { DecodeAbiParametersReturnType } from "https://esm.sh/viem/dist/types/utils/abi/decodeAbiParameters.d.ts";
 import { formatAbiItem } from "https://esm.sh/viem/dist/esm/utils/abi/formatAbiItem.js";
 
 export type DecodeEventLogParameters<

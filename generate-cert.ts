@@ -1,10 +1,7 @@
-import { exists } from "https://deno.land/std@0.193.0/fs/mod.ts";
-import * as path from "https://deno.land/std@0.193.0/path/mod.ts";
-import { ConsoleHandler } from "https://deno.land/std@0.196.0/log/handlers.ts";
-import {
-  getLogger,
-  setup as setupLog,
-} from "https://deno.land/std@0.196.0/log/mod.ts";
+import { exists } from "std/fs/mod.ts";
+import * as path from "std/path/mod.ts";
+import { ConsoleHandler } from "std/log/handlers.ts";
+import { getLogger, setup as setupLog } from "std/log/mod.ts";
 
 import { generate } from "https://deno.land/x/selfsignedeno@v2.1.1-deno/index.js";
 

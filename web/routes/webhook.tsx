@@ -1,10 +1,11 @@
 import { LogLevels } from "std/log/levels.ts";
 
-import { Handlers, PageProps, Status } from "fresh/server.ts";
+import { type Handlers, type PageProps, Status } from "fresh/server.ts";
+
+import { getCookieString, getServerSideUrl, logRequest } from "~/util.ts";
 
 import { Layout } from "~/components/Layout.tsx";
 import { ListWebhook, type WebhookEntry } from "~/islands/ListWebhook.tsx";
-import { getCookieString, getServerSideUrl, logRequest } from "~/util.ts";
 
 export const handler: Handlers<WebhookEntry[]> = {
   async GET(req, ctx) {
@@ -13,10 +14,16 @@ export const handler: Handlers<WebhookEntry[]> = {
       headers: { cookie: getCookieString(req) },
     });
     if (!res.ok) {
-      logRequest(LogLevels.ERROR, req, ctx, Status.InternalServerError, "Failed to retrieve webhook entries")
+      logRequest(
+        LogLevels.ERROR,
+        req,
+        ctx,
+        Status.InternalServerError,
+        "Failed to retrieve webhook entries",
+      );
       throw new Error(await res.text());
     }
-    logRequest(LogLevels.INFO, req, ctx, Status.OK)
+    logRequest(LogLevels.INFO, req, ctx, Status.OK);
     return ctx.render(await res.json());
   },
 };

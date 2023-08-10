@@ -1,4 +1,4 @@
-import {
+import type {
   Abi,
   AbiConstructor,
   AbiError,
@@ -8,12 +8,10 @@ import {
   AbiFunction,
   AbiParameter,
   AbiReceive,
-} from "https://esm.sh/abitype";
-import { Join } from "https://esm.sh/abitype/dist/types/types.d.ts";
-import { execTyped as execTypedImpl } from "https://esm.sh/abitype/dist/esm/regex.js";
-import { execTyped as execTypedType } from "https://esm.sh/abitype/dist/types/regex.d.ts";
-
-const execTyped = execTypedImpl as typeof execTypedType;
+} from "abitype";
+import type { Join } from "abitype/dist/types/types.d.ts";
+// @deno-types="abitype/dist/types/regex.d.ts"
+import { execTyped } from "abitype/dist/esm/regex.js";
 
 /**
  * Formats {@link AbiParameter} to human-readable ABI parameter prototype.

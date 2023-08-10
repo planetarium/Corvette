@@ -2,7 +2,7 @@ import { getCookies } from "std/http/cookie.ts";
 import { join, resolve } from "std/path/mod.ts";
 import { LogLevels } from "std/log/mod.ts";
 
-import { ServeHandlerInfo, Status } from "fresh/server.ts";
+import { type ServeHandlerInfo, Status } from "fresh/server.ts";
 
 import { listenUrl, logger, prisma } from "~/main.ts";
 import type Prisma from "~root/prisma-shim.ts";

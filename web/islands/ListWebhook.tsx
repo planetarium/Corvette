@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
 } from "preact/hooks";
+
 import {
   CollapsibleTable,
   CollapsibleTableRow,
@@ -12,7 +13,7 @@ import {
 import { Modal } from "~/components/Modal.tsx";
 import { Toast, ToastProps } from "~/components/Toast.tsx";
 import { SearchDropdown } from "~/islands/SearchDropdown.tsx";
-import { SourceEntry } from "~/islands/ListSources.tsx";
+import type { SourceEntry } from "~/islands/ListSources.tsx";
 
 export interface WebhookEntry {
   id: number;

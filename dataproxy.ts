@@ -1,17 +1,11 @@
-import * as path from "https://deno.land/std@0.193.0/path/mod.ts";
-import { exists as fileExists } from "https://deno.land/std@0.195.0/fs/mod.ts";
-import { ConsoleHandler } from "https://deno.land/std@0.196.0/log/handlers.ts";
-import {
-  getLogger,
-  setup as setupLog,
-} from "https://deno.land/std@0.196.0/log/mod.ts";
+import * as path from "std/path/mod.ts";
+import { exists as fileExists } from "std/fs/mod.ts";
+import { ConsoleHandler } from "std/log/handlers.ts";
+import { getLogger, setup as setupLog } from "std/log/mod.ts";
+
+import { Application as OakApplication, isHttpError, proxy } from "oak";
 
 import { getFreePort } from "https://deno.land/x/free_port@v1.2.0/mod.ts";
-import {
-  Application as OakApplication,
-  isHttpError,
-  proxy,
-} from "https://deno.land/x/oak@v12.5.0/mod.ts";
 
 import {
   combinedEnv,

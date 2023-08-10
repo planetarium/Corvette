@@ -1,11 +1,10 @@
 import { LogLevels } from "std/log/levels.ts";
 
-import { cookieSession, WithSession } from "fresh-session";
-import { MiddlewareHandlerContext, Status } from "fresh/server.ts";
-
-import { User } from "~root/generated/client/index.d.ts";
+import { cookieSession, type WithSession } from "fresh-session";
+import { type MiddlewareHandlerContext, Status } from "fresh/server.ts";
 
 import { logRequest, redirect } from "~/util.ts";
+import type { User } from "~root/generated/client/index.d.ts";
 
 const session = cookieSession();
 

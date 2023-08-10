@@ -1,4 +1,4 @@
-import { decode, encode } from "https://deno.land/x/bencodex@0.2.2/mod.ts";
+import { decode, encode } from "bencodex";
 
 export type ReloadControlMessage = { action: "reload" };
 

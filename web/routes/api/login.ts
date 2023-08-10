@@ -1,9 +1,9 @@
 import { LogLevels } from "std/log/levels.ts";
 
-import { Handlers, Status } from "fresh/server.ts";
+import { type Handlers, Status } from "fresh/server.ts";
 import type { WithSession } from "fresh-session";
 
-import {  prisma } from "~/main.ts";
+import { prisma } from "~/main.ts";
 import { logRequest, redirect } from "~/util.ts";
 import { verify } from "~/argon2.ts";
 

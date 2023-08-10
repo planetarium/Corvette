@@ -5,7 +5,7 @@
 /// <reference lib="deno.ns" />
 
 import { ConsoleHandler } from "std/log/handlers.ts";
-import { getLogger, Logger, setup as setupLog } from "std/log/mod.ts";
+import { getLogger, type Logger, setup as setupLog } from "std/log/mod.ts";
 
 import { start } from "fresh/server.ts";
 import manifest from "./fresh.gen.ts";
@@ -13,24 +13,22 @@ import manifest from "./fresh.gen.ts";
 import twindPlugin from "fresh/plugins/twind.ts";
 import twindConfig from "./twind.config.ts";
 
-import type {
-  AmqpChannel,
-  AmqpConnection,
-} from "https://deno.land/x/amqp@v0.23.1/mod.ts";
-import { ControlExchangeName, EvmEventsQueueName } from "../constants.ts";
+import type { AmqpChannel, AmqpConnection } from "amqp/mod.ts";
+
+import { ControlExchangeName, EvmEventsQueueName } from "~root/constants.ts";
 import {
   combinedEnv,
   WebUISessionAppKeyEnvKey,
   WebUIUrlEnvKey,
-} from "../envUtils.ts";
+} from "~root/envUtils.ts";
 import {
   defaultLogFormatter,
   getInternalLoggers,
   getLoggingLevel,
   WebLoggerName,
-} from "../logUtils.ts";
-import type { PrismaClient } from "../prisma-shim.ts";
-import { runWithAmqp, runWithPrisma } from "../runHelpers.ts";
+} from "~root/logUtils.ts";
+import type { PrismaClient } from "~root/prisma-shim.ts";
+import { runWithAmqp, runWithPrisma } from "~root/runHelpers.ts";
 
 // Used for fresh-session cookie store JWT encryption key
 Deno.env.set(

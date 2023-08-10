@@ -1,4 +1,4 @@
-import type { AbiEvent } from "https://esm.sh/abitype@0.9.0";
+import type { AbiEvent } from "abitype";
 
 interface Props {
   abi: AbiEvent;

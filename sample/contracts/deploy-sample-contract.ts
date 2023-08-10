@@ -1,6 +1,8 @@
+import Account from "https://deno.land/x/web3@v0.11.1/packages/web3-eth-accounts/src/index.js";
+
 import {
+  type Chain,
   CallExecutionError,
-  Chain,
   createPublicClient,
   createWalletClient,
   formatEther,
@@ -8,8 +10,6 @@ import {
   http,
 } from "npm:viem";
 import { privateKeyToAccount } from "npm:viem/accounts";
-
-import Account from "https://deno.land/x/web3@v0.11.1/packages/web3-eth-accounts/src/index.js";
 
 import {
   getRelativeScriptPath,

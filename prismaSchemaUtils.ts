@@ -1,5 +1,5 @@
-import { parse } from "https://deno.land/std@0.194.0/flags/mod.ts";
-import * as path from "https://deno.land/std@0.194.0/path/mod.ts";
+import { parse } from "std/flags/mod.ts";
+import * as path from "std/path/mod.ts";
 
 import { baseDir } from "./moduleUtils.ts";
 

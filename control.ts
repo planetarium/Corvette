@@ -1,10 +1,10 @@
-import { getLogger } from "https://deno.land/std@0.196.0/log/mod.ts";
+import { getLogger } from "std/log/mod.ts";
 
-import type { AmqpChannel } from "https://deno.land/x/amqp@v0.23.1/mod.ts";
+import type { AmqpChannel } from "amqp/mod.ts";
 
 import {
-  EmitterControlMessages,
-  ObserverControlMessages,
+  type EmitterControlMessages,
+  type ObserverControlMessages,
   serializeControlMessage,
 } from "./ControlMessage.ts";
 import {

@@ -1,4 +1,4 @@
-import * as path from "https://deno.land/std@0.194.0/path/mod.ts";
+import * as path from "std/path/mod.ts";
 
 // TODO: this const should be changed to point to the root source code directory whenever this
 // file is moved.

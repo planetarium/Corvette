@@ -10,6 +10,7 @@ import {
   type Chain,
   createPublicClient,
   http as httpViemTransport,
+  InvalidParamsRpcError,
   type Log as LogGeneric,
   toBytes,
   toHex,
@@ -18,7 +19,7 @@ import {
 import Prisma, { type PrismaClient } from "./prisma-shim.ts";
 
 import { deserializeControlMessage } from "./ControlMessage.ts";
-import { serializeEventMessage } from "./EventMessage.ts";
+import { EventMessage, serializeEventMessage } from "./EventMessage.ts";
 import {
   ControlExchangeName,
   ControlObserverRoutingKey,
@@ -36,6 +37,7 @@ import {
   runWithChainDefinition,
   runWithPrisma,
 } from "./runHelpers.ts";
+import { BlockFinalityEnvKey, combinedEnv } from "./envUtils.ts";
 
 type Log = LogGeneric<
   bigint,
@@ -84,7 +86,8 @@ export async function observer(
   logger.debug(
     `Declared AMQP events queue: ${eventsQueue.queue}  consumers: ${eventsQueue.consumerCount}  message count: ${eventsQueue.messageCount}.`,
   );
-  let unwatch = await createWatch();
+  const finalizationQueue: EventMessage[] = [];
+  let unwatchEvent = await createWatchEvent();
   await amqpChannel.consume(
     { queue: controlQueue.queue },
     async (_args, _props, data) => {
@@ -98,11 +101,60 @@ export async function observer(
         logger.info(
           "Received reload control message, reloading configuration.",
         );
-        unwatch();
-        unwatch = await createWatch();
+        unwatchEvent();
+        unwatchEvent = await createWatchEvent();
       }
     },
   );
+
+  const blockFinalityEnvVar = combinedEnv[BlockFinalityEnvKey];
+  const blockFinalityNumber = Number(blockFinalityEnvVar);
+  const blockFinality =
+    blockFinalityEnvVar === "safe" || blockFinalityEnvVar === "finalized"
+      ? blockFinalityEnvVar
+      : Number.isInteger(blockFinalityNumber)
+      ? BigInt(blockFinalityEnvVar)
+      : undefined;
+  logger.info(`Block finality is ${blockFinality}.`);
+  if (blockFinality === undefined) {
+    const message =
+      `${BlockFinalityEnvKey} environment may only take either an integer or string "safe" or "finalized" as the value.`;
+    logger.critical(`Irrecoverable error: ${message}`);
+    throw new Error(message);
+  }
+  if (typeof (blockFinality) === "string") {
+    try {
+      await client.getBlock({ blockTag: blockFinality });
+    } catch (e) {
+      if (e instanceof InvalidParamsRpcError) {
+        const message =
+          `The given RPC node does not support the blockTag '${blockFinality}'.`;
+        logger.critical(`Irrecoverable error: ${message}`);
+        throw new Error(message);
+      }
+      throw e;
+    }
+  }
+
+  // TODO: customizable poll interval and transport
+  if (typeof (blockFinality) === "bigint") {
+    logger.info(
+      "Block finality is an offset, using eth_blockNumber to watch latest blocks.",
+    );
+  } else {
+    logger.info(
+      "Block finality is a blockTag, using eth_getBlockByNumber to watch latest blocks.",
+    );
+  }
+  const unwatchBlockNumber = typeof (blockFinality) === "bigint"
+    ? client.watchBlockNumber({
+      onBlockNumber: (blockNumber) =>
+        blockFinalized(blockNumber - blockFinality),
+    })
+    : client.watchBlocks({
+      blockTag: blockFinality,
+      onBlock: (block) => blockFinalized(block.number!),
+    });
 
   const abortController = new AbortController();
   const runningPromise = block(abortController.signal);
@@ -110,14 +162,15 @@ export async function observer(
   async function cleanup() {
     logger.warning("Stopping observer.");
     abortController.abort();
-    unwatch();
+    unwatchEvent();
+    unwatchBlockNumber();
     await runningPromise;
   }
 
   return { runningPromise, cleanup };
 
   // TODO: customizable poll interval and transport
-  async function createWatch() {
+  async function createWatchEvent() {
     const { sources, abis } = (await prisma.eventSource.findMany({
       select: { abiHash: true, address: true, Abi: { select: { json: true } } },
     })).reduce(
@@ -225,26 +278,22 @@ export async function observer(
         );
 
         logger.info(
-          `Publishing event, blockNumber: ${log.blockNumber}  logIndex: ${log.logIndex}  blockTimestamp: ${
+          `Queueing event for finalization, blockNumber: ${log.blockNumber}  logIndex: ${log.logIndex}  blockTimestamp: ${
             formatDate(timestampDate, "yyyy-MM-dd HH:mm:ss")
           }.`,
         );
-        amqpChannel.publish(
-          { routingKey: EvmEventsQueueName },
-          { contentType: "application/octet-stream" },
-          serializeEventMessage({
-            address: addressBytes,
-            sigHash: abiHash,
-            abi: abis[toHex(abiHash)],
-            topics: topicsBytes,
-            data: dataBytes,
-            blockTimestamp: timestamp,
-            logIndex: BigInt(log.logIndex),
-            blockNumber: log.blockNumber,
-            blockHash: blockHashBytes,
-            txHash: txHashBytes,
-          }),
-        );
+        finalizationQueue.push({
+          address: addressBytes,
+          sigHash: abiHash,
+          abi: abis[toHex(abiHash)],
+          topics: topicsBytes,
+          data: dataBytes,
+          blockTimestamp: timestamp,
+          logIndex: BigInt(log.logIndex),
+          blockNumber: log.blockNumber,
+          blockHash: blockHashBytes,
+          txHash: txHashBytes,
+        });
       } catch (e) {
         // ignore if the entry for the observed event exists in db (other observer already inserted)
         if (
@@ -261,6 +310,125 @@ export async function observer(
         logger.error(`Unexpected error: ${e}`);
       }
     }
+  }
+
+  async function blockFinalized(blockNumber: bigint) {
+    const consumeQueue = [];
+    while (finalizationQueue.length > 0) {
+      consumeQueue.push(finalizationQueue.shift()!);
+    }
+    const { observed, returnToQueue } = consumeQueue.reduce(
+      ({ observed, returnToQueue }, x) =>
+        x.blockNumber <= blockNumber
+          ? { observed: [...observed, x], returnToQueue }
+          : { observed, returnToQueue: [...returnToQueue, x] },
+      { observed: [], returnToQueue: [] } as {
+        observed: typeof finalizationQueue;
+        returnToQueue: typeof finalizationQueue;
+      },
+    );
+    while (returnToQueue.length > 0) {
+      finalizationQueue.push(returnToQueue.shift()!);
+    }
+    if (observed.length <= 0) {
+      logger.debug(
+        `New finalized block at ${blockNumber}, but no events waiting in queue to be finalized.`,
+      );
+      return;
+    }
+    logger.debug(() =>
+      `Events to be finalized at ${blockNumber}  blockNumber-logIndex: ${
+        observed.map((evt) =>
+          `${evt.blockNumber}-${evt.logIndex} (${
+            formatDate(
+              new Date(Number(evt.blockTimestamp) * 1000),
+              "yyyy-MM-dd HH:mm:ss",
+            )
+          })`
+        ).join(", ")
+      }.`
+    );
+    const { finalized, ommer } = await observed.reduce(
+      async (acc, x) => {
+        const { finalized, ommer, finalizedBlock } = await acc;
+
+        return finalizedBlock[String(x.blockNumber)] ??
+            (finalizedBlock[String(x.blockNumber)] =
+                (await client.getBlock({ blockNumber: x.blockNumber }))
+                  .hash!) ===
+              toHex(x.blockHash)
+          ? { finalized: [...finalized, x], ommer, finalizedBlock }
+          : { finalized, ommer: [...ommer, x], finalizedBlock };
+      },
+      Promise.resolve(
+        { finalized: [], ommer: [], finalizedBlock: {} } as {
+          finalized: typeof observed;
+          ommer: typeof observed;
+          finalizedBlock: Record<string, string>;
+        },
+      ),
+    );
+    logger.debug(() =>
+      finalized.length > 0
+        ? `Finalized events at ${blockNumber}  blockNumber-logIndex: ${
+          finalized.map((evt) => `${evt.blockNumber}-${evt.logIndex}`)
+            .join(", ")
+        }.`
+        : `No finalized block at ${blockNumber}`
+    );
+
+    await Promise.all(
+      finalized.map((x) => {
+        logger.info(
+          `Publishing event finalized at ${blockNumber} to emitter queue:  blockNumber: ${x.blockNumber}  logIndex: ${x.logIndex}.`,
+        );
+        amqpChannel.publish(
+          { routingKey: EvmEventsQueueName },
+          { contentType: "application/octet-stream" },
+          serializeEventMessage(x),
+        );
+      }),
+    );
+
+    logger.info(() =>
+      ommer.length > 0
+        ? `Removing ommered events from DB at block ${blockNumber}  ${
+          ommer.map((evt) =>
+            `blockNumber: ${evt.blockNumber}  logIndex: ${evt.logIndex}  blockHash: ${
+              toHex(evt.blockHash)
+            }`
+          )
+            .join(",  ")
+        }.`
+        : `No ommered block at ${blockNumber}.`
+    );
+    await Promise.all(ommer.map((x) =>
+      prisma.event.delete({
+        where: {
+          blockTimestamp_logIndex: {
+            blockTimestamp: new Date(
+              Number(x.blockTimestamp) * 1000,
+            ),
+            logIndex: Number(x.logIndex),
+          },
+        },
+      })
+    ));
+    logger.debug(() =>
+      finalizationQueue.length > 0
+        ? `Yet to be finalized, blockNumber-logIndex: ${
+          finalizationQueue.map((evt) =>
+            `${evt.blockNumber}-${evt.logIndex} (${
+              formatDate(
+                new Date(Number(evt.blockTimestamp) * 1000),
+                "yyyy-MM-dd HH:mm:ss",
+              )
+            })`
+          )
+            .join(", ")
+        }.`
+        : "No events left in finalization queue."
+    );
   }
 }
 

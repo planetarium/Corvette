@@ -17,13 +17,15 @@ import {
 
 import Prisma, { type PrismaClient } from "./prisma-shim.ts";
 
-import { deserializeControlMessage } from "./ControlMessage.ts";
-import { serializeEventMessage } from "./EventMessage.ts";
+import { createMutex } from "./concurrencyUtils.ts";
 import {
   ControlExchangeName,
   ControlObserverRoutingKey,
   EvmEventsQueueName,
 } from "./constants.ts";
+import { deserializeControlMessage } from "./ControlMessage.ts";
+import { BlockFinalityEnvKey, combinedEnv } from "./envUtils.ts";
+import { serializeEventMessage } from "./EventMessage.ts";
 import {
   defaultLogFormatter,
   getInternalLoggers,
@@ -36,7 +38,6 @@ import {
   runWithChainDefinition,
   runWithPrisma,
 } from "./runHelpers.ts";
-import { BlockFinalityEnvKey, combinedEnv } from "./envUtils.ts";
 
 type Log = LogGeneric<
   bigint,
@@ -85,6 +86,9 @@ export async function observer(
   logger.debug(
     `Declared AMQP events queue: ${eventsQueue.queue}  consumers: ${eventsQueue.consumerCount}  message count: ${eventsQueue.messageCount}.`,
   );
+
+  // TODO: replace with ReadWriteLockable structure where write lock has priority to ensure proper concurrency for blockFinalized
+  const doSourcesMutex = createMutex();
   let { sources, addresses, abis } = await getSources();
   await amqpChannel.consume(
     { queue: controlQueue.queue },
@@ -168,152 +172,156 @@ export async function observer(
   return { runningPromise, cleanup };
 
   async function getSources() {
-    const { sources, addresses, abis } = (await prisma.eventSource.findMany({
-      select: {
-        abiHash: true,
-        address: true,
-        Abi: { select: { json: true } },
-      },
-    })).reduce(
-      ({ sources, addresses, abis }, item) => {
-        const address = toHex(item.address as unknown as Uint8Array);
-        const entry = toHex(item.abiHash);
-        return {
-          sources: {
-            ...sources,
-            [address]: [...(sources[address] ?? []), entry],
-          },
-          addresses: addresses.includes(address)
-            ? addresses
-            : [...addresses, address],
-          abis: { ...abis, [entry]: item.Abi.json },
-        };
-      },
-      { sources: {}, addresses: [], abis: {} } as {
-        sources: Record<string, string[]>;
-        addresses: `0x${string}`[];
-        abis: Record<string, string>;
-      },
-    );
-    logger.info(() =>
-      Object.keys(sources).length > 0
-        ? `Watching ${
-          Object.entries(sources).map((entry) =>
-            `address: ${entry[0]}  event signature hashes: ${
-              entry[1].join(", ")
-            }`
-          ).join(",  ")
-        }.`
-        : "No event sources to watch."
-    );
-    return { sources, addresses, abis };
+    return await doSourcesMutex(async () => {
+      const { sources, addresses, abis } = (await prisma.eventSource.findMany({
+        select: {
+          abiHash: true,
+          address: true,
+          Abi: { select: { json: true } },
+        },
+      })).reduce(
+        ({ sources, addresses, abis }, item) => {
+          const address = toHex(item.address as unknown as Uint8Array);
+          const entry = toHex(item.abiHash);
+          return {
+            sources: {
+              ...sources,
+              [address]: [...(sources[address] ?? []), entry],
+            },
+            addresses: addresses.includes(address)
+              ? addresses
+              : [...addresses, address],
+            abis: { ...abis, [entry]: item.Abi.json },
+          };
+        },
+        { sources: {}, addresses: [], abis: {} } as {
+          sources: Record<string, string[]>;
+          addresses: `0x${string}`[];
+          abis: Record<string, string>;
+        },
+      );
+      logger.info(() =>
+        Object.keys(sources).length > 0
+          ? `Watching ${
+            Object.entries(sources).map((entry) =>
+              `address: ${entry[0]}  event signature hashes: ${
+                entry[1].join(", ")
+              }`
+            ).join(",  ")
+          }.`
+          : "No event sources to watch."
+      );
+      return { sources, addresses, abis };
+    });
   }
 
   async function blockFinalized(blockNumber: bigint) {
-    if (addresses.length <= 0) return;
-    const events = (await client.getLogs({
-      address: addresses,
-      fromBlock: blockNumber,
-      toBlock: blockNumber,
-    })).filter((log) =>
-      log.topics[0] !== undefined &&
-      sources[log.address].includes(log.topics[0])
-    );
-    logger.debug(() =>
-      events.length > 0
-        ? `Finalized events, blockNumber-logIndex: ${
-          events.map((evt) => `${blockNumber}-${evt.logIndex}`)
-            .join(", ")
-        }.`
-        : `New finalized block at ${blockNumber}, but no finalized events are present in the block.`
-    );
-    await Promise.all(
-      events.sort(() =>
-        crypto.getRandomValues(new Uint8Array(1))[0] > 127 ? 1 : -1
-      ).map(async (log) => {
-        if (log.blockNumber == null) {
-          logProcessError("blockNumber is null", log);
-          return;
-        }
-        if (log.logIndex == null) {
-          logProcessError("logIndex is null", log);
-          return;
-        }
-        if (log.blockHash == null) {
-          logProcessError("blockHash is null", log);
-          return;
-        }
-        if (log.transactionHash == null) {
-          logProcessError("txHash is null", log);
-          return;
-        }
-
-        const addressBytes = toBytes(log.address);
-        const topicsBytes = log.topics.map(toBytes).map(Buffer.from);
-        const [abiHash, topic1, topic2, topic3] = topicsBytes;
-        const dataBytes = toBytes(log.data);
-        const timestamp =
-          (await client.getBlock({ blockHash: log.blockHash! })).timestamp;
-        const timestampDate = new Date(Number(timestamp) * 1000);
-        const blockHashBytes = toBytes(log.blockHash);
-        const txHashBytes = toBytes(log.transactionHash);
-
-        try {
-          await prisma.event.create({
-            data: {
-              sourceAddress: Buffer.from(addressBytes),
-              abiHash,
-              topic1,
-              topic2,
-              topic3,
-              data: Buffer.from(dataBytes),
-              blockTimestamp: timestampDate,
-              logIndex: log.logIndex,
-              blockNumber: Number(log.blockNumber),
-              blockHash: Buffer.from(blockHashBytes),
-              txHash: Buffer.from(txHashBytes),
-            },
-          });
-          logger.debug(
-            `Wrote event to DB, blockNumber: ${log.blockNumber}  logIndex: ${log.logIndex}.`,
-          );
-
-          logger.info(
-            `Publishing finalized event to emitter queue,  blockNumber: ${blockNumber}  logIndex: ${log.logIndex}.`,
-          );
-          await amqpChannel.publish(
-            { routingKey: EvmEventsQueueName },
-            { contentType: "application/octet-stream" },
-            serializeEventMessage({
-              address: addressBytes,
-              sigHash: abiHash,
-              abi: abis[toHex(abiHash)],
-              topics: topicsBytes,
-              data: dataBytes,
-              blockTimestamp: timestamp,
-              logIndex: BigInt(log.logIndex),
-              blockNumber: log.blockNumber,
-              blockHash: blockHashBytes,
-              txHash: txHashBytes,
-            }),
-          );
-        } catch (e) {
-          // ignore if the entry for the observed event exists in db (other observer already inserted)
-          if (
-            (e instanceof Prisma.PrismaClientKnownRequestError &&
-              e.code === "P2002")
-          ) {
-            logger.debug(() =>
-              `Ignoring event already present in DB, blockNumber: ${log.blockNumber}  logIndex: ${log.logIndex}  blockHash: ${log.blockHash}  topics: ${
-                topicsToString(log.topics)
-              }  data: ${log.data}`
-            );
+    return await doSourcesMutex(async () => {
+      if (addresses.length <= 0) return;
+      const events = (await client.getLogs({
+        address: addresses,
+        fromBlock: blockNumber,
+        toBlock: blockNumber,
+      })).filter((log) =>
+        log.topics[0] !== undefined &&
+        sources[log.address].includes(log.topics[0])
+      );
+      logger.debug(() =>
+        events.length > 0
+          ? `Finalized events, blockNumber-logIndex: ${
+            events.map((evt) => `${blockNumber}-${evt.logIndex}`)
+              .join(", ")
+          }.`
+          : `New finalized block at ${blockNumber}, but no finalized events are present in the block.`
+      );
+      await Promise.all(
+        events.sort(() =>
+          crypto.getRandomValues(new Uint8Array(1))[0] > 127 ? 1 : -1
+        ).map(async (log) => {
+          if (log.blockNumber == null) {
+            logProcessError("blockNumber is null", log);
             return;
           }
-          logger.error(`Unexpected error: ${e}`);
-        }
-      }),
-    );
+          if (log.logIndex == null) {
+            logProcessError("logIndex is null", log);
+            return;
+          }
+          if (log.blockHash == null) {
+            logProcessError("blockHash is null", log);
+            return;
+          }
+          if (log.transactionHash == null) {
+            logProcessError("txHash is null", log);
+            return;
+          }
+
+          const addressBytes = toBytes(log.address);
+          const topicsBytes = log.topics.map(toBytes).map(Buffer.from);
+          const [abiHash, topic1, topic2, topic3] = topicsBytes;
+          const dataBytes = toBytes(log.data);
+          const timestamp =
+            (await client.getBlock({ blockHash: log.blockHash! })).timestamp;
+          const timestampDate = new Date(Number(timestamp) * 1000);
+          const blockHashBytes = toBytes(log.blockHash);
+          const txHashBytes = toBytes(log.transactionHash);
+
+          try {
+            await prisma.event.create({
+              data: {
+                sourceAddress: Buffer.from(addressBytes),
+                abiHash,
+                topic1,
+                topic2,
+                topic3,
+                data: Buffer.from(dataBytes),
+                blockTimestamp: timestampDate,
+                logIndex: log.logIndex,
+                blockNumber: Number(log.blockNumber),
+                blockHash: Buffer.from(blockHashBytes),
+                txHash: Buffer.from(txHashBytes),
+              },
+            });
+            logger.debug(
+              `Wrote event to DB, blockNumber: ${log.blockNumber}  logIndex: ${log.logIndex}.`,
+            );
+
+            logger.info(
+              `Publishing finalized event to emitter queue,  blockNumber: ${blockNumber}  logIndex: ${log.logIndex}.`,
+            );
+            await amqpChannel.publish(
+              { routingKey: EvmEventsQueueName },
+              { contentType: "application/octet-stream" },
+              serializeEventMessage({
+                address: addressBytes,
+                sigHash: abiHash,
+                abi: abis[toHex(abiHash)],
+                topics: topicsBytes,
+                data: dataBytes,
+                blockTimestamp: timestamp,
+                logIndex: BigInt(log.logIndex),
+                blockNumber: log.blockNumber,
+                blockHash: blockHashBytes,
+                txHash: txHashBytes,
+              }),
+            );
+          } catch (e) {
+            // ignore if the entry for the observed event exists in db (other observer already inserted)
+            if (
+              (e instanceof Prisma.PrismaClientKnownRequestError &&
+                e.code === "P2002")
+            ) {
+              logger.debug(() =>
+                `Ignoring event already present in DB, blockNumber: ${log.blockNumber}  logIndex: ${log.logIndex}  blockHash: ${log.blockHash}  topics: ${
+                  topicsToString(log.topics)
+                }  data: ${log.data}`
+              );
+              return;
+            }
+            logger.error(`Unexpected error: ${e}`);
+          }
+        }),
+      );
+    });
 
     function logProcessError(message: string, log: Log) {
       logger.error(

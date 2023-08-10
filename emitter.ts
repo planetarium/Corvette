@@ -28,6 +28,7 @@ import {
   getInternalLoggers,
   getLoggingLevel,
 } from "./logUtils.ts";
+import { createMutex } from "./concurrencyUtils.ts";
 
 export async function emitter(
   chain: Chain,
@@ -105,7 +106,8 @@ export async function emitter(
     },
   );
 
-  const emitQueue: (EventMessage & { url: string })[] = [];
+  const doEmitQueueMutex = createMutex();
+  let emitQueue: (EventMessage & { retry?: true; url: string[] })[] = [];
   let abortWaitController = new AbortController();
   await amqpChannel.consume(
     { queue: EvmEventsQueueName },
@@ -125,27 +127,33 @@ export async function emitter(
           `Received event message, blockNumber: ${blockNumber}  logIndex: ${logIndex}  delivery tag: ${args.deliveryTag}.`,
         );
       }
-      emitDestinations.filter((x) =>
+      const destinationUrls = emitDestinations.filter((x) =>
         uint8ArrayEquals(x.sourceAddress as unknown as Uint8Array, address) &&
         uint8ArrayEquals(x.abiHash as unknown as Uint8Array, sigHash) &&
         (x.topic1 == null ||
           (uint8ArrayEquals(x.topic1 as unknown as Uint8Array, topics[1]) &&
             (x.topic2 == null ||
-              (uint8ArrayEquals(x.topic2 as unknown as Uint8Array, topics[2]) &&
+              (uint8ArrayEquals(
+                x.topic2 as unknown as Uint8Array,
+                topics[2],
+              ) &&
                 (x.topic3 == null ||
                   uint8ArrayEquals(
                     x.topic3 as unknown as Uint8Array,
                     topics[3],
                   ))))))
-      ).forEach((x) => {
-        if (blockNumber === -1n) {
-          // Webhook Test Request
-          const sourceAddress = getAddress(toHex(address));
-          const abiHash = toHex(sigHash);
-          logger.info(
-            `Received webhook test request, address: ${sourceAddress}  event signature hash: ${abiHash}  destination: ${x.webhookUrl}.`,
-          );
-          return fetch(x.webhookUrl, {
+      ).map((x) => x.webhookUrl);
+      if (blockNumber === -1n) {
+        // Webhook Test Request
+        const sourceAddress = getAddress(toHex(address));
+        const abiHash = toHex(sigHash);
+        logger.info(
+          `Received webhook test request, address: ${sourceAddress}  event signature hash: ${abiHash}  destinations: ${
+            destinationUrls.join(", ")
+          }.`,
+        );
+        await Promise.all(destinationUrls.map((url) =>
+          fetch(url, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: losslessJsonStringify({
@@ -155,15 +163,43 @@ export async function emitter(
               sourceAddress,
               abiHash,
             }),
-          });
-        }
+          })
+        ));
+      } else {
+        await doEmitQueueMutex(async () => {
+          const doMutex = createMutex();
+          logger.info(
+            `Queueing event for emit, blockNumber: ${blockNumber}  logIndex: ${logIndex}.`,
+          );
+          await Promise.all(
+            destinationUrls.map(async (url) =>
+              await doMutex(() => {
+                let newEvt = true;
+                emitQueue = emitQueue.map((queuedItem) => {
+                  if (
+                    uint8ArrayEquals(queuedItem.blockHash, blockHash) &&
+                    queuedItem.logIndex === logIndex
+                  ) {
+                    newEvt = false;
+                    if (!queuedItem.url.includes(url)) {
+                      return {
+                        ...queuedItem,
+                        url: [...queuedItem.url, url],
+                      };
+                    }
+                  }
+                  return queuedItem;
+                });
+                if (newEvt) {
+                  emitQueue.push({ ...message, url: [url] });
+                }
+              })
+            ),
+          );
 
-        logger.info(
-          `Queueing event for emit, blockNumber: ${blockNumber}  logIndex: ${logIndex}.`,
-        );
-        emitQueue.push({ ...message, url: x.webhookUrl });
-      });
-      if (emitQueue.length > 0) abortWaitController.abort();
+          if (emitQueue.length > 0) abortWaitController.abort();
+        });
+      }
       logger.debug(
         `Acknowledging AMQP message for event, blockNumber: ${blockNumber}  logIndex: ${logIndex}  delivery tag: ${args.deliveryTag}.`,
       );
@@ -184,23 +220,38 @@ export async function emitter(
   async function emitEvents() {
     while (true) {
       if (abortController.signal.aborted) return;
-      const consumeQueue = [];
-      while (emitQueue.length > 0) consumeQueue.push(emitQueue.shift()!);
 
-      abortWaitController = new AbortController();
+      await doEmitQueueMutex(async () => {
+        abortWaitController = new AbortController();
 
-      await Promise.all(
-        consumeQueue.map((x) => {
-          logger.info(
-            `Posting event destination: ${x.url}  blockNumber: ${x.blockNumber}  logIndex: ${x.logIndex}.`,
-          );
-          return fetch(x.url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: losslessJsonStringify(serializeEventResponse(x)),
-          });
-        }),
-      );
+        emitQueue = (await Promise.all(
+          emitQueue.map(async (x) => {
+            const nextRetryUrls = (await Promise.all(x.url.map((url) => {
+              logger.info(
+                `${
+                  x.retry ? "Retry p" : "P"
+                }osting event destination: ${url}  blockNumber: ${x.blockNumber}  logIndex: ${x.logIndex}.`,
+              );
+              return fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: losslessJsonStringify(serializeEventResponse(x)),
+              });
+            }))).filter((x) => !x.ok).map((x) => x.url);
+            if (nextRetryUrls.length <= 0) {
+              logger.info(
+                `Event post success for all webhook URLs, blockNumber: ${x.blockNumber}  logIndex: ${x.logIndex}.`,
+              );
+              return undefined;
+            } else {
+              logger.info(
+                `Event post failed for some webhook URLs, will retry on next block index, blockNumber: ${x.blockNumber}  logIndex: ${x.logIndex}  destinations: ${nextRetryUrls}.`,
+              );
+              return { ...x, retry: true, url: nextRetryUrls };
+            }
+          }),
+        )).filter((x) => x != undefined) as typeof emitQueue;
+      });
 
       // TODO: interval config
       await new Promise<void>((resolve) => {

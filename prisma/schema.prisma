@@ -33,6 +33,14 @@ model Event {
   @@id([blockNumber, logIndex])
 }
 
+model ObservedLog {
+  blockNumber Int @id
+}
+
+model BlockProcessError {
+  blockNumber Int @id
+}
+
 model EventAbi {
   hash Bytes  @id
   json String

@@ -129,22 +129,27 @@ export async function emitter(
           `Received event message, blockNumber: ${blockNumber}  logIndex: ${logIndex}  delivery tag: ${args.deliveryTag}.`,
         );
       }
-      const destinationUrls = emitDestinations.filter((x) =>
-        uint8ArrayEquals(x.sourceAddress as unknown as Uint8Array, address) &&
-        uint8ArrayEquals(x.abiHash as unknown as Uint8Array, sigHash) &&
-        (x.topic1 == null ||
-          (uint8ArrayEquals(x.topic1 as unknown as Uint8Array, topics[1]) &&
-            (x.topic2 == null ||
-              (uint8ArrayEquals(
-                x.topic2 as unknown as Uint8Array,
-                topics[2],
-              ) &&
-                (x.topic3 == null ||
-                  uint8ArrayEquals(
-                    x.topic3 as unknown as Uint8Array,
-                    topics[3],
-                  ))))))
-      ).map((x) => x.webhookUrl);
+      const failedUrls = (await prisma.failedUrl.findMany({
+        where: { blockNumber: Number(blockNumber), logIndex: Number(logIndex) },
+      })).map((x) => x.url);
+      const destinationUrls = failedUrls.length > 0
+        ? failedUrls
+        : emitDestinations.filter((x) =>
+          uint8ArrayEquals(x.sourceAddress as unknown as Uint8Array, address) &&
+          uint8ArrayEquals(x.abiHash as unknown as Uint8Array, sigHash) &&
+          (x.topic1 == null ||
+            (uint8ArrayEquals(x.topic1 as unknown as Uint8Array, topics[1]) &&
+              (x.topic2 == null ||
+                (uint8ArrayEquals(
+                  x.topic2 as unknown as Uint8Array,
+                  topics[2],
+                ) &&
+                  (x.topic3 == null ||
+                    uint8ArrayEquals(
+                      x.topic3 as unknown as Uint8Array,
+                      topics[3],
+                    ))))))
+        ).map((x) => x.webhookUrl);
       if (blockNumber === -1n) {
         // Webhook Test Request
         const sourceAddress = getAddress(toHex(address));
@@ -272,6 +277,12 @@ export async function emitter(
                 body: losslessJsonStringify(serializeEventResponse(x)),
               });
             }))).filter((x) => !x.ok).map((x) => x.url);
+            await prisma.failedUrl.deleteMany({ where });
+            await Promise.all(
+              nextRetryUrls.map((url) =>
+                prisma.failedUrl.create({ data: { ...where, url } })
+              ),
+            );
             if (nextRetryUrls.length <= 0) {
               logger.info(
                 `Event post success for all webhook URLs, blockNumber: ${x.blockNumber}  logIndex: ${x.logIndex}.`,

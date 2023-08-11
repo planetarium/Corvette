@@ -26,6 +26,7 @@ model Event {
   data              Bytes
   emittedTimestamp  DateTime?
   lockedTimestamp   DateTime?
+  FailedUrl         FailedUrl[]
 
   abiHash       Bytes
   sourceAddress Bytes
@@ -39,6 +40,16 @@ model ObservedLog {
 
 model BlockProcessError {
   blockNumber Int @id
+}
+
+model FailedUrl {
+  Event Event @relation(fields: [blockNumber, logIndex], references: [blockNumber, logIndex])
+
+  blockNumber Int
+  logIndex    Int
+  url         String
+
+  @@id([blockNumber, logIndex, url])
 }
 
 model EventAbi {

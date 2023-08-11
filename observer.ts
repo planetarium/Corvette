@@ -90,6 +90,7 @@ export async function observer(
   // TODO: replace with ReadWriteLockable structure where write lock has priority to ensure proper concurrency for blockFinalized
   const doSourcesMutex = createMutex();
   let { sources, addresses, abis } = await getSources();
+  repostExpired();
   await amqpChannel.consume(
     { queue: controlQueue.queue },
     async (_args, _props, data) => {
@@ -151,12 +152,19 @@ export async function observer(
     ? client.watchBlockNumber({
       emitMissed: true,
       onBlockNumber: (blockNumber) =>
-        blockFinalized(blockNumber - blockFinality),
+        Promise.all([
+          blockFinalized(blockNumber - blockFinality),
+          repostExpired(),
+        ]),
     })
     : client.watchBlocks({
       emitMissed: true,
       blockTag: blockFinality,
-      onBlock: (block) => blockFinalized(block.number!),
+      onBlock: (block) =>
+        Promise.all([
+          blockFinalized(block.number!),
+          repostExpired(),
+        ]),
     });
 
   const abortController = new AbortController();
@@ -329,6 +337,50 @@ export async function observer(
     function topicsToString(topics: [`0x${string}`, ...`0x${string}`[]] | []) {
       return topics.map((topic, i) => `[${i}] ${topic}`).join(" ");
     }
+  }
+
+  async function repostExpired() {
+    return Promise.all(
+      (await Promise.all(
+        (await prisma.event.findMany({
+          where: {
+            lockedTimestamp: { lt: new Date(new Date().getTime() - 300000) },
+          },
+        })).map((x) =>
+          prisma.event.updateMany({
+            where: {
+              blockNumber: x.blockNumber,
+              logIndex: x.logIndex,
+              lockedTimestamp: x.lockedTimestamp,
+            },
+            data: { lockedTimestamp: null },
+          }).then(({ count }) => count > 0 ? x : undefined)
+        ),
+      )).map((x) => {
+        if (x == undefined) return;
+        logger.warning(
+          `Emit lock expired, re-publishing to emit queue, blockNumber: ${x.blockNumber}  logIndex: ${x.logIndex}`,
+        );
+        return amqpChannel.publish(
+          { routingKey: EvmEventsQueueName },
+          { contentType: "application/octet-stream" },
+          serializeEventMessage({
+            address: x.sourceAddress,
+            sigHash: x.abiHash,
+            abi: abis[toHex(x.abiHash)],
+            topics: [x.topic3, x.topic2, x.topic1].reduce(
+              (acc, x) => x != undefined ? [x, ...acc] : [],
+              [],
+            ),
+            data: x.data,
+            logIndex: BigInt(x.logIndex),
+            blockNumber: BigInt(x.blockNumber),
+            blockHash: x.blockHash,
+            txHash: x.txHash,
+          }),
+        );
+      }),
+    );
   }
 }
 

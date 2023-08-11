@@ -107,7 +107,9 @@ export async function emitter(
   );
 
   const doEmitQueueMutex = createMutex();
-  let emitQueue: (EventMessage & { retry?: true; url: string[] })[] = [];
+  let emitQueue:
+    (EventMessage & { retry?: true; lockedTimestamp: Date; url: string[] })[] =
+      [];
   let abortWaitController = new AbortController();
   await amqpChannel.consume(
     { queue: EvmEventsQueueName },
@@ -166,39 +168,55 @@ export async function emitter(
           })
         ));
       } else {
-        await doEmitQueueMutex(async () => {
-          const doMutex = createMutex();
-          logger.info(
-            `Queueing event for emit, blockNumber: ${blockNumber}  logIndex: ${logIndex}.`,
+        const lockedTimestamp = new Date();
+        if (
+          (await prisma.event.updateMany({
+            where: {
+              blockNumber: Number(blockNumber),
+              logIndex: Number(logIndex),
+              lockedTimestamp: null,
+            },
+            data: { lockedTimestamp },
+          })).count <= 0
+        ) {
+          logger.error(() =>
+            `Message shouldn't be locked, but it is, blockNumber: ${blockNumber}  logIndex: ${logIndex}.`
           );
-          await Promise.all(
-            destinationUrls.map(async (url) =>
-              await doMutex(() => {
-                let newEvt = true;
-                emitQueue = emitQueue.map((queuedItem) => {
-                  if (
-                    uint8ArrayEquals(queuedItem.blockHash, blockHash) &&
-                    queuedItem.logIndex === logIndex
-                  ) {
-                    newEvt = false;
-                    if (!queuedItem.url.includes(url)) {
-                      return {
-                        ...queuedItem,
-                        url: [...queuedItem.url, url],
-                      };
+        } else {
+          await doEmitQueueMutex(async () => {
+            const doMutex = createMutex();
+            logger.info(
+              `Queueing event for emit, blockNumber: ${blockNumber}  logIndex: ${logIndex}.`,
+            );
+            await Promise.all(
+              destinationUrls.map(async (url) =>
+                await doMutex(() => {
+                  let newEvt = true;
+                  emitQueue = emitQueue.map((queuedItem) => {
+                    if (
+                      uint8ArrayEquals(queuedItem.blockHash, blockHash) &&
+                      queuedItem.logIndex === logIndex
+                    ) {
+                      newEvt = false;
+                      if (!queuedItem.url.includes(url)) {
+                        return {
+                          ...queuedItem,
+                          url: [...queuedItem.url, url],
+                        };
+                      }
                     }
+                    return queuedItem;
+                  });
+                  if (newEvt) {
+                    emitQueue.push({ ...message, lockedTimestamp, url: [url] });
                   }
-                  return queuedItem;
-                });
-                if (newEvt) {
-                  emitQueue.push({ ...message, url: [url] });
-                }
-              })
-            ),
-          );
+                })
+              ),
+            );
 
-          if (emitQueue.length > 0) abortWaitController.abort();
-        });
+            if (emitQueue.length > 0) abortWaitController.abort();
+          });
+        }
       }
       logger.debug(
         `Acknowledging AMQP message for event, blockNumber: ${blockNumber}  logIndex: ${logIndex}  delivery tag: ${args.deliveryTag}.`,
@@ -226,6 +244,22 @@ export async function emitter(
 
         emitQueue = (await Promise.all(
           emitQueue.map(async (x) => {
+            const where = {
+              blockNumber: Number(x.blockNumber),
+              logIndex: Number(x.logIndex),
+            };
+            const newLockedTimestamp = new Date();
+            if (
+              (await prisma.event.updateMany({
+                where: { ...where, lockedTimestamp: x.lockedTimestamp },
+                data: { lockedTimestamp: newLockedTimestamp },
+              })).count <= 0
+            ) {
+              logger.warning(
+                `Lock was modified by another party, aborting emit, blockNumber: ${x.blockNumber}  logIndex: ${x.logIndex}.`,
+              );
+              return undefined;
+            }
             const nextRetryUrls = (await Promise.all(x.url.map((url) => {
               logger.info(
                 `${
@@ -243,21 +277,24 @@ export async function emitter(
                 `Event post success for all webhook URLs, blockNumber: ${x.blockNumber}  logIndex: ${x.logIndex}.`,
               );
 
-              await prisma.event.update({
-                where: {
-                  blockNumber_logIndex: {
-                    blockNumber: Number(x.blockNumber),
-                    logIndex: Number(x.logIndex),
-                  },
+              await prisma.event.updateMany({
+                where,
+                data: {
+                  lockedTimestamp: null,
+                  emittedTimestamp: new Date(),
                 },
-                data: { emittedTimestamp: new Date() },
               });
               return undefined;
             } else {
               logger.info(
                 `Event post failed for some webhook URLs, will retry on next block index, blockNumber: ${x.blockNumber}  logIndex: ${x.logIndex}  destinations: ${nextRetryUrls}.`,
               );
-              return { ...x, retry: true, url: nextRetryUrls };
+              return {
+                ...x,
+                lockedTimestamp: newLockedTimestamp,
+                retry: true,
+                url: nextRetryUrls,
+              };
             }
           }),
         )).filter((x) => x != undefined) as typeof emitQueue;

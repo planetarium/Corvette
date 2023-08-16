@@ -58,6 +58,7 @@ export async function emitter(
   });
   const eventsQueue = await amqpChannel.declareQueue({
     queue: EvmEventsQueueName,
+    durable: true,
   });
   logger.debug(
     `Declared AMQP events queue: ${eventsQueue.queue}  consumers: ${eventsQueue.consumerCount}  message count: ${eventsQueue.messageCount}.`,

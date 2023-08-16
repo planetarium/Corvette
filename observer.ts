@@ -82,6 +82,7 @@ export async function observer(
   });
   const eventsQueue = await amqpChannel.declareQueue({
     queue: EvmEventsQueueName,
+    durable: true,
   });
   logger.debug(
     `Declared AMQP events queue: ${eventsQueue.queue}  consumers: ${eventsQueue.consumerCount}  message count: ${eventsQueue.messageCount}.`,
@@ -377,7 +378,7 @@ export async function observer(
         );
         await amqpChannel.publish(
           { routingKey: EvmEventsQueueName },
-          { contentType: "application/octet-stream" },
+          { contentType: "application/octet-stream", deliveryMode: 2 }, // PERSISTENT_DELIVERY_MODE
           serializeEventMessage({
             address: addressBytes,
             sigHash: abiHash,
@@ -447,7 +448,7 @@ export async function observer(
         );
         return amqpChannel.publish(
           { routingKey: EvmEventsQueueName },
-          { contentType: "application/octet-stream" },
+          { contentType: "application/octet-stream", deliveryMode: 2 }, // PERSISTENT_DELIVERY_MODE
           serializeEventMessage({
             address: x.sourceAddress,
             sigHash: x.abiHash,

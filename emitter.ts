@@ -265,18 +265,32 @@ export async function emitter(
               );
               return undefined;
             }
-            const nextRetryUrls = (await Promise.all(x.url.map((url) => {
+            const nextRetryUrls = (await Promise.all(x.url.map(async (url) => {
               logger.info(
                 `${
                   x.retry ? "Retry p" : "P"
                 }osting event destination: ${url}  blockNumber: ${x.blockNumber}  logIndex: ${x.logIndex}.`,
               );
-              return fetch(url, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: losslessJsonStringify(serializeEventResponse(x)),
-              });
-            }))).filter((x) => !x.ok).map((x) => x.url);
+              try {
+                const response = await fetch(url, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: losslessJsonStringify(serializeEventResponse(x)),
+                });
+                if (response.ok) return undefined;
+                logger.error(
+                  `Event emit request failed with an HTTP error, status: ${response.status}  blockNumber: ${x.blockNumber}  logIndex: ${x.logIndex}  url: ${url}  response body: ${response.text()}`,
+                );
+                return url;
+              } catch (e) {
+                logger.error(
+                  `Event emit request failed with an exception, blockNumber: ${x.blockNumber}  logIndex: ${x.logIndex}  url: ${url}: ${
+                    e.stack ?? e.message
+                  }`,
+                );
+                return url;
+              }
+            }))).filter((x) => x != undefined) as string[];
             await prisma.failedUrl.deleteMany({ where });
             await Promise.all(
               nextRetryUrls.map((url) =>
@@ -298,7 +312,7 @@ export async function emitter(
               return undefined;
             } else {
               logger.info(
-                `Event post failed for some webhook URLs, will retry on next block index, blockNumber: ${x.blockNumber}  logIndex: ${x.logIndex}  destinations: ${nextRetryUrls}.`,
+                `Event post failed for some webhook URLs, will retry on next event observed or after 60s, blockNumber: ${x.blockNumber}  logIndex: ${x.logIndex}  destinations: ${nextRetryUrls}.`,
               );
               return {
                 ...x,

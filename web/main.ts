@@ -15,20 +15,20 @@ import twindConfig from "./twind.config.ts";
 
 import type { AmqpChannel, AmqpConnection } from "amqp/mod.ts";
 
-import { ControlExchangeName, EvmEventsQueueName } from "~root/constants.ts";
+import { ControlExchangeName, EvmEventsQueueName } from "~/constants.ts";
 import {
   combinedEnv,
   WebUISessionAppKeyEnvKey,
   WebUIUrlEnvKey,
-} from "~root/envUtils.ts";
+} from "~/envUtils.ts";
 import {
   defaultLogFormatter,
   getInternalLoggers,
   getLoggingLevel,
   WebLoggerName,
-} from "~root/logUtils.ts";
-import type { PrismaClient } from "~root/prisma-shim.ts";
-import { runWithAmqp, runWithPrisma } from "~root/runHelpers.ts";
+} from "~/logUtils.ts";
+import type { PrismaClient } from "~/prisma-shim.ts";
+import { runWithAmqp, runWithPrisma } from "~/runHelpers.ts";
 
 // Used for fresh-session cookie store JWT encryption key
 Deno.env.set(

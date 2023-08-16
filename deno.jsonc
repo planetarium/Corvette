@@ -12,8 +12,8 @@
     "jsx": "react-jsx"
   },
   "imports": {
-    "~root/": "./",
-    "~/": "./web/",
+    "~/": "./",
+    "web/": "./web/",
     "std/": "https://deno.land/std@0.196.0/",
     "abitype": "https://esm.sh/v130/abitype@0.9.0",
     "abitype/": "https://esm.sh/v130/abitype@0.9.0/",

@@ -3,9 +3,9 @@ import { LogLevels } from "std/log/levels.ts";
 import { type Handlers, Status } from "fresh/server.ts";
 import type { WithSession } from "fresh-session";
 
-import { prisma } from "~/main.ts";
-import { logRequest, redirect } from "~/util.ts";
-import { hash } from "~/argon2.ts";
+import { prisma } from "web/main.ts";
+import { logRequest, redirect } from "web/util.ts";
+import { hash } from "web/argon2.ts";
 
 export const handler: Handlers<unknown, WithSession> = {
   async POST(req, ctx) {

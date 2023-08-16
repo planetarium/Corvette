@@ -3,7 +3,8 @@ import { type AbiEvent, narrow } from "abitype";
 import { Buffer } from "node:buffer";
 import { keccak256, toBytes } from "npm:viem";
 
-import { PrismaClient } from "../prisma-shim.ts";
+import { PrismaClient } from "~/prisma-shim.ts";
+
 import { formatAbiItemPrototype } from "../abitype.ts";
 import { combinedEnv, DatabaseUrlEnvKey } from "../envUtils.ts";
 

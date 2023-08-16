@@ -9,11 +9,11 @@ import {
 import {
   CollapsibleTable,
   CollapsibleTableRow,
-} from "~/components/CollapsibleTable.tsx";
-import { Modal } from "~/components/Modal.tsx";
-import { Toast, ToastProps } from "~/components/Toast.tsx";
-import { SearchDropdown } from "~/islands/SearchDropdown.tsx";
-import type { SourceEntry } from "~/islands/ListSources.tsx";
+} from "web/components/CollapsibleTable.tsx";
+import { Modal } from "web/components/Modal.tsx";
+import { Toast, ToastProps } from "web/components/Toast.tsx";
+import { SearchDropdown } from "web/islands/SearchDropdown.tsx";
+import type { SourceEntry } from "web/islands/ListSources.tsx";
 
 export interface WebhookEntry {
   id: number;

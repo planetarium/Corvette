@@ -1,8 +1,8 @@
 import Account from "https://deno.land/x/web3@v0.11.1/packages/web3-eth-accounts/src/index.js";
 
 import {
-  type Chain,
   CallExecutionError,
+  type Chain,
   createPublicClient,
   createWalletClient,
   formatEther,

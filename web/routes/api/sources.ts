@@ -6,14 +6,14 @@ import type { WithSession } from "fresh-session";
 import { Buffer } from "node:buffer";
 import { getAddress, toBytes, toHex } from "npm:viem";
 
-import { amqpChannel, prisma } from "~/main.ts";
-import { checkPermission, logRequest } from "~/util.ts";
-import { formatAbiItemPrototype } from "~root/abitype.ts";
-import { reload as reloadControl } from "~root/control.ts";
-import { ControlObserverRoutingKey } from "~root/constants.ts";
-import type { User } from "~root/generated/client/index.d.ts";
+import { amqpChannel, prisma } from "web/main.ts";
+import { checkPermission, logRequest } from "web/util.ts";
+import { formatAbiItemPrototype } from "~/abitype.ts";
+import { reload as reloadControl } from "~/control.ts";
+import { ControlObserverRoutingKey } from "~/constants.ts";
+import type { User } from "~/generated/client/index.d.ts";
 
-import type { SourceEntry } from "~/islands/ListSources.tsx";
+import type { SourceEntry } from "web/islands/ListSources.tsx";
 
 export const handler: Handlers<SourceEntry, WithSession> = {
   async GET(req, ctx) {

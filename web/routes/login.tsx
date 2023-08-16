@@ -1,5 +1,5 @@
-import { Layout } from "~/components/Layout.tsx";
-import Login from "~/islands/Login.tsx";
+import { Layout } from "web/components/Layout.tsx";
+import Login from "web/islands/Login.tsx";
 
 export default () => {
   return (

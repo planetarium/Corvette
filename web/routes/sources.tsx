@@ -2,10 +2,10 @@ import { LogLevels } from "std/log/levels.ts";
 
 import { type Handlers, type PageProps, Status } from "fresh/server.ts";
 
-import { getCookieString, getServerSideUrl, logRequest } from "~/util.ts";
+import { getCookieString, getServerSideUrl, logRequest } from "web/util.ts";
 
-import { Layout } from "~/components/Layout.tsx";
-import { ListSources, type SourceEntry } from "~/islands/ListSources.tsx";
+import { Layout } from "web/components/Layout.tsx";
+import { ListSources, type SourceEntry } from "web/islands/ListSources.tsx";
 
 export const handler: Handlers<SourceEntry[]> = {
   async GET(req, ctx) {

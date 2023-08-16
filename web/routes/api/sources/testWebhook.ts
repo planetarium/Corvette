@@ -4,10 +4,10 @@ import { type Handlers, Status } from "fresh/server.ts";
 
 import { toBytes } from "npm:viem";
 
-import { amqpChannel } from "~/main.ts";
-import { logRequest } from "~/util.ts";
-import { serializeEventMessage } from "~root/EventMessage.ts";
-import { EvmEventsQueueName } from "~root/constants.ts";
+import { amqpChannel } from "web/main.ts";
+import { logRequest } from "web/util.ts";
+import { serializeEventMessage } from "~/EventMessage.ts";
+import { EvmEventsQueueName } from "~/constants.ts";
 
 export const handler: Handlers = {
   async POST(req, ctx) {

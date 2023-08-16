@@ -1,18 +1,10 @@
-import { format as formatDate } from "std/datetime/mod.ts";
 import { ConsoleHandler } from "std/log/handlers.ts";
 import { getLogger, setup as setupLog } from "std/log/mod.ts";
 
 import type { AmqpConnection } from "amqp/mod.ts";
 
 import { stringify as losslessJsonStringify } from "npm:lossless-json";
-import {
-  type Chain,
-  createPublicClient,
-  getAddress,
-  http as httpViemTransport,
-  InvalidParamsRpcError,
-  toHex,
-} from "npm:viem";
+import { type Chain, getAddress, toHex } from "npm:viem";
 
 import type { PrismaClient } from "./prisma-shim.ts";
 
@@ -23,9 +15,7 @@ import {
   ControlExchangeName,
   EvmEventsQueueName,
 } from "./constants.ts";
-import { BlockFinalityEnvKey, combinedEnv } from "./envUtils.ts";
 import {
-  block,
   runWithAmqp,
   runWithChainDefinition,
   runWithPrisma,
@@ -38,6 +28,7 @@ import {
   getInternalLoggers,
   getLoggingLevel,
 } from "./logUtils.ts";
+import { createMutex } from "./concurrencyUtils.ts";
 
 export async function emitter(
   chain: Chain,
@@ -50,10 +41,6 @@ export async function emitter(
       chain.rpcUrls.default.http[0]
     }.`,
   );
-  const client = createPublicClient({
-    chain,
-    transport: httpViemTransport(),
-  });
 
   logger.debug(`Opening AMQP channel.`);
   const amqpChannel = await amqpConnection.openChannel();
@@ -71,6 +58,7 @@ export async function emitter(
   });
   const eventsQueue = await amqpChannel.declareQueue({
     queue: EvmEventsQueueName,
+    durable: true,
   });
   logger.debug(
     `Declared AMQP events queue: ${eventsQueue.queue}  consumers: ${eventsQueue.consumerCount}  message count: ${eventsQueue.messageCount}.`,
@@ -119,7 +107,11 @@ export async function emitter(
     },
   );
 
-  let finalizationQueue: (EventMessage & { url: string })[] = [];
+  const doEmitQueueMutex = createMutex();
+  let emitQueue:
+    (EventMessage & { retry?: true; lockedTimestamp: Date; url: string[] })[] =
+      [];
+  let abortWaitController = new AbortController();
   await amqpChannel.consume(
     { queue: EvmEventsQueueName },
     async (args, _, data) => {
@@ -128,61 +120,123 @@ export async function emitter(
         address,
         sigHash,
         topics,
-        blockTimestamp,
         logIndex,
         blockNumber,
         blockHash,
       } = message;
-      const timestampDate = new Date(Number(blockTimestamp) * 1000);
       if (blockNumber !== -1n) {
         // not webhook test request
         logger.debug(
-          `Received event message, blockNumber: ${blockNumber}  logIndex: ${logIndex}  blockTimestamp: ${
-            formatDate(timestampDate, "yyyy-MM-dd HH:mm:ss")
-          }  delivery tag: ${args.deliveryTag}.`,
+          `Received event message, blockNumber: ${blockNumber}  logIndex: ${logIndex}  delivery tag: ${args.deliveryTag}.`,
         );
       }
-      emitDestinations.filter((x) =>
-        uint8ArrayEquals(x.sourceAddress as unknown as Uint8Array, address) &&
-        uint8ArrayEquals(x.abiHash as unknown as Uint8Array, sigHash) &&
-        (x.topic1 == null ||
-          (uint8ArrayEquals(x.topic1 as unknown as Uint8Array, topics[1]) &&
-            (x.topic2 == null ||
-              (uint8ArrayEquals(x.topic2 as unknown as Uint8Array, topics[2]) &&
-                (x.topic3 == null ||
-                  uint8ArrayEquals(
-                    x.topic3 as unknown as Uint8Array,
-                    topics[3],
-                  ))))))
-      ).forEach((x) => {
-        if (blockNumber === -1n) {
-          // Webhook Test Request
-          const sourceAddress = getAddress(toHex(address));
-          const abiHash = toHex(sigHash);
-          logger.info(
-            `Received webhook test request, address: ${sourceAddress}  event signature hash: ${abiHash}  destination: ${x.webhookUrl}.`,
-          );
-          return fetch(x.webhookUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: losslessJsonStringify({
-              timestamp: blockTimestamp,
-              blockIndex: blockNumber,
-              logIndex: logIndex,
-              blockHash: toHex(blockHash),
-              sourceAddress,
-              abiHash,
-            }),
-          });
-        }
-
+      const failedUrls = (await prisma.failedUrl.findMany({
+        where: { blockNumber: Number(blockNumber), logIndex: Number(logIndex) },
+      })).map((x) => x.url);
+      const destinationUrls = failedUrls.length > 0
+        ? failedUrls
+        : emitDestinations.filter((x) =>
+          uint8ArrayEquals(x.sourceAddress as unknown as Uint8Array, address) &&
+          uint8ArrayEquals(x.abiHash as unknown as Uint8Array, sigHash) &&
+          (x.topic1 == null ||
+            (uint8ArrayEquals(x.topic1 as unknown as Uint8Array, topics[1]) &&
+              (x.topic2 == null ||
+                (uint8ArrayEquals(
+                  x.topic2 as unknown as Uint8Array,
+                  topics[2],
+                ) &&
+                  (x.topic3 == null ||
+                    uint8ArrayEquals(
+                      x.topic3 as unknown as Uint8Array,
+                      topics[3],
+                    ))))))
+        ).map((x) => x.webhookUrl);
+      if (blockNumber === -1n) {
+        // Webhook Test Request
+        const sourceAddress = getAddress(toHex(address));
+        const abiHash = toHex(sigHash);
         logger.info(
-          `Queueing event for finalization, blockNumber: ${blockNumber}  logIndex: ${logIndex}  blockTimestamp: ${
-            formatDate(timestampDate, "yyyy-MM-dd HH:mm:ss")
+          `Received webhook test request, address: ${sourceAddress}  event signature hash: ${abiHash}  destinations: ${
+            destinationUrls.join(", ")
           }.`,
         );
-        finalizationQueue.push({ ...message, url: x.webhookUrl });
-      });
+        await Promise.all(destinationUrls.map(async (url) => {
+          try {
+            const response = await fetch(url, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: losslessJsonStringify({
+                blockIndex: blockNumber,
+                logIndex: logIndex,
+                blockHash: toHex(blockHash),
+                sourceAddress,
+                abiHash,
+              }),
+            });
+            if (!response.ok) {
+              logger.error(
+                `Webhook test POST request failed with an HTTP error, status: ${response.status}  blockNumber: url: ${url}  response body: ${response.text()}`,
+              );
+            }
+          } catch (e) {
+            logger.error(
+              `Webhook test POST request failed with an exception, url: ${url}: ${
+                e.stack ?? e.message
+              }`,
+            );
+          }
+        }));
+      } else {
+        const lockedTimestamp = new Date();
+        if (
+          (await prisma.event.updateMany({
+            where: {
+              blockNumber: Number(blockNumber),
+              logIndex: Number(logIndex),
+              lockedTimestamp: null,
+            },
+            data: { lockedTimestamp },
+          })).count <= 0
+        ) {
+          logger.error(() =>
+            `Message shouldn't be locked, but it is, blockNumber: ${blockNumber}  logIndex: ${logIndex}.`
+          );
+        } else {
+          await doEmitQueueMutex(async () => {
+            const doMutex = createMutex();
+            logger.info(
+              `Queueing event for emit, blockNumber: ${blockNumber}  logIndex: ${logIndex}.`,
+            );
+            await Promise.all(
+              destinationUrls.map(async (url) =>
+                await doMutex(() => {
+                  let newEvt = true;
+                  emitQueue = emitQueue.map((queuedItem) => {
+                    if (
+                      uint8ArrayEquals(queuedItem.blockHash, blockHash) &&
+                      queuedItem.logIndex === logIndex
+                    ) {
+                      newEvt = false;
+                      if (!queuedItem.url.includes(url)) {
+                        return {
+                          ...queuedItem,
+                          url: [...queuedItem.url, url],
+                        };
+                      }
+                    }
+                    return queuedItem;
+                  });
+                  if (newEvt) {
+                    emitQueue.push({ ...message, lockedTimestamp, url: [url] });
+                  }
+                })
+              ),
+            );
+
+            if (emitQueue.length > 0) abortWaitController.abort();
+          });
+        }
+      }
       logger.debug(
         `Acknowledging AMQP message for event, blockNumber: ${blockNumber}  logIndex: ${logIndex}  delivery tag: ${args.deliveryTag}.`,
       );
@@ -190,196 +244,108 @@ export async function emitter(
     },
   );
 
-  const blockFinalityEnvVar = combinedEnv[BlockFinalityEnvKey];
-  const blockFinalityNumber = Number(blockFinalityEnvVar);
-  const blockFinality =
-    blockFinalityEnvVar === "safe" || blockFinalityEnvVar === "finalized"
-      ? blockFinalityEnvVar
-      : Number.isInteger(blockFinalityNumber)
-      ? BigInt(blockFinalityEnvVar)
-      : undefined;
-  logger.info(`Block finality is ${blockFinality}.`);
-  if (blockFinality === undefined) {
-    const message =
-      `${BlockFinalityEnvKey} environment may only take either an integer or string "safe" or "finalized" as the value.`;
-    logger.critical(`Irrecoverable error: ${message}`);
-    throw new Error(message);
-  }
-  if (typeof (blockFinality) === "string") {
-    try {
-      await client.getBlock({ blockTag: blockFinality });
-    } catch (e) {
-      if (e instanceof InvalidParamsRpcError) {
-        const message =
-          `The given RPC node does not support the blockTag '${blockFinality}'.`;
-        logger.critical(`Irrecoverable error: ${message}`);
-        throw new Error(message);
-      }
-      throw e;
-    }
-  }
-
-  // TODO: customizable poll interval and transport
-  if (typeof (blockFinality) === "bigint") {
-    logger.info(
-      "Block finality is an offset, using eth_blockNumber to watch latest blocks.",
-    );
-  } else {
-    logger.info(
-      "Block finality is a blockTag, using eth_getBlockByNumber to watch latest blocks.",
-    );
-  }
-  const unwatch = typeof (blockFinality) === "bigint"
-    ? client.watchBlockNumber({
-      onBlockNumber: (blockNumber) =>
-        blockFinalized(blockNumber - blockFinality),
-    })
-    : client.watchBlocks({
-      blockTag: blockFinality,
-      onBlock: (block) => blockFinalized(block.number!),
-    });
-
-  async function blockFinalized(blockNumber: bigint) {
-    const observed = finalizationQueue.filter((x) =>
-      x.blockNumber <= blockNumber
-    );
-    if (observed.length <= 0) {
-      logger.debug(
-        `New finalized block at ${blockNumber}, but no events waiting in queue to be finalized.`,
-      );
-      return;
-    }
-    logger.debug(() =>
-      `Events to be finalized at ${blockNumber}  blockNumber-logIndex: ${
-        observed.map((evt) =>
-          `${evt.blockNumber}-${evt.logIndex} (${
-            formatDate(
-              new Date(Number(evt.blockTimestamp) * 1000),
-              "yyyy-MM-dd HH:mm:ss",
-            )
-          })`
-        ).join(", ")
-      }.`
-    );
-    const finalizedBlocks: Record<string, bigint> = {};
-    const finalized = await observed.reduce(async (acc, x) => {
-      const hash = (await client.getBlock({ blockNumber: x.blockNumber }))
-        .hash;
-
-      const isFinal = toHex(x.blockHash) === hash;
-      if (isFinal) finalizedBlocks[hash] = x.blockNumber;
-      return isFinal ? [...(await acc), x] : acc;
-    }, Promise.resolve([] as typeof observed));
-    logger.debug(() =>
-      finalized.length > 0
-        ? `Finalized events at ${blockNumber}  blockNumber-logIndex: ${
-          finalized.map((evt) => `${evt.blockNumber}-${evt.logIndex}`)
-            .join(", ")
-        }.`
-        : `No finalized block at ${blockNumber}`
-    );
-
-    await Promise.all(
-      finalized.map(async (x) => {
-        logger.debug(
-          `Retrieving event from DB, blockNumber: ${x.blockNumber}  logIndex: ${x.logIndex}.`,
-        );
-        const event = await prisma.event.findUnique({
-          where: {
-            blockTimestamp_logIndex: {
-              blockTimestamp: new Date(
-                Number(x.blockTimestamp) * 1000,
-              ),
-              logIndex: Number(x.logIndex),
-            },
-          },
-          include: { Abi: true },
-        });
-
-        if (event == null) {
-          logger.error(() =>
-            `Event does not exist in DB, blockNumber: ${x.blockNumber}  logIndex: ${x.logIndex}  blockHash: ${
-              toHex(x.blockHash)
-            }  address: ${toHex(x.address)}  event signature hash: ${
-              toHex(x.sigHash)
-            }  topics: ${
-              x.topics.map((topic, i) => [topic, i + 1])
-                .filter(([topic, _]) => topic != null)
-                .map(([topic, i]) => `[${i}] ${toHex(topic)}`)
-                .join(" ")
-            }.`
-          );
-          return;
-        }
-
-        logger.info(
-          `Posting event finalized at ${blockNumber}  destination: ${x.url}  blockNumber: ${x.blockNumber}  logIndex: ${x.logIndex}.`,
-        );
-        return fetch(x.url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: losslessJsonStringify(serializeEventResponse(event)),
-        });
-      }),
-    );
-
-    const ommer = observed.filter((x) =>
-      finalizedBlocks[toHex(x.blockHash)] !== x.blockNumber
-    );
-
-    logger.info(() =>
-      ommer.length > 0
-        ? `Removing ommered events from DB at block ${blockNumber}  ${
-          ommer.map((evt) =>
-            `blockNumber: ${evt.blockNumber}  logIndex: ${evt.logIndex}  blockHash: ${
-              toHex(evt.blockHash)
-            }`
-          )
-            .join(",  ")
-        }.`
-        : `No ommered block at ${blockNumber}.`
-    );
-    ommer.forEach(async (x) =>
-      await prisma.event.delete({
-        where: {
-          blockTimestamp_logIndex: {
-            blockTimestamp: new Date(
-              Number(x.blockTimestamp) * 1000,
-            ),
-            logIndex: Number(x.logIndex),
-          },
-        },
-      })
-    );
-
-    finalizationQueue = finalizationQueue.filter(
-      (x) => x.blockNumber > blockNumber,
-    );
-    logger.debug(() =>
-      finalizationQueue.length > 0
-        ? `Yet to be finalized, blockNumber-logIndex: ${
-          finalizationQueue.map((evt) =>
-            `${evt.blockNumber}-${evt.logIndex} (${
-              formatDate(
-                new Date(Number(evt.blockTimestamp) * 1000),
-                "yyyy-MM-dd HH:mm:ss",
-              )
-            })`
-          )
-            .join(", ")
-        }.`
-        : "No events left in finalization queue."
-    );
-  }
-
   const abortController = new AbortController();
-  const runningPromise = block(abortController.signal);
+  const runningPromise = emitEvents();
 
   async function cleanup() {
     logger.warning("Stopping emitter.");
     abortController.abort();
-    unwatch();
+    abortWaitController.abort();
     await runningPromise;
+  }
+
+  async function emitEvents() {
+    while (true) {
+      if (abortController.signal.aborted) return;
+
+      await doEmitQueueMutex(async () => {
+        abortWaitController = new AbortController();
+
+        emitQueue = (await Promise.all(
+          emitQueue.map(async (x) => {
+            const where = {
+              blockNumber: Number(x.blockNumber),
+              logIndex: Number(x.logIndex),
+            };
+            const newLockedTimestamp = new Date();
+            if (
+              (await prisma.event.updateMany({
+                where: { ...where, lockedTimestamp: x.lockedTimestamp },
+                data: { lockedTimestamp: newLockedTimestamp },
+              })).count <= 0
+            ) {
+              logger.warning(
+                `Lock was modified by another party, aborting emit, blockNumber: ${x.blockNumber}  logIndex: ${x.logIndex}.`,
+              );
+              return undefined;
+            }
+            const nextRetryUrls = (await Promise.all(x.url.map(async (url) => {
+              logger.info(
+                `${
+                  x.retry ? "Retry p" : "P"
+                }osting event destination: ${url}  blockNumber: ${x.blockNumber}  logIndex: ${x.logIndex}.`,
+              );
+              try {
+                const response = await fetch(url, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: losslessJsonStringify(serializeEventResponse(x)),
+                });
+                if (response.ok) return undefined;
+                logger.error(
+                  `Event emit POST request failed with an HTTP error, status: ${response.status}  blockNumber: ${x.blockNumber}  logIndex: ${x.logIndex}  url: ${url}  response body: ${response.text()}`,
+                );
+                return url;
+              } catch (e) {
+                logger.error(
+                  `Event emit POST request failed with an exception, blockNumber: ${x.blockNumber}  logIndex: ${x.logIndex}  url: ${url}: ${
+                    e.stack ?? e.message
+                  }`,
+                );
+                return url;
+              }
+            }))).filter((x) => x != undefined) as string[];
+            await prisma.failedUrl.deleteMany({ where });
+            await Promise.all(
+              nextRetryUrls.map((url) =>
+                prisma.failedUrl.create({ data: { ...where, url } })
+              ),
+            );
+            if (nextRetryUrls.length <= 0) {
+              logger.info(
+                `Event post success for all webhook URLs, blockNumber: ${x.blockNumber}  logIndex: ${x.logIndex}.`,
+              );
+
+              await prisma.event.updateMany({
+                where,
+                data: {
+                  lockedTimestamp: null,
+                  emittedTimestamp: new Date(),
+                },
+              });
+              return undefined;
+            } else {
+              logger.info(
+                `Event post failed for some webhook URLs, will retry on next event observed or after 60s, blockNumber: ${x.blockNumber}  logIndex: ${x.logIndex}  destinations: ${nextRetryUrls}.`,
+              );
+              return {
+                ...x,
+                lockedTimestamp: newLockedTimestamp,
+                retry: true,
+                url: nextRetryUrls,
+              };
+            }
+          }),
+        )).filter((x) => x != undefined) as typeof emitQueue;
+      });
+
+      // TODO: interval config
+      await new Promise<void>((resolve) => {
+        abortWaitController.signal.onabort = () => resolve();
+        if (abortWaitController.signal.aborted) resolve();
+        setTimeout(resolve, 60000);
+      });
+    }
   }
 
   return { runningPromise, cleanup };

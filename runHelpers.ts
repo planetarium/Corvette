@@ -10,6 +10,7 @@ import type { Chain } from "npm:viem";
 import type Prisma from "./prisma-shim.ts";
 import { PrismaClient } from "./prisma-shim.ts";
 
+import { Awaitable } from "./concurrencyUtils.ts";
 import {
   AmqpBrokerUrlEnvKey,
   ChainDefinitionUrlEnvKey,
@@ -17,8 +18,6 @@ import {
   DatabaseUrlEnvKey,
 } from "./envUtils.ts";
 import { importESOrJson } from "./moduleUtils.ts";
-
-type Awaitable<T> = T | PromiseLike<T>;
 
 export type CleanupFunction = () => Awaitable<void>;
 

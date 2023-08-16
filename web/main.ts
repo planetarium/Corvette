@@ -46,6 +46,7 @@ const initAmqpChannel = async (amqpConnection: AmqpConnection) => {
   amqpChannel = await amqpConnection.openChannel();
   const eventsQueue = await amqpChannel.declareQueue({
     queue: EvmEventsQueueName,
+    durable: true,
   });
   logger.debug(
     `Declared AMQP events queue: ${eventsQueue.queue}  consumers: ${eventsQueue.consumerCount}  message count: ${eventsQueue.messageCount}.`,

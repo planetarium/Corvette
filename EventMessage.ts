@@ -3,21 +3,25 @@ import { decode, encode } from "bencodex";
 export type EventMessage = {
   address: Uint8Array;
   sigHash: Uint8Array;
+  abi: string;
   topics: Uint8Array[];
-  blockTimestamp: bigint;
+  data: Uint8Array;
   logIndex: bigint;
   blockNumber: bigint;
   blockHash: Uint8Array;
+  txHash: Uint8Array;
 };
 
 export type MarshaledEventMessage = [
   EventMessage["address"],
   EventMessage["sigHash"],
+  EventMessage["abi"],
   EventMessage["topics"],
-  EventMessage["blockTimestamp"],
+  EventMessage["data"],
   EventMessage["logIndex"],
   EventMessage["blockNumber"],
   EventMessage["blockHash"],
+  EventMessage["txHash"],
 ];
 
 export function serializeEventMessage(msg: EventMessage): Uint8Array {
@@ -25,32 +29,38 @@ export function serializeEventMessage(msg: EventMessage): Uint8Array {
     [
       msg.address,
       msg.sigHash,
+      msg.abi,
       msg.topics,
-      msg.blockTimestamp,
+      msg.data,
       msg.logIndex,
       msg.blockNumber,
       msg.blockHash,
+      msg.txHash,
     ] satisfies MarshaledEventMessage,
   );
 }
 
-export function deserializeEventMessage(data: Uint8Array): EventMessage {
+export function deserializeEventMessage(msgData: Uint8Array): EventMessage {
   const [
     address,
     sigHash,
+    abi,
     topics,
-    blockTimestamp,
+    data,
     logIndex,
     blockNumber,
     blockHash,
-  ] = decode(data) as MarshaledEventMessage;
+    txHash,
+  ] = decode(msgData) as MarshaledEventMessage;
   return {
     address,
     sigHash,
+    abi,
     topics,
-    blockTimestamp,
+    data,
     logIndex,
     blockNumber,
     blockHash,
+    txHash,
   } satisfies EventMessage;
 }

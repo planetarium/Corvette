@@ -13,6 +13,7 @@ services:
       DATABASE_URL: postgres://postgres:V0uYcxk2dFixtPWfK4Nb@db/postgres
       AMQP_BROKER_URL: amqp://message-queue-broker
       CHAIN_DEFINITION_URL: https://esm.sh/@wagmi/chains@1.6.0#goerli
+      BLOCK_FINALITY: safe
   emitter:
     depends_on:
       message-queue-broker:
@@ -26,7 +27,6 @@ services:
       DATABASE_URL: postgres://postgres:V0uYcxk2dFixtPWfK4Nb@db/postgres
       AMQP_BROKER_URL: amqp://message-queue-broker
       CHAIN_DEFINITION_URL: https://esm.sh/@wagmi/chains@1.6.0#goerli
-      BLOCK_FINALITY: safe
   api:
     depends_on:
       message-queue-broker:

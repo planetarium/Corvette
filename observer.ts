@@ -383,7 +383,7 @@ export async function observer(
             address: addressBytes,
             sigHash: abiHash,
             abi: abis[toHex(abiHash)],
-            topics: topicsBytes,
+            topics: topicsBytes.slice(1),
             data: dataBytes,
             logIndex: BigInt(log.logIndex),
             blockNumber: log.blockNumber,

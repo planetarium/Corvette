@@ -160,19 +160,32 @@ export async function emitter(
             destinationUrls.join(", ")
           }.`,
         );
-        await Promise.all(destinationUrls.map((url) =>
-          fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: losslessJsonStringify({
-              blockIndex: blockNumber,
-              logIndex: logIndex,
-              blockHash: toHex(blockHash),
-              sourceAddress,
-              abiHash,
-            }),
-          })
-        ));
+        await Promise.all(destinationUrls.map(async (url) => {
+          try {
+            const response = await fetch(url, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: losslessJsonStringify({
+                blockIndex: blockNumber,
+                logIndex: logIndex,
+                blockHash: toHex(blockHash),
+                sourceAddress,
+                abiHash,
+              }),
+            });
+            if (!response.ok) {
+              logger.error(
+                `Webhook test POST request failed with an HTTP error, status: ${response.status}  blockNumber: url: ${url}  response body: ${response.text()}`,
+              );
+            }
+          } catch (e) {
+            logger.error(
+              `Webhook test POST request failed with an exception, url: ${url}: ${
+                e.stack ?? e.message
+              }`,
+            );
+          }
+        }));
       } else {
         const lockedTimestamp = new Date();
         if (
@@ -280,12 +293,12 @@ export async function emitter(
                 });
                 if (response.ok) return undefined;
                 logger.error(
-                  `Event emit request failed with an HTTP error, status: ${response.status}  blockNumber: ${x.blockNumber}  logIndex: ${x.logIndex}  url: ${url}  response body: ${response.text()}`,
+                  `Event emit POST request failed with an HTTP error, status: ${response.status}  blockNumber: ${x.blockNumber}  logIndex: ${x.logIndex}  url: ${url}  response body: ${response.text()}`,
                 );
                 return url;
               } catch (e) {
                 logger.error(
-                  `Event emit request failed with an exception, blockNumber: ${x.blockNumber}  logIndex: ${x.logIndex}  url: ${url}: ${
+                  `Event emit POST request failed with an exception, blockNumber: ${x.blockNumber}  logIndex: ${x.logIndex}  url: ${url}: ${
                     e.stack ?? e.message
                   }`,
                 );

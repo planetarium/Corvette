@@ -2,11 +2,11 @@ import { getCookies } from "std/http/cookie.ts";
 import { join, resolve } from "std/path/mod.ts";
 import { LogLevels } from "std/log/mod.ts";
 
-import { ServeHandlerInfo, Status } from "fresh/server.ts";
+import { type ServeHandlerInfo, Status } from "fresh/server.ts";
 
-import { listenUrl, logger, prisma } from "~/main.ts";
-import type Prisma from "~root/prisma-shim.ts";
-import type { User } from "~root/generated/client/index.d.ts";
+import { listenUrl, logger, prisma } from "web/main.ts";
+import type Prisma from "~/prisma-shim.ts";
+import type { User } from "~/generated/client/index.d.ts";
 
 export const getOrigin = (req: Request) => new URL(req.url).origin;
 export const getServerSideUrl = (pathname: string) =>

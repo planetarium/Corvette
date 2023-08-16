@@ -1,15 +1,12 @@
-import { format as formatDate } from "https://deno.land/std@0.196.0/datetime/mod.ts";
-import { ConsoleHandler } from "https://deno.land/std@0.196.0/log/handlers.ts";
-import {
-  getLogger,
-  setup as setupLog,
-} from "https://deno.land/std@0.196.0/log/mod.ts";
+import { format as formatDate } from "std/datetime/mod.ts";
+import { ConsoleHandler } from "std/log/handlers.ts";
+import { getLogger, setup as setupLog } from "std/log/mod.ts";
 
-import { AmqpConnection } from "https://deno.land/x/amqp@v0.23.1/mod.ts";
+import type { AmqpConnection } from "amqp/mod.ts";
 
 import { stringify as losslessJsonStringify } from "npm:lossless-json";
 import {
-  Chain,
+  type Chain,
   createPublicClient,
   getAddress,
   http as httpViemTransport,

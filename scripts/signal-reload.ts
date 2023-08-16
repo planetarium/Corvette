@@ -1,4 +1,4 @@
-import { connect } from "https://deno.land/x/amqp@v0.23.1/mod.ts";
+import { connect } from "amqp/mod.ts";
 
 import {
   ControlEmitterRoutingKey,

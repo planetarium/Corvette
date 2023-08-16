@@ -1,11 +1,12 @@
 import {
-  type ArgonOptions,
-  ArgonWorker,
-} from "https://deno.land/x/argon2ian@2.0.1/src/async.ts";
-import {
   decode as decodeBase64,
   encode as encodeBase64,
 } from "std/encoding/base64.ts";
+
+import {
+  type ArgonOptions,
+  ArgonWorker,
+} from "https://deno.land/x/argon2ian@2.0.1/src/async.ts";
 
 const worker = new ArgonWorker();
 const encoder = new TextEncoder();

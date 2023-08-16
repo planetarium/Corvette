@@ -3,11 +3,11 @@ import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import {
   CollapsibleTable,
   CollapsibleTableRow,
-} from "~/components/CollapsibleTable.tsx";
-import { Modal } from "~/components/Modal.tsx";
-import { Toast, type ToastProps } from "~/components/Toast.tsx";
-import { SearchDropdown } from "~/islands/SearchDropdown.tsx";
-import { AbiEntry } from "~/islands/ListAbi.tsx";
+} from "web/components/CollapsibleTable.tsx";
+import { Modal } from "web/components/Modal.tsx";
+import { Toast, type ToastProps } from "web/components/Toast.tsx";
+import { SearchDropdown } from "web/islands/SearchDropdown.tsx";
+import type { AbiEntry } from "web/islands/ListAbi.tsx";
 
 export interface SourceEntry {
   address: string;

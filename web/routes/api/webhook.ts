@@ -6,12 +6,13 @@ import type { WithSession } from "fresh-session";
 import { Buffer } from "node:buffer";
 import { getAddress, toBytes, toHex } from "npm:viem";
 
-import { reload as reloadControl } from "~root/control.ts";
-import { ControlEmitterRoutingKey } from "~root/constants.ts";
-import type { User } from "~root/generated/client/index.d.ts";
-import { amqpChannel, prisma } from "~/main.ts";
-import { checkPermission, logRequest } from "~/util.ts";
-import type { WebhookEntry } from "~/islands/ListWebhook.tsx";
+import { amqpChannel, prisma } from "web/main.ts";
+import { checkPermission, logRequest } from "web/util.ts";
+import { reload as reloadControl } from "~/control.ts";
+import { ControlEmitterRoutingKey } from "~/constants.ts";
+import type { User } from "~/generated/client/index.d.ts";
+
+import type { WebhookEntry } from "web/islands/ListWebhook.tsx";
 
 export const handler: Handlers<WebhookEntry, WithSession> = {
   async GET(req, ctx) {

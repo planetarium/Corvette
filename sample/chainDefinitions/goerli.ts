@@ -1,4 +1,4 @@
-import { Chain } from "npm:viem";
+import type { Chain } from "npm:viem";
 
 export default {
   id: 5,

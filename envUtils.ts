@@ -1,4 +1,4 @@
-import { load } from "https://deno.land/std@0.194.0/dotenv/mod.ts";
+import { load } from "std/dotenv/mod.ts";
 
 export const combinedEnv = { ...(await load()), ...Deno.env.toObject() };
 export const DatabaseUrlEnvKey = "DATABASE_URL";

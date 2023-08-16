@@ -1,5 +1,6 @@
-import { Head } from "fresh/runtime.ts";
 import type { ComponentChildren } from "preact";
+
+import { Head } from "fresh/runtime.ts";
 
 interface Props {
   children: ComponentChildren;

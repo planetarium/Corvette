@@ -1,12 +1,11 @@
 import {
-  AmqpConnection,
-  AmqpConnectOptions,
+  type AmqpConnection,
+  type AmqpConnectOptions,
   connect as connectAmqp,
-} from "https://deno.land/x/amqp@v0.23.1/mod.ts";
+} from "amqp/mod.ts";
+import { parseOptions } from "amqp/src/amqp_connect_options.ts";
 
-import { parseOptions } from "https://deno.land/x/amqp@v0.23.1/src/amqp_connect_options.ts";
-
-import { Chain } from "npm:viem";
+import type { Chain } from "npm:viem";
 
 import type Prisma from "./prisma-shim.ts";
 import { PrismaClient } from "./prisma-shim.ts";

@@ -1,4 +1,4 @@
-import { load } from "https://deno.land/std@0.194.0/dotenv/mod.ts";
+import { load } from "std/dotenv/mod.ts";
 
 if (Deno.args.length > 0) {
   new Deno.Command(Deno.args[0], {

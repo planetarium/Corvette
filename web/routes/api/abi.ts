@@ -3,16 +3,17 @@ import { LogLevels } from "std/log/levels.ts";
 import { type Handlers, Status } from "fresh/server.ts";
 import type { WithSession } from "fresh-session";
 
+import type { Abi, AbiEvent } from "abitype";
+
 import { Buffer } from "node:buffer";
 import { keccak256, toBytes, toHex } from "npm:viem";
 
-import type { Abi, AbiEvent } from "https://esm.sh/abitype@0.9.0";
+import { prisma } from "web/main.ts";
+import { checkPermission, logRequest } from "web/util.ts";
+import { formatAbiItemPrototype } from "~/abitype.ts";
+import type { User } from "~/generated/client/index.d.ts";
 
-import { formatAbiItemPrototype } from "~root/abitype.ts";
-import type { User } from "~root/generated/client/index.d.ts";
-import { prisma } from "~/main.ts";
-import { checkPermission, logRequest } from "~/util.ts";
-import type { AbiEntry } from "~/islands/ListAbi.tsx";
+import type { AbiEntry } from "web/islands/ListAbi.tsx";
 
 export const handler: Handlers<AbiEntry, WithSession> = {
   async GET(req, ctx) {
@@ -25,7 +26,13 @@ export const handler: Handlers<AbiEntry, WithSession> = {
       };
     });
     const body = JSON.stringify(entries);
-    logRequest(LogLevels.DEBUG, req, ctx, Status.OK, `Get abi entries: ${body}`);
+    logRequest(
+      LogLevels.DEBUG,
+      req,
+      ctx,
+      Status.OK,
+      `Get abi entries: ${body}`,
+    );
     return new Response(body);
   },
 

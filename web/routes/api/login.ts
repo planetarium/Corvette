@@ -1,11 +1,11 @@
 import { LogLevels } from "std/log/levels.ts";
 
-import { Handlers, Status } from "fresh/server.ts";
+import { type Handlers, Status } from "fresh/server.ts";
 import type { WithSession } from "fresh-session";
 
-import {  prisma } from "~/main.ts";
-import { logRequest, redirect } from "~/util.ts";
-import { verify } from "~/argon2.ts";
+import { prisma } from "web/main.ts";
+import { logRequest, redirect } from "web/util.ts";
+import { verify } from "web/argon2.ts";
 
 export const handler: Handlers<unknown, WithSession> = {
   async POST(req, ctx) {
@@ -35,7 +35,13 @@ export const handler: Handlers<unknown, WithSession> = {
       });
     }
 
-    logRequest(LogLevels.INFO, req, ctx, Status.OK, `Logging in user: ${email}`);
+    logRequest(
+      LogLevels.INFO,
+      req,
+      ctx,
+      Status.OK,
+      `Logging in user: ${email}`,
+    );
     ctx.state.session.set("user", user);
 
     return redirect(req, ctx);

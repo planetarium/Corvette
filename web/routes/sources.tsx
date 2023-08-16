@@ -1,10 +1,11 @@
 import { LogLevels } from "std/log/levels.ts";
 
-import { Handlers, PageProps, Status } from "fresh/server.ts";
+import { type Handlers, type PageProps, Status } from "fresh/server.ts";
 
-import { Layout } from "~/components/Layout.tsx";
-import { ListSources, type SourceEntry } from "~/islands/ListSources.tsx";
-import { getCookieString, getServerSideUrl, logRequest } from "~/util.ts";
+import { getCookieString, getServerSideUrl, logRequest } from "web/util.ts";
+
+import { Layout } from "web/components/Layout.tsx";
+import { ListSources, type SourceEntry } from "web/islands/ListSources.tsx";
 
 export const handler: Handlers<SourceEntry[]> = {
   async GET(req, ctx) {
@@ -13,10 +14,16 @@ export const handler: Handlers<SourceEntry[]> = {
       headers: { cookie: getCookieString(req) },
     });
     if (!res.ok) {
-      logRequest(LogLevels.ERROR, req, ctx, Status.InternalServerError, "Failed to retrieve source entries")
+      logRequest(
+        LogLevels.ERROR,
+        req,
+        ctx,
+        Status.InternalServerError,
+        "Failed to retrieve source entries",
+      );
       throw new Error(await res.text());
     }
-    logRequest(LogLevels.INFO, req, ctx, Status.OK)
+    logRequest(LogLevels.INFO, req, ctx, Status.OK);
     return ctx.render(await res.json());
   },
 };

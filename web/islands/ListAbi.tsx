@@ -1,14 +1,14 @@
 import { useCallback, useRef, useState } from "preact/hooks";
 
-import { AbiTable } from "~/components/AbiTable.tsx";
+import type { AbiEvent } from "abitype";
+
+import { AbiTable } from "web/components/AbiTable.tsx";
 import {
   CollapsibleTable,
   CollapsibleTableRow,
-} from "~/components/CollapsibleTable.tsx";
-import { Modal } from "~/components/Modal.tsx";
-import { Toast, type ToastProps } from "~/components/Toast.tsx";
-
-import type { AbiEvent } from "https://esm.sh/abitype@0.9.0";
+} from "web/components/CollapsibleTable.tsx";
+import { Modal } from "web/components/Modal.tsx";
+import { Toast, type ToastProps } from "web/components/Toast.tsx";
 
 export interface AbiEntry {
   hash: string;

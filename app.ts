@@ -1,14 +1,11 @@
-import { parse } from "https://deno.land/std@0.194.0/flags/mod.ts";
-import * as path from "https://deno.land/std@0.194.0/path/mod.ts";
-import { ConsoleHandler } from "https://deno.land/std@0.196.0/log/handlers.ts";
-import {
-  getLogger,
-  setup as setupLog,
-} from "https://deno.land/std@0.196.0/log/mod.ts";
+import { parse } from "std/flags/mod.ts";
+import * as path from "std/path/mod.ts";
+import { ConsoleHandler } from "std/log/handlers.ts";
+import { getLogger, setup as setupLog } from "std/log/mod.ts";
+
+import { parseOptions } from "amqp/src/amqp_connect_options.ts";
 
 import { broker } from "https://deno.land/x/lop@0.0.0-alpha.2/mod.ts";
-
-import { parseOptions } from "https://deno.land/x/amqp@v0.23.1/src/amqp_connect_options.ts";
 
 import { api } from "./api.ts";
 import { dataproxy, generateDataproxy } from "./dataproxy.ts";
@@ -29,7 +26,7 @@ import { observer } from "./observer.ts";
 import { getSchemaPath, shouldUseDataproxy } from "./prismaSchemaUtils.ts";
 import {
   block,
-  CleanupFunction,
+  type CleanupFunction,
   runWithAmqp,
   runWithChainDefinition,
   runWithPrisma,

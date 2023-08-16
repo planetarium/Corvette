@@ -1,13 +1,7 @@
-import { format as formatDate } from "https://deno.land/std@0.196.0/datetime/mod.ts";
-import {
-  LoggerConfig,
-  LogLevels,
-  LogRecord,
-} from "https://deno.land/std@0.196.0/log/mod.ts";
-import {
-  LevelName,
-  LogLevelNames,
-} from "https://deno.land/std@0.196.0/log/levels.ts";
+import { format as formatDate } from "std/datetime/mod.ts";
+import { type LoggerConfig, LogLevels, type LogRecord } from "std/log/mod.ts";
+import { type LevelName, LogLevelNames } from "std/log/levels.ts";
+
 import { combinedEnv, LogLevelEnvKey } from "./envUtils.ts";
 
 // outside facing component logger names

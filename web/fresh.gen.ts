@@ -19,6 +19,7 @@ import * as $$1 from "./islands/ListSources.tsx";
 import * as $$2 from "./islands/ListWebhook.tsx";
 import * as $$3 from "./islands/Login.tsx";
 import * as $$4 from "./islands/SearchDropdown.tsx";
+import * as $$5 from "./islands/TestWebhookDialog.tsx";
 
 const manifest = {
   routes: {
@@ -41,6 +42,7 @@ const manifest = {
     "./islands/ListWebhook.tsx": $$2,
     "./islands/Login.tsx": $$3,
     "./islands/SearchDropdown.tsx": $$4,
+    "./islands/TestWebhookDialog.tsx": $$5,
   },
   baseUrl: import.meta.url,
 };

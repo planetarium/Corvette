@@ -1,5 +1,10 @@
 import { format as formatDate } from "std/datetime/mod.ts";
-import { type LoggerConfig, LogLevels, type LogRecord } from "std/log/mod.ts";
+import {
+  Logger,
+  type LoggerConfig,
+  LogLevels,
+  type LogRecord,
+} from "std/log/mod.ts";
 import { type LevelName, LogLevelNames } from "std/log/levels.ts";
 
 import { combinedEnv, LogLevelEnvKey } from "./envUtils.ts";
@@ -39,7 +44,9 @@ export function defaultLogFormatter(rec: LogRecord) {
   }
   return `[${
     formatDate(new Date(), "yyyy-MM-dd HH:mm:ss")
-  } ${level}][${rec.loggerName}] ${rec.msg}`;
+  } ${level}][${rec.loggerName}] ${
+    [rec.msg, ...rec.args.map(Logger.prototype.asString)].join(" ")
+  }`;
 }
 
 export function getLoggingLevel() {

@@ -6,7 +6,7 @@ import type { ToastProps } from "web/components/Toast.tsx";
 export interface TestWebhookProps {
   address: string;
   abiHash: string;
-  setToast: (props: ToastProps) => void;
+  setToast: (props: ToastProps | null) => void;
 }
 export const TestWebhookDialog = ({ setToast, ...props }: TestWebhookProps) => {
   const modalRef = useRef<HTMLDialogElement>(null);
@@ -37,9 +37,9 @@ export const TestWebhookDialog = ({ setToast, ...props }: TestWebhookProps) => {
 
   return (
     <>
-      <Modal title="Test Webhook" ref={modalRef}>
+      <Modal title="Test Webhook" ref={modalRef} onClose={() => setToast(null)}>
         <form onSubmit={handleSubmit} class="form-control w-full">
-          <label>
+          <label class="label">
             Transaction Hash
             <input
               type="text"
@@ -47,7 +47,7 @@ export const TestWebhookDialog = ({ setToast, ...props }: TestWebhookProps) => {
               class="input input-bordered w-full max-w-xs"
             />
           </label>
-          <label>
+          <label class="label">
             Block Hash
             <input
               type="text"
@@ -55,7 +55,7 @@ export const TestWebhookDialog = ({ setToast, ...props }: TestWebhookProps) => {
               class="input input-bordered w-full max-w-xs"
             />
           </label>
-          <label>
+          <label class="label">
             Topic 1
             <input
               type="text"
@@ -63,7 +63,7 @@ export const TestWebhookDialog = ({ setToast, ...props }: TestWebhookProps) => {
               class="input input-bordered w-full max-w-xs"
             />
           </label>
-          <label>
+          <label class="label">
             Topic 2
             <input
               type="text"
@@ -71,7 +71,7 @@ export const TestWebhookDialog = ({ setToast, ...props }: TestWebhookProps) => {
               class="input input-bordered w-full max-w-xs"
             />
           </label>
-          <label>
+          <label class="label">
             Topic 3
             <input
               type="text"
@@ -79,7 +79,7 @@ export const TestWebhookDialog = ({ setToast, ...props }: TestWebhookProps) => {
               class="input input-bordered w-full max-w-xs"
             />
           </label>
-          <label>
+          <label class="label">
             Data
             <input
               type="text"

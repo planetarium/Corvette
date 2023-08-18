@@ -165,13 +165,7 @@ export async function emitter(
             const response = await fetch(url, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: losslessJsonStringify({
-                blockIndex: blockNumber,
-                logIndex: logIndex,
-                blockHash: toHex(blockHash),
-                sourceAddress,
-                abiHash,
-              }),
+              body: losslessJsonStringify(serializeEventResponse(message)),
             });
             if (!response.ok) {
               logger.error(

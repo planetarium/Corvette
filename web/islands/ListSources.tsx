@@ -8,6 +8,10 @@ import { Modal } from "web/components/Modal.tsx";
 import { Toast, type ToastProps } from "web/components/Toast.tsx";
 import { SearchDropdown } from "web/islands/SearchDropdown.tsx";
 import type { AbiEntry } from "web/islands/ListAbi.tsx";
+import {
+  TestWebhookDialog,
+  type TestWebhookProps,
+} from "web/islands/TestWebhookDialog.tsx";
 
 export interface SourceEntry {
   address: string;
@@ -23,6 +27,7 @@ export const ListSources = ({ entries }: ListSourcesProps) => {
   const modalRef = useRef<HTMLDialogElement>(null);
   const [toast, setToast] = useState<ToastProps | null>(null);
   const [abis, setAbis] = useState<AbiEntry[]>([]);
+  const [testWebhook, setTestWebhook] = useState<TestWebhookProps | null>(null);
 
   useEffect(() => {
     const getAbis = async () => {
@@ -76,23 +81,12 @@ export const ListSources = ({ entries }: ListSourcesProps) => {
     [],
   );
 
-  const handleWebhookTest = useCallback(
-    (address: string, abiHash: string) => async (e: Event) => {
+  const handleWebhookTest =
+    (address: string, abiHash: string) => (e: Event) => {
       e.preventDefault();
 
-      const res = await fetch(`/api/sources/testWebhook`, {
-        method: "POST",
-        body: JSON.stringify({ address, abiHash }),
-      });
-
-      if (!res.ok) {
-        setToast({ type: "error", text: "Failed to trigger test webhook." });
-      }
-
-      setToast({ type: "success", text: "Test webhook triggered." });
-    },
-    [],
-  );
+      setTestWebhook({ address, abiHash, setToast });
+    };
 
   return (
     <>
@@ -122,6 +116,7 @@ export const ListSources = ({ entries }: ListSourcesProps) => {
             <input type="submit" class="btn" />
           </form>
         </Modal>
+        {testWebhook && <TestWebhookDialog {...testWebhook} />}
         {toast && <Toast {...toast} />}
       </div>
 

@@ -1,5 +1,5 @@
-import Ajv, { type JSONSchemaType } from "https://esm.sh/ajv@8.12.0";
 import ajvFormats from "https://esm.sh/ajv-formats@2.1.1";
+import Ajv, { type JSONSchemaType } from "https://esm.sh/ajv@8.12.0";
 
 const ajv = new Ajv({ allowUnionTypes: true });
 ajvFormats(ajv);

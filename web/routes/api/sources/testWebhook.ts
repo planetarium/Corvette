@@ -7,8 +7,8 @@ import { toBytes } from "viem";
 
 import { amqpChannel, prisma } from "web/main.ts";
 import { logRequest } from "web/util.ts";
-import { serializeEventMessage } from "~/messages/EventMessage.ts";
 import { EvmEventsQueueName } from "~/constants/constants.ts";
+import { serializeEventMessage } from "~/messages/EventMessage.ts";
 
 export const handler: Handlers = {
   async POST(req, ctx) {

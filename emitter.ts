@@ -8,30 +8,30 @@ import { type Chain, getAddress, toHex } from "viem";
 
 import type { PrismaClient } from "./prisma/shim.ts";
 
-import { deserializeControlMessage } from "./messages/ControlMessage.ts";
-import {
-  deserializeEventMessage,
-  EventMessage,
-} from "./messages/EventMessage.ts";
 import {
   ControlEmitterRoutingKey,
   ControlExchangeName,
   EvmEventsQueueName,
 } from "./constants/constants.ts";
+import { deserializeControlMessage } from "./messages/ControlMessage.ts";
 import {
-  runWithAmqp,
-  runWithChainDefinition,
-  runWithPrisma,
-} from "./utils/runUtils.ts";
-import { uint8ArrayEquals } from "./utils/uint8ArrayUtils.ts";
+  deserializeEventMessage,
+  EventMessage,
+} from "./messages/EventMessage.ts";
 import { serializeEventResponse } from "./messages/EventResponse.ts";
+import { createMutex } from "./utils/concurrencyUtils.ts";
 import {
   defaultLogFormatter,
   EmitterLoggerName,
   getInternalLoggers,
   getLoggingLevel,
 } from "./utils/logUtils.ts";
-import { createMutex } from "./utils/concurrencyUtils.ts";
+import {
+  runWithAmqp,
+  runWithChainDefinition,
+  runWithPrisma,
+} from "./utils/runUtils.ts";
+import { uint8ArrayEquals } from "./utils/uint8ArrayUtils.ts";
 
 export async function emitter(
   chain: Chain,

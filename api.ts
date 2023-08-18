@@ -18,9 +18,9 @@ import { getAddress, keccak256, toHex } from "viem";
 
 import type { PrismaClient } from "./prisma/shim.ts";
 
+import { validateEventRequest } from "./constants/apiSchema.ts";
 import { serializeEventResponse } from "./messages/EventResponse.ts";
 import { formatAbiItemPrototype } from "./utils/abiUtils.ts";
-import { validateEventRequest } from "./constants/apiSchema.ts";
 import {
   ApiBehindReverseProxyEnvKey,
   ApiUrlEnvKey,

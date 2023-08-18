@@ -1,6 +1,6 @@
 import { getCookies } from "std/http/cookie.ts";
-import { join, resolve } from "std/path/mod.ts";
 import { LogLevels } from "std/log/mod.ts";
+import { join, resolve } from "std/path/mod.ts";
 
 import { type ServeHandlerInfo, Status } from "fresh/server.ts";
 

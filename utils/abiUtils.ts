@@ -22,6 +22,9 @@ import {
   DecodeLogDataMismatch,
   DecodeLogTopicsMismatch,
 } from "viem/dist/esm/errors/abi.js";
+import { decodeAbiParameters } from "viem/dist/esm/utils/abi/decodeAbiParameters.js";
+import { formatAbiItem } from "viem/dist/esm/utils/abi/formatAbiItem.js";
+import { getEventSelector } from "viem/dist/esm/utils/hash/getEventSelector.js";
 import type {
   EventDefinition,
   GetEventArgsFromTopics,
@@ -29,10 +32,7 @@ import type {
 } from "viem/dist/types/types/contract.d.ts";
 import type { Hex } from "viem/dist/types/types/misc.d.ts";
 import type { Prettify } from "viem/dist/types/types/utils.d.ts";
-import { getEventSelector } from "viem/dist/esm/utils/hash/getEventSelector.js";
-import { decodeAbiParameters } from "viem/dist/esm/utils/abi/decodeAbiParameters.js";
 import type { DecodeAbiParametersReturnType } from "viem/dist/types/utils/abi/decodeAbiParameters.d.ts";
-import { formatAbiItem } from "viem/dist/esm/utils/abi/formatAbiItem.js";
 
 /**
  * Formats {@link AbiParameter} to human-readable ABI parameter prototype.

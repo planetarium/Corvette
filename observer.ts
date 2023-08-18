@@ -1,8 +1,8 @@
 import { ConsoleHandler } from "std/log/handlers.ts";
 import { getLogger, setup as setupLog } from "std/log/mod.ts";
 
-import type { AmqpConnection } from "amqp/mod.ts";
 import type { AbiEvent } from "abitype";
+import type { AmqpConnection } from "amqp/mod.ts";
 
 import { Buffer } from "node:buffer";
 import {
@@ -17,7 +17,6 @@ import {
 
 import { Prisma, type PrismaClient } from "./prisma/shim.ts";
 
-import { createMutex } from "./utils/concurrencyUtils.ts";
 import {
   ControlExchangeName,
   ControlObserverRoutingKey,
@@ -25,6 +24,7 @@ import {
 } from "./constants/constants.ts";
 import { deserializeControlMessage } from "./messages/ControlMessage.ts";
 import { serializeEventMessage } from "./messages/EventMessage.ts";
+import { createMutex } from "./utils/concurrencyUtils.ts";
 import { BlockFinalityEnvKey, combinedEnv } from "./utils/envUtils.ts";
 import {
   defaultLogFormatter,

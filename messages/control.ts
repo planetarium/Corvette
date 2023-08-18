@@ -3,16 +3,16 @@ import { getLogger } from "std/log/mod.ts";
 import type { AmqpChannel } from "amqp/mod.ts";
 
 import {
-  type EmitterControlMessages,
-  type ObserverControlMessages,
-  serializeControlMessage,
-} from "./ControlMessage.ts";
-import {
   ControlEmitterRoutingKey,
   ControlExchangeName,
   ControlObserverRoutingKey,
 } from "../constants/constants.ts";
 import { ControlLoggerName } from "../utils/logUtils.ts";
+import {
+  type EmitterControlMessages,
+  type ObserverControlMessages,
+  serializeControlMessage,
+} from "./ControlMessage.ts";
 
 export function reload(
   amqpChannel: AmqpChannel,

@@ -1,16 +1,18 @@
 #!/usr/bin/env -S deno run --allow-read --allow-env --allow-run --allow-sys
 
 import { parse } from "std/flags/mod.ts";
-import * as path from "std/path/mod.ts";
 import { ConsoleHandler } from "std/log/handlers.ts";
 import { getLogger, setup as setupLog } from "std/log/mod.ts";
+import * as path from "std/path/mod.ts";
 
 import { parseOptions } from "amqp/src/amqp_connect_options.ts";
 
 import { broker } from "https://deno.land/x/lop@0.0.0-alpha.2/mod.ts";
 
 import { api } from "./api.ts";
+import { testWebhookReceiver } from "./devTools/testWebhookReceiver.ts";
 import { emitter } from "./emitter.ts";
+import { observer } from "./observer.ts";
 import { AmqpBrokerUrlEnvKey, combinedEnv } from "./utils/envUtils.ts";
 import {
   ApiLoggerName,
@@ -22,14 +24,12 @@ import {
   TestWebhookReceiverLoggerName,
   WebLoggerName,
 } from "./utils/logUtils.ts";
-import { observer } from "./observer.ts";
 import {
   block,
   runWithAmqp,
   runWithChainDefinition,
   runWithPrisma,
 } from "./utils/runUtils.ts";
-import { testWebhookReceiver } from "./devTools/testWebhookReceiver.ts";
 
 async function prepareAndMain() {
   const status = await new Deno.Command("deno", {

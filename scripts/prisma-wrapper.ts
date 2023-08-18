@@ -1,10 +1,7 @@
 import { parse } from "std/flags/mod.ts";
 import * as path from "std/path/mod.ts";
 
-import {
-  clean as cleanSemver,
-  satisfies as satisfiesSemver,
-} from "https://deno.land/x/semver@v1.4.0/mod.ts";
+import { parseRange, rangeIntersects } from "std/semver/mod.ts";
 
 import { baseDir } from "../moduleUtils.ts";
 import { getSchema } from "../prismaSchemaUtils.ts";
@@ -15,7 +12,8 @@ const IncompatibleExportRegex =
   /(export\s[\s\S]+\sfrom\s+)(?:(')(.+)(?<!\.ts)(')|(")(.+)(?<!\.ts)("))([\s\S]*?(?:;|\n))/g;
 const ConvertCompatibleImportExportPattern = "$1$2$5$3$6.d.ts$4$7$8";
 
-const PrismaVersionSpecifier = cleanSemver("4.16.2")!;
+const PrismaVersionSpecifier = "^5.1.1";
+const PrismaVersionRange = parseRange(PrismaVersionSpecifier);
 
 async function patch(sourcePath: string, pattern: RegExp) {
   let sourceCode: string;
@@ -68,35 +66,48 @@ let packageJson: {
   devDependencies: { prisma: string };
   dependencies: { "@prisma/client": string };
 };
-let currentPrismaVersion: string | null;
-let currentPrismaClientVersion: string | null;
 let clearCache: boolean;
 try {
   packageJson = JSON.parse(await Deno.readTextFile(packageJsonPath));
-  currentPrismaVersion = cleanSemver(packageJson.devDependencies.prisma);
-  currentPrismaClientVersion = cleanSemver(
-    packageJson.dependencies["@prisma/client"],
-  );
-  clearCache = currentPrismaVersion === null ||
-    currentPrismaClientVersion === null ||
-    !satisfiesSemver(currentPrismaVersion, PrismaVersionSpecifier) ||
-    !satisfiesSemver(currentPrismaClientVersion, PrismaVersionSpecifier);
-  if (clearCache) {
-    packageJson.devDependencies.prisma = PrismaVersionSpecifier;
-    packageJson.dependencies["@prisma/client"] = PrismaVersionSpecifier;
-  }
-} catch (e) {
-  if (e instanceof Deno.errors.NotFound) {
-    packageJson = {
-      devDependencies: { prisma: PrismaVersionSpecifier },
-      dependencies: { "@prisma/client": PrismaVersionSpecifier },
-    };
+  try {
+    clearCache = !rangeIntersects(
+      parseRange(packageJson.devDependencies.prisma),
+      PrismaVersionRange,
+    ) ||
+      !rangeIntersects(
+        parseRange(
+          packageJson.dependencies["@prisma/client"],
+        ),
+        PrismaVersionRange,
+      );
+  } catch (e) {
+    if (!(e instanceof TypeError)) throw e;
     clearCache = true;
   }
-  throw e;
+  if (clearCache) {
+    packageJson.devDependencies.prisma =
+      packageJson.dependencies["@prisma/client"] =
+        PrismaVersionSpecifier;
+  }
+} catch (e) {
+  if (!(e instanceof Deno.errors.NotFound)) throw e;
+  packageJson = {
+    devDependencies: { prisma: PrismaVersionSpecifier },
+    dependencies: { "@prisma/client": PrismaVersionSpecifier },
+  };
+  clearCache = true;
 }
 
 if (clearCache) {
+  try {
+    await Deno.writeTextFile(
+      packageJsonPath,
+      JSON.stringify(packageJson, undefined, 2),
+    );
+  } catch (e) {
+    console.error(`Failed to edit ${packageJsonPath}.`);
+    throw e;
+  }
   const yarnLockPath = path.join(baseDir, "yarn.lock");
   try {
     await Deno.writeFile(yarnLockPath, new Uint8Array());
@@ -119,27 +130,6 @@ if (clearCache) {
         throw e;
       }
     }
-  }
-}
-
-if (
-  currentPrismaVersion !==
-    packageJson.devDependencies.prisma ||
-  currentPrismaClientVersion !==
-    packageJson.dependencies["@prisma/client"]
-) {
-  if (!clearCache) {
-    packageJson.devDependencies.prisma = currentPrismaVersion!;
-    packageJson.dependencies["@prisma/client"] = currentPrismaClientVersion!;
-  }
-  try {
-    await Deno.writeTextFile(
-      packageJsonPath,
-      JSON.stringify(packageJson, undefined, 2),
-    );
-  } catch (e) {
-    console.error(`Failed to edit ${packageJsonPath}.`);
-    throw e;
   }
 }
 

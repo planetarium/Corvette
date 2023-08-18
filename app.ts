@@ -8,12 +8,10 @@ import { parseOptions } from "amqp/src/amqp_connect_options.ts";
 import { broker } from "https://deno.land/x/lop@0.0.0-alpha.2/mod.ts";
 
 import { api } from "./api.ts";
-import { dataproxy, generateDataproxy } from "./dataproxy.ts";
 import { emitter } from "./emitter.ts";
 import { AmqpBrokerUrlEnvKey, combinedEnv } from "./envUtils.ts";
 import {
   ApiLoggerName,
-  DataproxyLoggerName,
   defaultLogFormatter,
   DevLoggerName,
   EmitterLoggerName,
@@ -23,10 +21,8 @@ import {
   WebLoggerName,
 } from "./logUtils.ts";
 import { observer } from "./observer.ts";
-import { getSchemaPath, shouldUseDataproxy } from "./prismaSchemaUtils.ts";
 import {
   block,
-  type CleanupFunction,
   runWithAmqp,
   runWithChainDefinition,
   runWithPrisma,
@@ -34,19 +30,15 @@ import {
 import { testWebhookReceiver } from "./testWebhookReceiver.ts";
 
 async function prepareAndMain() {
-  await new Deno.Command("deno", {
-    args: ["task", "prisma-generate"],
+  const status = await new Deno.Command("deno", {
+    args: ["task", "prisma", "db", "push"],
     stdout: "inherit",
     stderr: "inherit",
   }).spawn().status;
-  await new Deno.Command("deno", {
+  if (!status.success) Deno.exit(status.code);
+  new Deno.Command("deno", {
     args: [
       "run",
-      ...(
-        await shouldUseDataproxy()
-          ? ["--unsafely-ignore-certificate-errors=localhost"]
-          : []
-      ),
       "--allow-read",
       "--allow-write",
       "--allow-env",
@@ -62,7 +54,7 @@ async function prepareAndMain() {
     cwd: Deno.cwd(),
     uid: Deno.uid() !== null ? Deno.uid()! : undefined,
     gid: Deno.gid() !== null ? Deno.gid()! : undefined,
-  }).spawn().status;
+  }).spawn().ref();
 }
 
 async function main() {
@@ -95,10 +87,6 @@ async function main() {
         level: "DEBUG",
         handlers: ["console"],
       },
-      [DataproxyLoggerName]: {
-        level: "DEBUG",
-        handlers: ["console"],
-      },
       [TestWebhookReceiverLoggerName]: {
         level: "INFO",
         handlers: ["console"],
@@ -112,24 +100,6 @@ async function main() {
 
   const logger = getLogger(DevLoggerName);
 
-  let useDataproxy: boolean;
-  try {
-    useDataproxy = await shouldUseDataproxy();
-  } catch (e) {
-    logger.critical(
-      `Irrecoverable error, could not load ${
-        getSchemaPath({ useParams: true })
-      }.`,
-    );
-    throw e;
-  }
-  if (useDataproxy) {
-    logger.warning(
-      "Using data proxy, as sqlite is being used for the database.",
-    );
-    await generateDataproxy();
-  }
-
   logger.debug(
     `Serving AMQP Broker, URL: ${combinedEnv[AmqpBrokerUrlEnvKey]}.`,
   );
@@ -138,8 +108,6 @@ async function main() {
     hostname: amqpOptions.hostname,
     port: amqpOptions.port,
   });
-  let cleanupDataProxy: CleanupFunction | undefined;
-  if (useDataproxy) ({ cleanup: cleanupDataProxy } = await dataproxy());
   try {
     await runWithChainDefinition((chain) => ({
       runningPromise: runWithPrisma(async (prisma) => {
@@ -176,7 +144,6 @@ async function main() {
       }),
     }));
   } finally {
-    if (cleanupDataProxy !== undefined) await cleanupDataProxy();
     abortBroker();
   }
 }

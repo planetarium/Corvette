@@ -9,22 +9,19 @@ RUN apk add npm && \
   > prisma/schema.prisma.new && \
   mv prisma/schema.prisma.new prisma/schema.prisma && \
   deno task prisma format && \
-  deno task prisma-generate
+  deno task prisma generate
 
 FROM common as observer
 RUN deno cache observer.ts
-# --unsafely-ignore-certificate-errors should be included to use data proxy
 ENTRYPOINT [ "deno", "run", "--allow-env", "--allow-read", "--allow-net", "--allow-ffi", "observer.ts" ]
 
 FROM common as emitter
 RUN deno cache emitter.ts
-# --unsafely-ignore-certificate-errors should be included to use data proxy
 ENTRYPOINT [ "deno", "run", "--allow-env", "--allow-read", "--allow-net", "--allow-ffi", "emitter.ts" ]
 
 FROM common as api
 ENV API_URL="http://0.0.0.0:80"
 EXPOSE 80
-# --unsafely-ignore-certificate-errors should be included to use data proxy
 ENTRYPOINT [ "deno", "run", "--allow-env", "--allow-read", "--allow-net", "--allow-ffi", "api.ts" ]
 
 FROM common as web
@@ -38,17 +35,3 @@ RUN apk add git && \
 ENV WEBUI_URL="http://0.0.0.0:80"
 EXPOSE 80
 ENTRYPOINT [ "deno", "run", "--allow-read", "--allow-env", "--allow-sys", "--allow-run", "../scripts/run-with-env.ts", "deno", "run", "--allow-env", "--allow-read", "--allow-write", "--allow-net", "--allow-run", "--allow-ffi", "main.ts" ]
-
-FROM alpine:3.18.2 as dataproxy-builder
-WORKDIR /Corvette
-RUN apk add openssl && \
-  openssl req -x509 -nodes -days 3650 -subj  "/CN=localhost" -newkey rsa:4096 -keyout dev.key -out dev.crt
-
-FROM common as dataproxy
-COPY --from=dataproxy-builder /Corvette/dev.key /Corvette/dev.crt /Corvette/
-RUN awk '/datasource[[:space:]]+[^[:space:]]+[[:space:]]*\{/{ print; print "directUrl = env(\"DIRECT_URL\")" }' \
-  prisma/schema.prisma > prisma/schema.prisma.new && \
-  mv prisma/schema.prisma.new prisma/schema.prisma && \
-  deno run --allow-env --allow-read --allow-write --allow-run dataproxy.ts generate
-EXPOSE 8088
-ENTRYPOINT [ "deno", "run", "--allow-env", "--allow-read", "--allow-write", "--allow-net", "--allow-run", "--unsafely-ignore-certificate-errors=localhost", "dataproxy.ts" ]

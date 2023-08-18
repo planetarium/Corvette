@@ -3,7 +3,7 @@ import { getLogger, setup as setupLog } from "std/log/mod.ts";
 
 import { Application as OakApplication } from "oak";
 
-import { parse } from "npm:lossless-json";
+import { parse, stringify as losslessJsonStringify } from "npm:lossless-json";
 
 import {
   defaultLogFormatter,
@@ -24,10 +24,14 @@ export async function testWebhookReceiver() {
   app.use(async (ctx) => {
     logger.info(
       "Received Webhook:",
-      parse(
-        await ctx.request.body({ type: "text" }).value,
+      losslessJsonStringify(
+        parse(
+          await ctx.request.body({ type: "text" }).value,
+          undefined,
+          numberParser,
+        ),
         undefined,
-        numberParser,
+        2,
       ),
     );
     ctx.response.body = "";

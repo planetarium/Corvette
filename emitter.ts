@@ -175,7 +175,8 @@ export async function emitter(
             });
             if (!response.ok) {
               logger.error(
-                `Webhook test POST request failed with an HTTP error, status: ${response.status}  blockNumber: url: ${url}  response body: ${response.text()}`,
+                `Webhook test POST request failed with an HTTP error, status: ${response.status}  blockNumber: url: ${url}  response body: ${await response
+                  .text()}`,
               );
             }
           } catch (e) {
@@ -293,7 +294,8 @@ export async function emitter(
                 });
                 if (response.ok) return undefined;
                 logger.error(
-                  `Event emit POST request failed with an HTTP error, status: ${response.status}  blockNumber: ${x.blockNumber}  logIndex: ${x.logIndex}  url: ${url}  response body: ${response.text()}`,
+                  `Event emit POST request failed with an HTTP error, status: ${response.status}  blockNumber: ${x.blockNumber}  logIndex: ${x.logIndex}  url: ${url}  response body: ${await response
+                    .text()}`,
                 );
                 return url;
               } catch (e) {

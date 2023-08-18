@@ -126,7 +126,7 @@ export async function observer(
     logger.critical(`Irrecoverable error: ${message}`);
     throw new Error(message);
   }
-  if (typeof (blockFinality) === "string") {
+  if (typeof blockFinality === "string") {
     try {
       await client.getBlock({ blockTag: blockFinality });
     } catch (e) {
@@ -141,7 +141,7 @@ export async function observer(
   }
 
   // TODO: customizable poll interval and transport
-  if (typeof (blockFinality) === "bigint") {
+  if (typeof blockFinality === "bigint") {
     logger.info(
       "Block finality is an offset, using eth_blockNumber to watch latest blocks.",
     );
@@ -153,7 +153,7 @@ export async function observer(
   const lastObservedNumber = (await prisma.observedLog.findFirst({
     orderBy: { blockNumber: "desc" },
   }))?.blockNumber;
-  const unwatchBlockNumber = typeof (blockFinality) === "bigint"
+  const unwatchBlockNumber = typeof blockFinality === "bigint"
     ? client.watchBlockNumber({
       emitMissed: true,
       onBlockNumber: (blockNumber) =>
@@ -179,7 +179,7 @@ export async function observer(
     });
   if (lastObservedNumber != undefined) {
     const lastObserved = BigInt(lastObservedNumber);
-    const finalized = typeof (blockFinality) === "bigint"
+    const finalized = typeof blockFinality === "bigint"
       ? await client.getBlockNumber() - blockFinality
       : (await client.getBlock({ blockTag: blockFinality })).number!;
     if (lastObserved < finalized) {

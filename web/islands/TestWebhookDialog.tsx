@@ -3,7 +3,7 @@ import { useEffect, useRef } from "preact/hooks";
 import { Modal } from "web/components/Modal.tsx";
 import type { ToastProps } from "web/components/Toast.tsx";
 
-const Input = (props: { name: string }) => (
+const Input = (props: { name: string; pattern?: string }) => (
   <input
     type="text"
     pattern="^0x[a-fA-F0-9]{64}$"
@@ -71,12 +71,13 @@ export const TestWebhookDialog = ({ setToast, ...props }: TestWebhookProps) => {
           </label>
           <label class="label">
             Data
-            <Input name="data" />
+            <Input name="data" pattern="^0x([a-fA-F0-9]{2}){32,}$" />
           </label>
           <label class="label">
             <span class="label-text-alt">
               * 32 bytes hex string (64 characters) prepended by 0x (total 66
               characters)
+              <br />* data can be longer than 32 bytes
             </span>
           </label>
           <input type="submit" class="btn" />

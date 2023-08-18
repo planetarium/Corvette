@@ -32,7 +32,7 @@ import {
   getInternalLoggers,
   getLoggingLevel,
 } from "./logUtils.ts";
-import { runWithPrisma } from "./runHelpers.ts";
+import { runWithPrisma } from "./runUtils.ts";
 
 export function api(prisma: PrismaClient) {
   const hexToBuffer = (hex: string): Buffer => {

@@ -28,7 +28,7 @@ import {
   runWithAmqp,
   runWithChainDefinition,
   runWithPrisma,
-} from "./runHelpers.ts";
+} from "./runUtils.ts";
 import { testWebhookReceiver } from "./testWebhookReceiver.ts";
 
 async function prepareAndMain() {

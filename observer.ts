@@ -37,7 +37,7 @@ import {
   runWithAmqp,
   runWithChainDefinition,
   runWithPrisma,
-} from "./runHelpers.ts";
+} from "./runUtils.ts";
 
 type Log = LogGeneric<
   bigint,

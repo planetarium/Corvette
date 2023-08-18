@@ -28,7 +28,7 @@ import {
   WebLoggerName,
 } from "~/logUtils.ts";
 import type { PrismaClient } from "~/prisma-shim.ts";
-import { runWithAmqp, runWithPrisma } from "~/runHelpers.ts";
+import { runWithAmqp, runWithPrisma } from "~/runUtils.ts";
 
 // Used for fresh-session cookie store JWT encryption key
 Deno.env.set(

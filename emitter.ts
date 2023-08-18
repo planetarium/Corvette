@@ -19,7 +19,7 @@ import {
   runWithAmqp,
   runWithChainDefinition,
   runWithPrisma,
-} from "./runHelpers.ts";
+} from "./runUtils.ts";
 import { uint8ArrayEquals } from "./uint8ArrayUtils.ts";
 import { serializeEventResponse } from "./EventResponse.ts";
 import {

@@ -9,7 +9,7 @@ import {
   defaultLogFormatter,
   TestWebhookReceiverLoggerName,
 } from "./logUtils.ts";
-import { runAndCleanup } from "./runHelpers.ts";
+import { runAndCleanup } from "./runUtils.ts";
 
 function numberParser(value: string) {
   const n = Number(value);

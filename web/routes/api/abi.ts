@@ -6,11 +6,11 @@ import type { WithSession } from "fresh-session";
 import type { Abi, AbiEvent } from "abitype";
 
 import { Buffer } from "node:buffer";
-import { keccak256, toBytes, toHex } from "npm:viem";
+import { keccak256, toBytes, toHex } from "viem";
 
 import { prisma } from "web/main.ts";
 import { checkPermission, logRequest } from "web/util.ts";
-import { formatAbiItemPrototype } from "~/abitype.ts";
+import { formatAbiItemPrototype } from "~/utils/abiUtils.ts";
 import type { User } from "~/prisma/shim.ts";
 
 import type { AbiEntry } from "web/islands/ListAbi.tsx";

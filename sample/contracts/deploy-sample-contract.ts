@@ -8,8 +8,8 @@ import {
   formatEther,
   formatGwei,
   http,
-} from "npm:viem";
-import { privateKeyToAccount } from "npm:viem/accounts";
+} from "viem";
+import { privateKeyToAccount } from "viem/accounts";
 
 import {
   getRelativeScriptPath,

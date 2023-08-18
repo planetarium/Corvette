@@ -5,7 +5,7 @@ import {
 } from "amqp/mod.ts";
 import { parseOptions } from "amqp/src/amqp_connect_options.ts";
 
-import type { Chain } from "npm:viem";
+import type { Chain } from "viem";
 
 import { type Prisma, PrismaClient } from "../prisma/shim.ts";
 

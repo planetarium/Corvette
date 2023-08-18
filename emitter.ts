@@ -4,7 +4,7 @@ import { getLogger, setup as setupLog } from "std/log/mod.ts";
 import type { AmqpConnection } from "amqp/mod.ts";
 
 import { stringify as losslessJsonStringify } from "npm:lossless-json";
-import { type Chain, getAddress, toHex } from "npm:viem";
+import { type Chain, getAddress, toHex } from "viem";
 
 import type { PrismaClient } from "./prisma/shim.ts";
 
@@ -80,7 +80,7 @@ export async function emitter(
                 .map((topic, i) => [topic, i + 1])
                 .filter(([topic, _]) => topic != null)
                 .map(([topic, i]) =>
-                  `[${i}] ${toHex(topic)}`
+                  `[${i}] ${toHex(topic as Uint8Array)}`
                 ).join(" ")
             }  destination: ${dest.webhookUrl}`
           ).join(",  ")

@@ -13,7 +13,7 @@ import {
   type Log as LogGeneric,
   toBytes,
   toHex,
-} from "npm:viem";
+} from "viem";
 
 import { Prisma, type PrismaClient } from "./prisma/shim.ts";
 
@@ -42,6 +42,7 @@ import {
 type Log = LogGeneric<
   bigint,
   number,
+  false,
   AbiEvent | undefined,
   undefined,
   [AbiEvent | undefined],

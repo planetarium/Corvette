@@ -4,7 +4,7 @@ import { type Handlers, Status } from "fresh/server.ts";
 import type { WithSession } from "fresh-session";
 
 import { Buffer } from "node:buffer";
-import { getAddress, toBytes, toHex } from "npm:viem";
+import { getAddress, toBytes, toHex } from "viem";
 
 import { amqpChannel, prisma } from "web/main.ts";
 import { checkPermission, logRequest } from "web/util.ts";

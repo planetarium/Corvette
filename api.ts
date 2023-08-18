@@ -14,12 +14,12 @@ import { oakCors } from "https://deno.land/x/cors@v1.2.2/mod.ts";
 import { Buffer } from "node:buffer";
 
 import { stringify as losslessJsonStringify } from "npm:lossless-json";
-import { getAddress, keccak256, toHex } from "npm:viem";
+import { getAddress, keccak256, toHex } from "viem";
 
 import type { PrismaClient } from "./prisma/shim.ts";
 
 import { serializeEventResponse } from "./messages/EventResponse.ts";
-import { formatAbiItemPrototype } from "./abitype.ts";
+import { formatAbiItemPrototype } from "./utils/abiUtils.ts";
 import { validateEventRequest } from "./constants/apiSchema.ts";
 import {
   ApiBehindReverseProxyEnvKey,

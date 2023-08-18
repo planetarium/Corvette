@@ -61,7 +61,7 @@ services:
       args:
         DENO_DEPLOYMENT_ID: "${VERSION}"
     container_name: web
-  create-db:
+  migrate-db:
     depends_on:
       db:
         condition: service_healthy
@@ -70,7 +70,7 @@ services:
       target: common
     environment:
       DATABASE_URL: postgres://postgres:V0uYcxk2dFixtPWfK4Nb@db/postgres
-    command: deno task prisma db push --skip-generate
+    command: sh -c 'deno task prisma migrate diff --from-schema-datasource prisma/schema.prisma --to-schema-datamodel prisma/schema.prisma --script > migrate.sql && deno task prisma db execute --file ./migrate.sql --schema prisma/schema.prisma'
   message-queue-broker:
     image: rabbitmq:3.12.2-alpine
     restart: always

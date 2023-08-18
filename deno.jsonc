@@ -1,10 +1,8 @@
 {
   "tasks": {
     "prisma": "deno run --allow-read --allow-sys --allow-run --allow-write scripts/prisma-wrapper.ts",
-    "prisma-generate": "deno run --allow-read --allow-env --allow-sys --allow-run --allow-write scripts/prisma-generate.ts",
-    "prisma-studio": "deno run --allow-read --allow-env --allow-run scripts/prisma-studio.ts",
-    "serve": "deno run --allow-read --allow-write --allow-env generate-cert.ts && deno run --allow-read --allow-env --allow-run --allow-sys app.ts",
-    "serve-web": "deno run -A --unsafely-ignore-certificate-errors=localhost --watch=web/static/,web/routes/ web/dev.ts"
+    "serve": "deno run --allow-read --allow-env --allow-run --allow-sys app.ts",
+    "serve-web": "deno run -A --watch=web/static/,web/routes/ web/dev.ts"
   },
   "lock": false,
   "compilerOptions": {

@@ -28,10 +28,8 @@ To run Corvette, you must have Deno and Node.js with corepack enabled installed
 Before you can run the components, you must apply the database migrations to
 your DB. Adjust the database provider in `prisma/schema.prisma`, copy the
 configuration from the example `.env.example` to `.env`, and configure
-`DATABASE_URL` and `DIRECT_URL` accordingly. For SQLite, leave the DATABASE_URL
-as is. For PostgreSQL, provide the same values to the `DATABASE_URL` and
-`DIRECT_URL`. Only SQLite (for development only) and PostgreSQL has been tested
-at the moment.
+`DATABASE_URL` accordingly. Only SQLite (for development only) and PostgreSQL
+has been tested at the moment.
 
 After database configuration, run `deno task prisma db push`. Your database
 will be populated with required tables.
@@ -43,18 +41,12 @@ A convenience script (`app.ts`) for running all the components (except for web
 at the moment) is provided, along with a deno task (`deno task serve`) that
 runs this script with required permissions. After applying the database
 migrations and configuring `.env`, start the components with `deno task serve`.
-The convenience script will also launch an instance of embedded Prisma data
-proxy if using SQLite as the DB, to mitigate an unconfirmed bug in Prisma where
-the client will crash intermittently if the database is accessed frequently
-(probably due to improper lock handling.) The database will automatically be
-connected with the default configuration. The script will also launch an
-instance of an embedded AMQP broker (https://deno.land/x/lop/mod.ts) and a
-webhook receiver for testing (`testWebhookReceiver.ts`) on http://localhost:8888.
+The database will automatically be connected with the default configuration.
+The script will also launch an instance of an embedded AMQP broker
+(https://deno.land/x/lop/mod.ts) and a webhook receiver for testing
+(`testWebhookReceiver.ts`) on http://localhost:8888.
 
-The web component can be started with `pushd web; deno task start; popd` (hot
-reload) or
-`deno run -A --unsafely-ignore-certificate-errors=localhost web/main.ts` (flag
-required for SQLite as DB, see remarks below in [Running components independently & for production](#Running-components-independently-&-for-production).)
+The web component can be started with `deno task serve-web`.
 
 The components will be started using the configuration defined in `.env` file
 by default. The configuration may also be overrided by providing the
@@ -72,19 +64,8 @@ be run simultaneously to achieve failsafe and/or load balancing.
 
 Before running the components, you must generate the Prisma client. You must do
 this each time you change the `prisma/schema.prisma` file or Prisma version.
-Generate the client with `deno task prisma-generate`. Prisma client specific to
-Prisma data proxy must be generated if you are using SQLite as the database
-(not recommended for production,) and the aforementioned task will detect the
-type of the database and generate the appropriate type of the client for you.
-
-You must also prepare the database server and configure the components
-accordingly. In case you are using SQLite, you must run the data proxy by your
-own. The data proxy requires TLS certificates, which can be generated with
-`deno run -A generate-cert`. To use self-signed TLS certificates, you must
-provide the following flag to the components (including the data proxy itself):
-`--unsafely-ignore-certificate-errors=localhost`. You can run the data proxy
-with the following command:
-`deno run -A --unsafely-ignore-certificate-errors=localhost dataproxy.ts`.
+Generate the client with `deno task prisma generate`. You must also prepare the
+database and configure the components accordingly.
 
 You also need an AMQP 0-9-1 compliant message broker (such as RabbitMQ.) For
 testing, you may also use [lop](https://deno.land/x/lop/mod.ts), which is run

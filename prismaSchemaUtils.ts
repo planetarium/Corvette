@@ -18,12 +18,3 @@ export async function getSchema(
 ) {
   return await Deno.readTextFile(getSchemaPath(options));
 }
-
-export async function shouldUseDataproxy(
-  options: GetSchemaOptions = { useParams: false },
-) {
-  const schema = await getSchema(options);
-  return schema.match(
-    /datasource\s+db\s*\{[\s\S]*?provider\s*=\s*"sqlite"[\s\S]*?\}/,
-  ) != null;
-}

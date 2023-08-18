@@ -21,6 +21,7 @@ ENTRYPOINT [ "deno", "run", "--allow-env", "--allow-read", "--allow-net", "--all
 
 FROM common as api
 ENV API_URL="http://0.0.0.0:80"
+RUN deno cache api.ts
 EXPOSE 80
 ENTRYPOINT [ "deno", "run", "--allow-env", "--allow-read", "--allow-net", "--allow-ffi", "api.ts" ]
 

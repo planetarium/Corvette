@@ -98,6 +98,7 @@ services:
         - "status"
   db:
     image: postgres:15.3-alpine3.18
+    command: ["postgres", "-c", "log_min_messages=fatal"]
     restart: always
     container_name: db
     environment:

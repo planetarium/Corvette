@@ -9,7 +9,7 @@ import { getAddress, toBytes, toHex } from "npm:viem";
 import { amqpChannel, prisma } from "web/main.ts";
 import { checkPermission, logRequest } from "web/util.ts";
 import { formatAbiItemPrototype } from "~/abitype.ts";
-import { reload as reloadControl } from "~/control.ts";
+import { reload as reloadControl } from "~/messages/control.ts";
 import { ControlObserverRoutingKey } from "~/constants.ts";
 import type { User } from "~/generated/client/index.d.ts";
 

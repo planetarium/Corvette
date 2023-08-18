@@ -7,7 +7,7 @@ import { toBytes } from "npm:viem";
 
 import { amqpChannel, prisma } from "web/main.ts";
 import { logRequest } from "web/util.ts";
-import { serializeEventMessage } from "~/EventMessage.ts";
+import { serializeEventMessage } from "~/messages/EventMessage.ts";
 import { EvmEventsQueueName } from "~/constants.ts";
 
 export const handler: Handlers = {

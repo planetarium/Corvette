@@ -8,8 +8,11 @@ import { type Chain, getAddress, toHex } from "npm:viem";
 
 import type { PrismaClient } from "./prisma-shim.ts";
 
-import { deserializeControlMessage } from "./ControlMessage.ts";
-import { deserializeEventMessage, EventMessage } from "./EventMessage.ts";
+import { deserializeControlMessage } from "./messages/ControlMessage.ts";
+import {
+  deserializeEventMessage,
+  EventMessage,
+} from "./messages/EventMessage.ts";
 import {
   ControlEmitterRoutingKey,
   ControlExchangeName,
@@ -21,7 +24,7 @@ import {
   runWithPrisma,
 } from "./utils/runUtils.ts";
 import { uint8ArrayEquals } from "./utils/uint8ArrayUtils.ts";
-import { serializeEventResponse } from "./EventResponse.ts";
+import { serializeEventResponse } from "./messages/EventResponse.ts";
 import {
   defaultLogFormatter,
   EmitterLoggerName,

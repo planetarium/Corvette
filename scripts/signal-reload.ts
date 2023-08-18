@@ -5,7 +5,7 @@ import {
   ControlExchangeName,
   ControlObserverRoutingKey,
 } from "../constants.ts";
-import { reload } from "../control.ts";
+import { reload } from "../messages/control.ts";
 
 const conn = await connect();
 const chan = await conn.openChannel();

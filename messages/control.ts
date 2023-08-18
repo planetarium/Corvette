@@ -11,8 +11,8 @@ import {
   ControlEmitterRoutingKey,
   ControlExchangeName,
   ControlObserverRoutingKey,
-} from "./constants.ts";
-import { ControlLoggerName } from "./utils/logUtils.ts";
+} from "../constants.ts";
+import { ControlLoggerName } from "../utils/logUtils.ts";
 
 export function reload(
   amqpChannel: AmqpChannel,

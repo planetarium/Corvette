@@ -23,9 +23,9 @@ import {
   ControlObserverRoutingKey,
   EvmEventsQueueName,
 } from "./constants.ts";
-import { deserializeControlMessage } from "./ControlMessage.ts";
+import { deserializeControlMessage } from "./messages/ControlMessage.ts";
+import { serializeEventMessage } from "./messages/EventMessage.ts";
 import { BlockFinalityEnvKey, combinedEnv } from "./utils/envUtils.ts";
-import { serializeEventMessage } from "./EventMessage.ts";
 import {
   defaultLogFormatter,
   getInternalLoggers,

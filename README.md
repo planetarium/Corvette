@@ -43,7 +43,7 @@ this script with required permissions. After configuring `.env`, start the
 components with `deno task dev`. The database will automatically be connected
 with the default configuration. The script will also launch an instance of an
 embedded AMQP broker (https://deno.land/x/lop/mod.ts) and a webhook receiver
-for development (`testWebhookReceiver.ts`) on http://localhost:8888.
+for development (`devTools/testWebhookReceiver.ts`) on http://localhost:8888.
 
 The web component can be started with `deno task dev-web`.
 

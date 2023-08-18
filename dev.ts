@@ -29,7 +29,7 @@ import {
   runWithChainDefinition,
   runWithPrisma,
 } from "./utils/runUtils.ts";
-import { testWebhookReceiver } from "./testWebhookReceiver.ts";
+import { testWebhookReceiver } from "./devTools/testWebhookReceiver.ts";
 
 async function prepareAndMain() {
   const status = await new Deno.Command("deno", {

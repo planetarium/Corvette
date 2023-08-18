@@ -11,7 +11,7 @@ import { broker } from "https://deno.land/x/lop@0.0.0-alpha.2/mod.ts";
 
 import { api } from "./api.ts";
 import { emitter } from "./emitter.ts";
-import { AmqpBrokerUrlEnvKey, combinedEnv } from "./envUtils.ts";
+import { AmqpBrokerUrlEnvKey, combinedEnv } from "./utils/envUtils.ts";
 import {
   ApiLoggerName,
   defaultLogFormatter,
@@ -21,14 +21,14 @@ import {
   ObserverLoggerName,
   TestWebhookReceiverLoggerName,
   WebLoggerName,
-} from "./logUtils.ts";
+} from "./utils/logUtils.ts";
 import { observer } from "./observer.ts";
 import {
   block,
   runWithAmqp,
   runWithChainDefinition,
   runWithPrisma,
-} from "./runUtils.ts";
+} from "./utils/runUtils.ts";
 import { testWebhookReceiver } from "./testWebhookReceiver.ts";
 
 async function prepareAndMain() {

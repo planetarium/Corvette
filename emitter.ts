@@ -19,16 +19,16 @@ import {
   runWithAmqp,
   runWithChainDefinition,
   runWithPrisma,
-} from "./runUtils.ts";
-import { uint8ArrayEquals } from "./uint8ArrayUtils.ts";
+} from "./utils/runUtils.ts";
+import { uint8ArrayEquals } from "./utils/uint8ArrayUtils.ts";
 import { serializeEventResponse } from "./EventResponse.ts";
 import {
   defaultLogFormatter,
   EmitterLoggerName,
   getInternalLoggers,
   getLoggingLevel,
-} from "./logUtils.ts";
-import { createMutex } from "./concurrencyUtils.ts";
+} from "./utils/logUtils.ts";
+import { createMutex } from "./utils/concurrencyUtils.ts";
 
 export async function emitter(
   chain: Chain,

@@ -6,7 +6,7 @@ import { keccak256, toBytes } from "npm:viem";
 import { PrismaClient } from "~/prisma-shim.ts";
 
 import { formatAbiItemPrototype } from "../abitype.ts";
-import { combinedEnv, DatabaseUrlEnvKey } from "../envUtils.ts";
+import { combinedEnv, DatabaseUrlEnvKey } from "../utils/envUtils.ts";
 
 import sampleAbiJson from "./contracts/sampleAbi.json" assert { type: "json" };
 

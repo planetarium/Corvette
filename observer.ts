@@ -17,27 +17,27 @@ import {
 
 import Prisma, { type PrismaClient } from "./prisma-shim.ts";
 
-import { createMutex } from "./concurrencyUtils.ts";
+import { createMutex } from "./utils/concurrencyUtils.ts";
 import {
   ControlExchangeName,
   ControlObserverRoutingKey,
   EvmEventsQueueName,
 } from "./constants.ts";
 import { deserializeControlMessage } from "./ControlMessage.ts";
-import { BlockFinalityEnvKey, combinedEnv } from "./envUtils.ts";
+import { BlockFinalityEnvKey, combinedEnv } from "./utils/envUtils.ts";
 import { serializeEventMessage } from "./EventMessage.ts";
 import {
   defaultLogFormatter,
   getInternalLoggers,
   getLoggingLevel,
   ObserverLoggerName,
-} from "./logUtils.ts";
+} from "./utils/logUtils.ts";
 import {
   block,
   runWithAmqp,
   runWithChainDefinition,
   runWithPrisma,
-} from "./runUtils.ts";
+} from "./utils/runUtils.ts";
 
 type Log = LogGeneric<
   bigint,

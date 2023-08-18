@@ -25,14 +25,14 @@ import {
   ApiBehindReverseProxyEnvKey,
   ApiUrlEnvKey,
   combinedEnv,
-} from "./envUtils.ts";
+} from "./utils/envUtils.ts";
 import {
   ApiLoggerName,
   defaultLogFormatter,
   getInternalLoggers,
   getLoggingLevel,
-} from "./logUtils.ts";
-import { runWithPrisma } from "./runUtils.ts";
+} from "./utils/logUtils.ts";
+import { runWithPrisma } from "./utils/runUtils.ts";
 
 export function api(prisma: PrismaClient) {
   const hexToBuffer = (hex: string): Buffer => {

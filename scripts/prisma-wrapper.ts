@@ -3,7 +3,7 @@ import * as path from "std/path/mod.ts";
 
 import { parseRange, rangeIntersects } from "std/semver/mod.ts";
 
-import { baseDir } from "../moduleUtils.ts";
+import { baseDir } from "../utils/moduleUtils.ts";
 import { getSchema } from "./lib/prismaSchemaUtils.ts";
 
 const IncompatibleImportRegex =

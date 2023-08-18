@@ -1,7 +1,7 @@
 import { parse } from "std/flags/mod.ts";
 import * as path from "std/path/mod.ts";
 
-import { baseDir } from "../../moduleUtils.ts";
+import { baseDir } from "../../utils/moduleUtils.ts";
 
 type GetSchemaOptions = { useParams: boolean };
 

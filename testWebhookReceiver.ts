@@ -8,8 +8,8 @@ import { parse, stringify as losslessJsonStringify } from "npm:lossless-json";
 import {
   defaultLogFormatter,
   TestWebhookReceiverLoggerName,
-} from "./logUtils.ts";
-import { runAndCleanup } from "./runUtils.ts";
+} from "./utils/logUtils.ts";
+import { runAndCleanup } from "./utils/runUtils.ts";
 
 function numberParser(value: string) {
   const n = Number(value);

@@ -15,7 +15,10 @@ import twindConfig from "./twind.config.ts";
 
 import type { AmqpChannel, AmqpConnection } from "amqp/mod.ts";
 
-import { ControlExchangeName, EvmEventsQueueName } from "~/constants.ts";
+import {
+  ControlExchangeName,
+  EvmEventsQueueName,
+} from "~/constants/constants.ts";
 import {
   combinedEnv,
   WebUISessionAppKeyEnvKey,

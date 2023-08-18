@@ -11,7 +11,7 @@ import {
   ControlEmitterRoutingKey,
   ControlExchangeName,
   ControlObserverRoutingKey,
-} from "../constants.ts";
+} from "../constants/constants.ts";
 import { ControlLoggerName } from "../utils/logUtils.ts";
 
 export function reload(

@@ -22,7 +22,7 @@ import {
   ControlExchangeName,
   ControlObserverRoutingKey,
   EvmEventsQueueName,
-} from "./constants.ts";
+} from "./constants/constants.ts";
 import { deserializeControlMessage } from "./messages/ControlMessage.ts";
 import { serializeEventMessage } from "./messages/EventMessage.ts";
 import { BlockFinalityEnvKey, combinedEnv } from "./utils/envUtils.ts";

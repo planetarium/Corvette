@@ -9,7 +9,7 @@ import { getAddress, toBytes, toHex } from "npm:viem";
 import { amqpChannel, prisma } from "web/main.ts";
 import { checkPermission, logRequest } from "web/util.ts";
 import { reload as reloadControl } from "~/messages/control.ts";
-import { ControlEmitterRoutingKey } from "~/constants.ts";
+import { ControlEmitterRoutingKey } from "~/constants/constants.ts";
 import type { User } from "~/prisma/shim.ts";
 
 import type { WebhookEntry } from "web/islands/ListWebhook.tsx";

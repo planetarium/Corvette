@@ -10,7 +10,7 @@ import { amqpChannel, prisma } from "web/main.ts";
 import { checkPermission, logRequest } from "web/util.ts";
 import { formatAbiItemPrototype } from "~/abitype.ts";
 import { reload as reloadControl } from "~/messages/control.ts";
-import { ControlObserverRoutingKey } from "~/constants.ts";
+import { ControlObserverRoutingKey } from "~/constants/constants.ts";
 import type { User } from "~/prisma/shim.ts";
 
 import type { SourceEntry } from "web/islands/ListSources.tsx";

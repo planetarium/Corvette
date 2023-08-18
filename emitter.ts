@@ -17,7 +17,7 @@ import {
   ControlEmitterRoutingKey,
   ControlExchangeName,
   EvmEventsQueueName,
-} from "./constants.ts";
+} from "./constants/constants.ts";
 import {
   runWithAmqp,
   runWithChainDefinition,

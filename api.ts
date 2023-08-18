@@ -20,7 +20,7 @@ import type { PrismaClient } from "./prisma/shim.ts";
 
 import { serializeEventResponse } from "./messages/EventResponse.ts";
 import { formatAbiItemPrototype } from "./abitype.ts";
-import { validateEventRequest } from "./apiSchema.ts";
+import { validateEventRequest } from "./constants/apiSchema.ts";
 import {
   ApiBehindReverseProxyEnvKey,
   ApiUrlEnvKey,

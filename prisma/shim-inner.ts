@@ -1,14 +1,14 @@
+import { Buffer } from "node:buffer";
 import { createRequire } from "node:module";
 import process from "node:process";
-import { Buffer } from "node:buffer";
 
-import * as _prismaTypes from "./generated/client/index.d.ts";
+import * as _prismaTypes from "./client/index.d.ts";
 
 Object.assign(globalThis, { process, Buffer });
 
 const require = createRequire(import.meta.url);
-const prisma: typeof _prismaTypes = require("./generated/client");
+const prisma: typeof _prismaTypes = require("./client");
 
+export type * from "./client/index.d.ts";
 export class PrismaClient extends prisma.PrismaClient {}
-// re-export namespace Prisma as default export
 export default prisma.Prisma;

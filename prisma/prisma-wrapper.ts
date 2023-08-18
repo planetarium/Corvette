@@ -1,10 +1,11 @@
+import { load as loadEnv } from "std/dotenv/mod.ts";
 import { parse } from "std/flags/mod.ts";
 import * as path from "std/path/mod.ts";
 
 import { parseRange, rangeIntersects } from "std/semver/mod.ts";
 
-import { baseDir } from "../utils/moduleUtils.ts";
-import { getSchema } from "./lib/prismaSchemaUtils.ts";
+import { baseDir as projectBaseDir } from "../utils/moduleUtils.ts";
+import { getSchema, prismaBaseDir } from "./prismaSchemaUtils.ts";
 
 const IncompatibleImportRegex =
   /(import\s[\s\S]+\sfrom\s+)(?:(')(.+)(?<!\.ts)(')|(")(.+)(?<!\.ts)("))([\s\S]*?(?:;|\n))/g;
@@ -55,16 +56,17 @@ const generatedPaths = (params.generator || ["client"]).reduce(
     if (match == null) return acc;
     return [
       ...(acc as string[]),
-      path.join(baseDir, "prisma", match[1].trim()),
+      path.join(prismaBaseDir, "prisma", match[1].trim()),
     ];
   },
   [],
 ) as string[];
 
-const packageJsonPath = path.join(baseDir, "package.json");
+const packageJsonPath = path.join(prismaBaseDir, "package.json");
 let packageJson: {
   devDependencies: { prisma: string };
   dependencies: { "@prisma/client": string };
+  private: true;
 };
 let clearCache: boolean;
 try {
@@ -94,6 +96,7 @@ try {
   packageJson = {
     devDependencies: { prisma: PrismaVersionSpecifier },
     dependencies: { "@prisma/client": PrismaVersionSpecifier },
+    private: true,
   };
   clearCache = true;
 }
@@ -108,7 +111,7 @@ if (clearCache) {
     console.error(`Failed to edit ${packageJsonPath}.`);
     throw e;
   }
-  const yarnLockPath = path.join(baseDir, "yarn.lock");
+  const yarnLockPath = path.join(prismaBaseDir, "yarn.lock");
   try {
     await Deno.writeFile(yarnLockPath, new Uint8Array());
   } catch (e) {
@@ -119,7 +122,7 @@ if (clearCache) {
   for (
     const pathToDelete of [
       ...generatedPaths,
-      path.join(baseDir, "node_modules"),
+      path.join(prismaBaseDir, "node_modules"),
     ]
   ) {
     try {
@@ -152,6 +155,11 @@ const exitCode = (await new Deno.Command("deno", {
   cwd: Deno.cwd(),
   uid: Deno.uid() !== null ? Deno.uid()! : undefined,
   gid: Deno.gid() !== null ? Deno.gid()! : undefined,
+  env: await loadEnv({
+    envPath: path.join(projectBaseDir, ".env"),
+    examplePath: null,
+    defaultsPath: null,
+  }),
 }).spawn().status).code;
 
 await Promise.all(generatedPaths.map((generatedPath) =>

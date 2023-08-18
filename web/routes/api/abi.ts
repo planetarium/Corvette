@@ -11,7 +11,7 @@ import { keccak256, toBytes, toHex } from "npm:viem";
 import { prisma } from "web/main.ts";
 import { checkPermission, logRequest } from "web/util.ts";
 import { formatAbiItemPrototype } from "~/abitype.ts";
-import type { User } from "~/generated/client/index.d.ts";
+import type { User } from "~/prisma/shim.ts";
 
 import type { AbiEntry } from "web/islands/ListAbi.tsx";
 

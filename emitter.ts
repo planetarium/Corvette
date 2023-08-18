@@ -6,7 +6,7 @@ import type { AmqpConnection } from "amqp/mod.ts";
 import { stringify as losslessJsonStringify } from "npm:lossless-json";
 import { type Chain, getAddress, toHex } from "npm:viem";
 
-import type { PrismaClient } from "./prisma-shim.ts";
+import type { PrismaClient } from "./prisma/shim.ts";
 
 import { deserializeControlMessage } from "./messages/ControlMessage.ts";
 import {

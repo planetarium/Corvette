@@ -4,7 +4,7 @@ import { cookieSession, type WithSession } from "fresh-session";
 import { type MiddlewareHandlerContext, Status } from "fresh/server.ts";
 
 import { logRequest, redirect } from "web/util.ts";
-import type { User } from "~/generated/client/index.d.ts";
+import type { User } from "~/prisma/shim.ts";
 
 const session = cookieSession();
 

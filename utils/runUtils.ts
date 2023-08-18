@@ -7,8 +7,7 @@ import { parseOptions } from "amqp/src/amqp_connect_options.ts";
 
 import type { Chain } from "npm:viem";
 
-import type Prisma from "../prisma-shim.ts";
-import { PrismaClient } from "../prisma-shim.ts";
+import { type Prisma, PrismaClient } from "../prisma/shim.ts";
 
 import { Awaitable } from "./concurrencyUtils.ts";
 import {

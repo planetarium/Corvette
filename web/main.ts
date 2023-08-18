@@ -27,7 +27,7 @@ import {
   getLoggingLevel,
   WebLoggerName,
 } from "~/utils/logUtils.ts";
-import type { PrismaClient } from "~/prisma-shim.ts";
+import type { PrismaClient } from "~/prisma/shim.ts";
 import { runWithAmqp, runWithPrisma } from "~/utils/runUtils.ts";
 
 // Used for fresh-session cookie store JWT encryption key

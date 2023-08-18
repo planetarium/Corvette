@@ -1,0 +1,9 @@
+{
+  "tasks": {
+    "prisma": "deno run --allow-env --allow-read --allow-sys --allow-run --allow-write prisma-wrapper.ts"
+  },
+  "lock": false,
+  "imports": {
+    "std/": "https://deno.land/std@0.196.0/"
+  }
+}

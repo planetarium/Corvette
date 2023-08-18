@@ -15,7 +15,7 @@ import {
   toHex,
 } from "npm:viem";
 
-import Prisma, { type PrismaClient } from "./prisma-shim.ts";
+import { Prisma, type PrismaClient } from "./prisma/shim.ts";
 
 import { createMutex } from "./utils/concurrencyUtils.ts";
 import {

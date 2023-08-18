@@ -37,21 +37,21 @@ will be populated with required tables.
 
 ## Running the application for development
 
-A convenience script (`app.ts`) for running all the components (except for web
-at the moment) is provided, along with a deno task (`deno task serve`) that
-runs this script with required permissions. After applying the database
-migrations and configuring `.env`, start the components with `deno task serve`.
-The database will automatically be connected with the default configuration.
-The script will also launch an instance of an embedded AMQP broker
+A convenience script (`dev.ts`) for running all the components (except for web
+at the moment) is provided, along with a deno task (`deno task dev`) tha runs
+this script with required permissions. After applying the database migrations
+and configuring `.env`, start the components with `deno task dev`. The database
+will automatically be connected with the default configuration. The script will
+also launch an instance of an embedded AMQP broker
 (https://deno.land/x/lop/mod.ts) and a webhook receiver for testing
 (`testWebhookReceiver.ts`) on http://localhost:8888.
 
-The web component can be started with `deno task serve-web`.
+The web component can be started with `deno task dev-web`.
 
 The components will be started using the configuration defined in `.env` file
 by default. The configuration may also be overrided by providing the
 environment variables in the command line (such as
-`BLOCK_FINALITY=finalized deno task serve`.)
+`BLOCK_FINALITY=finalized deno task dev`.)
 
 
 ## Running components independently & for production
@@ -69,7 +69,7 @@ database and configure the components accordingly.
 
 You also need an AMQP 0-9-1 compliant message broker (such as RabbitMQ.) For
 testing, you may also use [lop](https://deno.land/x/lop/mod.ts), which is run
-when running the application with `deno task serve`:
+when running the application with `deno task dev`:
 `deno run -A https://deno.land/x/lop/mod.ts`.
 
 To configure each of the components with different configurations, you may need

@@ -1,8 +1,8 @@
 {
   "tasks": {
     "prisma": "deno run --allow-read --allow-sys --allow-run --allow-write scripts/prisma-wrapper.ts",
-    "serve": "deno run --allow-read --allow-env --allow-run --allow-sys app.ts",
-    "serve-web": "deno run -A --watch=web/static/,web/routes/ web/dev.ts"
+    "dev": "deno run --allow-read --allow-env --allow-run --allow-sys dev.ts",
+    "dev-web": "deno run -A --watch=web/static/,web/routes/ web/dev.ts"
   },
   "lock": false,
   "compilerOptions": {

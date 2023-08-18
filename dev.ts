@@ -1,3 +1,5 @@
+#!/usr/bin/env -S deno run --allow-read --allow-env --allow-run --allow-sys
+
 import { parse } from "std/flags/mod.ts";
 import * as path from "std/path/mod.ts";
 import { ConsoleHandler } from "std/log/handlers.ts";

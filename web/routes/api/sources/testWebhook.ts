@@ -48,7 +48,7 @@ export const handler: Handlers = {
         sigHash,
         abi: abi.json,
         topics: [topic1, topic2, topic3].flatMap((t) => t ? [toBytes(t)] : []),
-        data: data ? toBytes(data) : new Uint8Array(64),
+        data: data ? toBytes(data) : new Uint8Array(32),
         txHash: txHash ? toBytes(txHash) : new Uint8Array(32),
         blockHash: blockHash ? toBytes(blockHash) : new Uint8Array(32),
         logIndex: -1n,

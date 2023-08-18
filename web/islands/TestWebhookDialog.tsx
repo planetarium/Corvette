@@ -3,6 +3,16 @@ import { useEffect, useRef } from "preact/hooks";
 import { Modal } from "web/components/Modal.tsx";
 import type { ToastProps } from "web/components/Toast.tsx";
 
+const Input = (props: { name: string }) => (
+  <input
+    type="text"
+    pattern="^0x[a-fA-F0-9]{64}$"
+    placeholder="0x0000000000000000000000000000000000000000000000000000000000000000"
+    class="input input-bordered w-full max-w-xs"
+    {...props}
+  />
+);
+
 export interface TestWebhookProps {
   address: string;
   abiHash: string;
@@ -41,51 +51,33 @@ export const TestWebhookDialog = ({ setToast, ...props }: TestWebhookProps) => {
         <form onSubmit={handleSubmit} class="form-control w-full">
           <label class="label">
             Transaction Hash
-            <input
-              type="text"
-              name="txHash"
-              class="input input-bordered w-full max-w-xs"
-            />
+            <Input name="txHash" />
           </label>
           <label class="label">
             Block Hash
-            <input
-              type="text"
-              name="blockHash"
-              class="input input-bordered w-full max-w-xs"
-            />
+            <Input name="blockHash" />
           </label>
           <label class="label">
             Topic 1
-            <input
-              type="text"
-              name="topic1"
-              class="input input-bordered w-full max-w-xs"
-            />
+            <Input name="topic1" />
           </label>
           <label class="label">
             Topic 2
-            <input
-              type="text"
-              name="topic2"
-              class="input input-bordered w-full max-w-xs"
-            />
+            <Input name="topic2" />
           </label>
           <label class="label">
             Topic 3
-            <input
-              type="text"
-              name="topic3"
-              class="input input-bordered w-full max-w-xs"
-            />
+            <Input name="topic3" />
           </label>
           <label class="label">
             Data
-            <input
-              type="text"
-              name="data"
-              class="input input-bordered w-full max-w-xs"
-            />
+            <Input name="data" />
+          </label>
+          <label class="label">
+            <span class="label-text-alt">
+              * 32 bytes hex string (64 characters) prepended by 0x (total 66
+              characters)
+            </span>
           </label>
           <input type="submit" class="btn" />
         </form>

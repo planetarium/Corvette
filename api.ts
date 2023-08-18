@@ -71,20 +71,27 @@ export function api(prisma: PrismaClient) {
 
     ctx.response.body = losslessJsonStringify((await prisma.event.findMany({
       where: {
-        blockHash: request.blockHash && hexToBuffer(request.blockHash),
+        blockHash: (request.blockHash && hexToBuffer(request.blockHash)) as
+          | Buffer
+          | undefined,
         blockNumber: request.blockIndex ?? { gte: blockFrom, lte: blockTo },
         logIndex: request.logIndex,
-        txHash: request.transactionHash && hexToBuffer(request.transactionHash),
-        sourceAddress: request.sourceAddress &&
-          hexToBuffer(request.sourceAddress),
-        abiHash: (request.abiHash && hexToBuffer(request.abiHash)) ??
+        txHash:
+          (request.transactionHash && hexToBuffer(request.transactionHash)) as
+            | Buffer
+            | undefined,
+        sourceAddress:
+          (request.sourceAddress && hexToBuffer(request.sourceAddress)) as
+            | Buffer
+            | undefined,
+        abiHash: ((request.abiHash && hexToBuffer(request.abiHash)) ??
           (request.abiSignature &&
             Buffer.from(
               keccak256(
                 new TextEncoder().encode(request.abiSignature),
                 "bytes",
               ),
-            )),
+            ))) as Buffer | undefined,
       },
       include: { Abi: true },
     })).map((evt) =>
@@ -92,7 +99,10 @@ export function api(prisma: PrismaClient) {
         address: evt.sourceAddress,
         sigHash: evt.abiHash,
         abi: evt.Abi.json,
-        topics: [evt.topic1, evt.topic2, evt.topic3],
+        topics: [evt.topic3, evt.topic2, evt.topic1].reduce(
+          (acc, x) => x != undefined ? [x, ...acc] : [],
+          [] as Uint8Array[],
+        ),
         data: evt.data,
         logIndex: BigInt(evt.logIndex),
         blockNumber: BigInt(evt.blockNumber),

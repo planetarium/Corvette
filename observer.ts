@@ -456,7 +456,7 @@ export async function observer(
             abi: abis[toHex(x.abiHash)],
             topics: [x.topic3, x.topic2, x.topic1].reduce(
               (acc, x) => x != undefined ? [x, ...acc] : [],
-              [],
+              [] as Uint8Array[],
             ),
             data: x.data,
             logIndex: BigInt(x.logIndex),

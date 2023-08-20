@@ -8,14 +8,14 @@ import {
   formatEther,
   formatGwei,
   http,
-} from "npm:viem";
-import { privateKeyToAccount } from "npm:viem/accounts";
+} from "viem";
+import { privateKeyToAccount } from "viem/accounts";
 
 import {
   getRelativeScriptPath,
   importESOrJson,
   normalizeImports,
-} from "../../moduleUtils.ts";
+} from "../../utils/moduleUtils.ts";
 
 const deterministicDeployerAddress =
   "0x7A0D94F55792C434d74a40883C6ed8545E406D12";

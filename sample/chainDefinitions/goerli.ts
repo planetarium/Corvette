@@ -1,4 +1,5 @@
-import type { Chain } from "npm:viem";
+// intentionally used URL to give an example
+import type { Chain } from "https://esm.sh/v130/viem@1.6.0";
 
 export default {
   id: 5,

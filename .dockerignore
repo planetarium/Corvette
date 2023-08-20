@@ -13,13 +13,14 @@
 **/node_modules
 # Keep environment variables out of version control
 **/.env
-/prisma/dev.db
-/prisma/dev.db-journal
-/prisma/dev.db-shm
-/prisma/dev.db-wal
+/prisma/prisma/dev.db
+/prisma/prisma/dev.db-journal
+/prisma/prisma/dev.db-shm
+/prisma/prisma/dev.db-wal
 **/.vscode
 /dev.crt
 /dev.key
-/generated
+/prisma/client
+/prisma/node_modules
 /docker-compose-data
 **/.DS_Store

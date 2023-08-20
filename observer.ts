@@ -1,8 +1,8 @@
 import { ConsoleHandler } from "std/log/handlers.ts";
 import { getLogger, setup as setupLog } from "std/log/mod.ts";
 
-import type { AmqpConnection } from "amqp/mod.ts";
 import type { AbiEvent } from "abitype";
+import type { AmqpConnection } from "amqp/mod.ts";
 
 import { Buffer } from "node:buffer";
 import {
@@ -13,35 +13,36 @@ import {
   type Log as LogGeneric,
   toBytes,
   toHex,
-} from "npm:viem";
+} from "viem";
 
-import Prisma, { type PrismaClient } from "./prisma-shim.ts";
+import { Prisma, type PrismaClient } from "./prisma/shim.ts";
 
-import { createMutex } from "./concurrencyUtils.ts";
 import {
   ControlExchangeName,
   ControlObserverRoutingKey,
   EvmEventsQueueName,
-} from "./constants.ts";
-import { deserializeControlMessage } from "./ControlMessage.ts";
-import { BlockFinalityEnvKey, combinedEnv } from "./envUtils.ts";
-import { serializeEventMessage } from "./EventMessage.ts";
+} from "./constants/constants.ts";
+import { deserializeControlMessage } from "./messages/ControlMessage.ts";
+import { serializeEventMessage } from "./messages/EventMessage.ts";
+import { createMutex } from "./utils/concurrencyUtils.ts";
+import { BlockFinalityEnvKey, combinedEnv } from "./utils/envUtils.ts";
 import {
   defaultLogFormatter,
   getInternalLoggers,
   getLoggingLevel,
   ObserverLoggerName,
-} from "./logUtils.ts";
+} from "./utils/logUtils.ts";
 import {
   block,
   runWithAmqp,
   runWithChainDefinition,
   runWithPrisma,
-} from "./runHelpers.ts";
+} from "./utils/runUtils.ts";
 
 type Log = LogGeneric<
   bigint,
   number,
+  false,
   AbiEvent | undefined,
   undefined,
   [AbiEvent | undefined],
@@ -455,7 +456,7 @@ export async function observer(
             abi: abis[toHex(x.abiHash)],
             topics: [x.topic3, x.topic2, x.topic1].reduce(
               (acc, x) => x != undefined ? [x, ...acc] : [],
-              [],
+              [] as Uint8Array[],
             ),
             data: x.data,
             logIndex: BigInt(x.logIndex),

@@ -1,11 +1,11 @@
 import { format as formatDate } from "std/datetime/mod.ts";
+import { type LevelName, LogLevelNames } from "std/log/levels.ts";
 import {
   Logger,
   type LoggerConfig,
   LogLevels,
   type LogRecord,
 } from "std/log/mod.ts";
-import { type LevelName, LogLevelNames } from "std/log/levels.ts";
 
 import { combinedEnv, LogLevelEnvKey } from "./envUtils.ts";
 

@@ -1,7 +1,6 @@
-import { getAddress, toHex } from "npm:viem";
+import { getAddress, toHex } from "viem";
 
-import { formatAbiItemPrototype } from "./abitype.ts";
-import { decodeEventLog } from "./decodeEventLog.ts";
+import { decodeEventLog, formatAbiItemPrototype } from "../utils/abiUtils.ts";
 import { EventMessage } from "./EventMessage.ts";
 
 export const serializeEventResponse = (evtMsg: EventMessage) => {

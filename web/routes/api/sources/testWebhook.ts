@@ -3,12 +3,12 @@ import { LogLevels } from "std/log/levels.ts";
 import { type Handlers, Status } from "fresh/server.ts";
 
 import { Buffer } from "node:buffer";
-import { toBytes } from "npm:viem";
+import { toBytes } from "viem";
 
 import { amqpChannel, prisma } from "web/main.ts";
 import { logRequest } from "web/util.ts";
-import { serializeEventMessage } from "~/EventMessage.ts";
-import { EvmEventsQueueName } from "~/constants.ts";
+import { EvmEventsQueueName } from "~/constants/constants.ts";
+import { serializeEventMessage } from "~/messages/EventMessage.ts";
 
 export const handler: Handlers = {
   async POST(req, ctx) {

@@ -1,8 +1,8 @@
 {
   "tasks": {
-    "prisma": "deno run --allow-read --allow-sys --allow-run --allow-write scripts/prisma-wrapper.ts",
-    "serve": "deno run --allow-read --allow-env --allow-run --allow-sys app.ts",
-    "serve-web": "deno run -A --watch=web/static/,web/routes/ web/dev.ts"
+    "prisma": "deno task --cwd prisma prisma",
+    "dev": "deno run --allow-read --allow-env --allow-run --allow-sys dev.ts",
+    "dev-web": "deno run -A --watch=web/static/,web/routes/ web/dev.ts"
   },
   "lock": false,
   "compilerOptions": {
@@ -15,6 +15,8 @@
     "std/": "https://deno.land/std@0.196.0/",
     "abitype": "https://esm.sh/v130/abitype@0.9.0",
     "abitype/": "https://esm.sh/v130/abitype@0.9.0/",
+    "viem": "https://esm.sh/v130/viem@1.6.0",
+    "viem/": "https://esm.sh/v130/viem@1.6.0/",
     "amqp/": "https://deno.land/x/amqp@v0.23.1/",
     "bencodex": "https://deno.land/x/bencodex@0.2.2/mod.ts",
     "oak": "https://deno.land/x/oak@v12.5.0/mod.ts",

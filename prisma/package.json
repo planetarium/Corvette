@@ -4,5 +4,6 @@
   },
   "dependencies": {
     "@prisma/client": "5.1.1"
-  }
+  },
+  "private": true
 }

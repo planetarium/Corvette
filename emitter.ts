@@ -4,31 +4,34 @@ import { getLogger, setup as setupLog } from "std/log/mod.ts";
 import type { AmqpConnection } from "amqp/mod.ts";
 
 import { stringify as losslessJsonStringify } from "npm:lossless-json";
-import { type Chain, getAddress, toHex } from "npm:viem";
+import { type Chain, getAddress, toHex } from "viem";
 
-import type { PrismaClient } from "./prisma-shim.ts";
+import type { PrismaClient } from "./prisma/shim.ts";
 
-import { deserializeControlMessage } from "./ControlMessage.ts";
-import { deserializeEventMessage, EventMessage } from "./EventMessage.ts";
 import {
   ControlEmitterRoutingKey,
   ControlExchangeName,
   EvmEventsQueueName,
-} from "./constants.ts";
+} from "./constants/constants.ts";
+import { deserializeControlMessage } from "./messages/ControlMessage.ts";
 import {
-  runWithAmqp,
-  runWithChainDefinition,
-  runWithPrisma,
-} from "./runHelpers.ts";
-import { uint8ArrayEquals } from "./uint8ArrayUtils.ts";
-import { serializeEventResponse } from "./EventResponse.ts";
+  deserializeEventMessage,
+  EventMessage,
+} from "./messages/EventMessage.ts";
+import { serializeEventResponse } from "./messages/EventResponse.ts";
+import { createMutex } from "./utils/concurrencyUtils.ts";
 import {
   defaultLogFormatter,
   EmitterLoggerName,
   getInternalLoggers,
   getLoggingLevel,
-} from "./logUtils.ts";
-import { createMutex } from "./concurrencyUtils.ts";
+} from "./utils/logUtils.ts";
+import {
+  runWithAmqp,
+  runWithChainDefinition,
+  runWithPrisma,
+} from "./utils/runUtils.ts";
+import { uint8ArrayEquals } from "./utils/uint8ArrayUtils.ts";
 
 export async function emitter(
   chain: Chain,
@@ -77,7 +80,7 @@ export async function emitter(
                 .map((topic, i) => [topic, i + 1])
                 .filter(([topic, _]) => topic != null)
                 .map(([topic, i]) =>
-                  `[${i}] ${toHex(topic)}`
+                  `[${i}] ${toHex(topic as Uint8Array)}`
                 ).join(" ")
             }  destination: ${dest.webhookUrl}`
           ).join(",  ")

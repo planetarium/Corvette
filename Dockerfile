@@ -3,11 +3,11 @@ WORKDIR /Corvette
 COPY . .
 RUN apk add npm && \
   corepack enable && \
-  cat prisma/schema.prisma | \
+  cat prisma/prisma/schema.prisma | \
   awk '/generator[[:space:]]+[^[:space:]]+[[:space:]]*\{/{ print; print "  binaryTargets = [\"native\", \"linux-musl-openssl-3.0.x\"]"; next }1' | \
   awk '/datasource[[:space:]]+[^[:space:]]+[[:space:]]*\{/{ flag=1 } /}/ { flag=0 } (flag && /provider[[:space:]]*=/) { print "  provider = \"postgresql\""; next } (flag && /directUrl[[:space:]]*=/) { next } { print }' \
-  > prisma/schema.prisma.new && \
-  mv prisma/schema.prisma.new prisma/schema.prisma && \
+  > prisma/prisma/schema.prisma.new && \
+  mv prisma/prisma/schema.prisma.new prisma/prisma/schema.prisma && \
   deno task prisma format && \
   deno task prisma generate
 
@@ -21,6 +21,7 @@ ENTRYPOINT [ "deno", "run", "--allow-env", "--allow-read", "--allow-net", "--all
 
 FROM common as api
 ENV API_URL="http://0.0.0.0:80"
+RUN deno cache api.ts
 EXPOSE 80
 ENTRYPOINT [ "deno", "run", "--allow-env", "--allow-read", "--allow-net", "--allow-ffi", "api.ts" ]
 

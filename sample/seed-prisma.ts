@@ -1,12 +1,12 @@
 import { type AbiEvent, narrow } from "abitype";
 
 import { Buffer } from "node:buffer";
-import { keccak256, toBytes } from "npm:viem";
+import { keccak256, toBytes } from "viem";
 
-import { PrismaClient } from "~/prisma-shim.ts";
+import { PrismaClient } from "~/prisma/shim.ts";
 
-import { formatAbiItemPrototype } from "../abitype.ts";
-import { combinedEnv, DatabaseUrlEnvKey } from "../envUtils.ts";
+import { formatAbiItemPrototype } from "../utils/abiUtils.ts";
+import { combinedEnv, DatabaseUrlEnvKey } from "../utils/envUtils.ts";
 
 import sampleAbiJson from "./contracts/sampleAbi.json" assert { type: "json" };
 

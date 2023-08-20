@@ -1,15 +1,15 @@
+#!/usr/bin/env -S deno run --allow-read --allow-env --allow-run --allow-sys
+
 import { parse } from "std/flags/mod.ts";
-import * as path from "std/path/mod.ts";
 import { ConsoleHandler } from "std/log/handlers.ts";
 import { getLogger, setup as setupLog } from "std/log/mod.ts";
+import * as path from "std/path/mod.ts";
 
 import { parseOptions } from "amqp/src/amqp_connect_options.ts";
 
 import { broker } from "https://deno.land/x/lop@0.0.0-alpha.2/mod.ts";
 
-import { api } from "./api.ts";
-import { emitter } from "./emitter.ts";
-import { AmqpBrokerUrlEnvKey, combinedEnv } from "./envUtils.ts";
+import { AmqpBrokerUrlEnvKey, combinedEnv } from "./utils/envUtils.ts";
 import {
   ApiLoggerName,
   defaultLogFormatter,
@@ -19,15 +19,7 @@ import {
   ObserverLoggerName,
   TestWebhookReceiverLoggerName,
   WebLoggerName,
-} from "./logUtils.ts";
-import { observer } from "./observer.ts";
-import {
-  block,
-  runWithAmqp,
-  runWithChainDefinition,
-  runWithPrisma,
-} from "./runHelpers.ts";
-import { testWebhookReceiver } from "./testWebhookReceiver.ts";
+} from "./utils/logUtils.ts";
 
 async function prepareAndMain() {
   const status = await new Deno.Command("deno", {
@@ -58,6 +50,13 @@ async function prepareAndMain() {
 }
 
 async function main() {
+  const {
+    block,
+    runWithAmqp,
+    runWithChainDefinition,
+    runWithPrisma,
+  } = await import("./utils/runUtils.ts");
+
   setupLog({
     handlers: {
       console: new ConsoleHandler("DEBUG", {
@@ -112,17 +111,21 @@ async function main() {
     await runWithChainDefinition((chain) => ({
       runningPromise: runWithPrisma(async (prisma) => {
         const runningPromise = runWithAmqp(async (amqpConnection) => {
-          const { cleanup: cleanupObserver } = await observer(
-            chain,
+          const { cleanup: cleanupObserver } =
+            await (await import("./observer.ts")).observer(
+              chain,
+              prisma,
+              amqpConnection,
+            );
+          const { cleanup: cleanupEmitter } =
+            await (await import("./emitter.ts")).emitter(
+              chain,
+              prisma,
+              amqpConnection,
+            );
+          const { cleanup: cleanupApi } = await (await import("./api.ts")).api(
             prisma,
-            amqpConnection,
           );
-          const { cleanup: cleanupEmitter } = await emitter(
-            chain,
-            prisma,
-            amqpConnection,
-          );
-          const { cleanup: cleanupApi } = await api(prisma);
           return {
             runningPromise: block(),
             cleanup: async () => {
@@ -133,7 +136,8 @@ async function main() {
           };
         });
         const { cleanup: cleanupTestWebhookReceiver } =
-          await testWebhookReceiver();
+          await (await import("./devTools/testWebhookReceiver.ts"))
+            .testWebhookReceiver();
 
         return {
           runningPromise,

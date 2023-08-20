@@ -14,25 +14,25 @@ import { oakCors } from "https://deno.land/x/cors@v1.2.2/mod.ts";
 import { Buffer } from "node:buffer";
 
 import { stringify as losslessJsonStringify } from "npm:lossless-json";
-import { getAddress, keccak256, toHex } from "npm:viem";
+import { getAddress, keccak256, toHex } from "viem";
 
-import type { PrismaClient } from "./prisma-shim.ts";
+import type { PrismaClient } from "./prisma/shim.ts";
 
-import { serializeEventResponse } from "./EventResponse.ts";
-import { formatAbiItemPrototype } from "./abitype.ts";
-import { validateEventRequest } from "./apiSchema.ts";
+import { validateEventRequest } from "./constants/apiSchema.ts";
+import { serializeEventResponse } from "./messages/EventResponse.ts";
+import { formatAbiItemPrototype } from "./utils/abiUtils.ts";
 import {
   ApiBehindReverseProxyEnvKey,
   ApiUrlEnvKey,
   combinedEnv,
-} from "./envUtils.ts";
+} from "./utils/envUtils.ts";
 import {
   ApiLoggerName,
   defaultLogFormatter,
   getInternalLoggers,
   getLoggingLevel,
-} from "./logUtils.ts";
-import { runWithPrisma } from "./runHelpers.ts";
+} from "./utils/logUtils.ts";
+import { runWithPrisma } from "./utils/runUtils.ts";
 
 export function api(prisma: PrismaClient) {
   const hexToBuffer = (hex: string): Buffer => {
@@ -71,20 +71,27 @@ export function api(prisma: PrismaClient) {
 
     ctx.response.body = losslessJsonStringify((await prisma.event.findMany({
       where: {
-        blockHash: request.blockHash && hexToBuffer(request.blockHash),
+        blockHash: (request.blockHash && hexToBuffer(request.blockHash)) as
+          | Buffer
+          | undefined,
         blockNumber: request.blockIndex ?? { gte: blockFrom, lte: blockTo },
         logIndex: request.logIndex,
-        txHash: request.transactionHash && hexToBuffer(request.transactionHash),
-        sourceAddress: request.sourceAddress &&
-          hexToBuffer(request.sourceAddress),
-        abiHash: (request.abiHash && hexToBuffer(request.abiHash)) ??
+        txHash:
+          (request.transactionHash && hexToBuffer(request.transactionHash)) as
+            | Buffer
+            | undefined,
+        sourceAddress:
+          (request.sourceAddress && hexToBuffer(request.sourceAddress)) as
+            | Buffer
+            | undefined,
+        abiHash: ((request.abiHash && hexToBuffer(request.abiHash)) ??
           (request.abiSignature &&
             Buffer.from(
               keccak256(
                 new TextEncoder().encode(request.abiSignature),
                 "bytes",
               ),
-            )),
+            ))) as Buffer | undefined,
       },
       include: { Abi: true },
     })).map((evt) =>
@@ -92,7 +99,10 @@ export function api(prisma: PrismaClient) {
         address: evt.sourceAddress,
         sigHash: evt.abiHash,
         abi: evt.Abi.json,
-        topics: [evt.topic1, evt.topic2, evt.topic3],
+        topics: [evt.topic3, evt.topic2, evt.topic1].reduce(
+          (acc, x) => x != undefined ? [x, ...acc] : [],
+          [] as Uint8Array[],
+        ),
         data: evt.data,
         logIndex: BigInt(evt.logIndex),
         blockNumber: BigInt(evt.blockNumber),

@@ -1,8 +1,8 @@
 import * as path from "std/path/mod.ts";
 
-// TODO: this const should be changed to point to the root source code directory whenever this
+// XXX: this const should be changed to point to the root source code directory whenever this
 // file is moved.
-const relativeToBase = ".";
+const relativeToBase = "..";
 export const baseDir = path.join(
   path.dirname(path.fromFileUrl(import.meta.url)),
   relativeToBase,
